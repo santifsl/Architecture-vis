@@ -149,6 +149,44 @@ Because the palette is this quiet on purpose, the uploaded floor plan and
 the AI-rendered image are the only genuinely saturated things on any screen,
 that's deliberate, not an oversight to fix later.
 
+#### Structural reference for the home screen
+
+Adapted from the real Roomify tutorial project, not copied from it.
+
+The real project's home screen: navbar, then a hero section with a
+pill-shaped announcement badge (pulsing dot + text), a headline, a subtitle,
+two CTAs side by side (a text link and an outlined "Watch Demo" button), and
+an upload card sitting directly under the hero with a decorative
+grid-pattern background behind it. Below that, a "Projects" section: a grid
+of cards, each showing an image, a "Community" badge, the project name, and
+a clock-icon-plus-date-plus-author meta line.
+
+Our version keeps the good structural bones and cuts the generic-SaaS
+decoration that doesn't fit the palette's restraint:
+
+- **No pill badge with a pulsing dot**, in the navbar or the hero. That's a
+  startup-launch decoration that fights the near-monochrome, gallery-quality
+  restraint already decided above.
+- **One CTA in the hero, not two.** The upload card sitting right there in
+  the hero already is the demo; a separate "Watch Demo" button is a
+  marketing-site reflex this product doesn't need.
+- **The upload card keeps its icon, heading, file-type note, and drop
+  zone**, but no decorative grid-pattern background behind it. A plain
+  hairline border (`#E3DED3`), consistent with every other surface in the
+  app, replaces it.
+- **The projects grid keeps the card-grid shape** (image, name, date) but
+  drops the "Community" badge from every card. That word is reserved for the
+  actual public community feed (feature 9); a personal gallery showing your
+  own private projects should never imply they're already shared. The meta
+  line under each card shows something specific to Roomify instead of a
+  generic clock-and-author line: which model rendered it (Claude, Gemini, or
+  both), or a small before/after thumbnail pair.
+
+This section governs feature 5 (Upload) and feature 7 (App shell & gallery)
+the way the sketches governed LLM Arena's arena screen, leaderboard, and
+models page: it's structure only. Nothing here overrides the palette,
+typography, or accent rules already decided above.
+
 - [ ] Decide the approach
 - [ ] Build it
 
@@ -160,6 +198,10 @@ A user uploads a 2D floor plan image. It's written to permanent storage
 through `puter.fs`, which returns a real public URL, that URL is what
 everything downstream (the worker, the KV record, the comparison view) 
 actually points at, never a local blob URL that dies when the tab closes.
+
+The upload card's layout is governed by feature 4's structural reference for
+the home screen: icon, heading, file-type note, drop zone, hairline border,
+no grid-pattern background.
 
 - [ ] Decide the approach
 - [ ] Build it
@@ -188,6 +230,11 @@ signed-in user's own past projects, each card showing its floor plan
 thumbnail, its render (or its in-progress state) and which model(s) it used.
 This is what makes the tool feel like a real workspace across visits, not
 just a single one-off generation.
+
+The navbar and the card grid are governed by feature 4's structural
+reference for the home screen: no pill badge, no per-card "Community" badge,
+and a meta line naming the model(s) rather than a generic clock-and-author
+line.
 
 - [ ] Decide the approach
 - [ ] Build it
