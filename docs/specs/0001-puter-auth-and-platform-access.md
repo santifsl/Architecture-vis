@@ -1,7 +1,7 @@
 # 0001. Gate Puter behind an explicit auth fact resolved once at boot
 
 **Date**: 2026-08-25
-**Status**: Proposed
+**Status**: In Progress
 
 ## Summary
 
@@ -331,11 +331,19 @@ the rest of the app is allowed to touch.
 | Function | Signature | Key inputs | Key outputs | Auth | Key errors |
 |---|---|---|---|---|---|
 | `resolveAuthState` | `() => Promise<AuthState>` | none | `AuthState` | none, this is the check | never rejects and never prompts; every failure resolves to `signedOut` |
-| `signIn` | `() => Promise<AuthState>` | none | `AuthState` | must be called from a user activation | `popup_blocked` surfaced, `auth_window_closed` swallowed to `signedOut` |
+| `signIn` | `() => Promise<SignInOutcome>` | none | `{ readonly ok: true } \| { readonly ok: false; readonly failure: SignInFailure }` | must be called from a user activation | `popup_blocked` surfaced, `auth_window_closed` swallowed to `signedOut` |
 | `signOut` | `() => void` | none | void | none | none, Puter's `signOut` is synchronous and cannot fail |
 | `requireUser` | `(state: AuthState) => { readonly ok: true; readonly user: RoomifyUser } \| { readonly ok: false }` | current `AuthState` | a discriminated result | signed in only | none, it throws nothing; the route renders the prompt on `ok: false` |
 | `withPuter` | `<T>(fn: (p: Puter) => Promise<T>) => Promise<T>` | a function taking the SDK | its result | signed in only | rejects with the gate error when signed out, and never lets Puter prompt |
 | `puterEnv` | `() => { workerUrl: string }` | none | validated config | none | throws at startup when unset, caught by the boot screen |
+
+`signIn` returns a discriminated result rather than the resulting `AuthState`.
+This was corrected during the build: both `popup_blocked` and `auth_window_closed`
+land on `signedOut`, so an `AuthState` return cannot tell them apart, and AC-5
+needs exactly that distinction (a blocked popup earns a plain sentence and a
+retry, a closed one is the cancel it is). The resulting user still comes from one
+place only, the root `clientLoader` re-running after `revalidator.revalidate()`,
+so returning the outcome instead of the state adds no second path to the user.
 
 `withPuter` is the single doorway to `puter.fs`, `puter.kv`, and
 `puter.workers`. Nothing else in the app imports the SDK directly, and AC-11

@@ -108,11 +108,13 @@ for its real types. No temporary accounts.
 - [x] Decide the approach
 - [x] Write the spec
 - [ ] Build it: `/develop` feature 1
-  - [ ] Platform access module, the single SDK import, and the non-interactive
+  - [x] Platform access module, the single SDK import, and the non-interactive
         boot check, satisfies AC-1, AC-9, AC-10
-  - [ ] Root route wired with sign in and sign out working end to end. **This is
+  - [x] Root route wired with sign in and sign out working end to end. **This is
         the review point**, the thin thread should genuinely run here before
-        anything below is built, satisfies AC-2, AC-3, AC-4
+        anything below is built, satisfies AC-2, AC-3, AC-4. Built, not yet
+        confirmed in a browser: the boot-with-a-dead-token walkthrough is the
+        one that proves it
   - [ ] Popup failures, the session-ended banner, and the route guard, satisfies
         AC-5, AC-6, AC-7
   - [ ] Environment validation with a readable boot screen, plus the check that
@@ -120,6 +122,13 @@ for its real types. No temporary accounts.
   - [ ] Typecheck, lint, real build, and the manual browser walkthrough,
         satisfies AC-9
 - [ ] Verify it: `/check verify` feature 1
+
+Code: `app/platform/puter.ts` is the only module importing the SDK (`withPuter`,
+the non-interactive `readCurrentUser`, sign in and sign out). `app/auth/` holds
+`AuthState` and `resolveAuthState` (`state.ts`), the two deliberate actions
+(`actions.ts`), and the chrome (`AuthControl.tsx`, `BootScreen.tsx`). The root
+`clientLoader` and `HydrateFallback` are in `app/root.tsx`; the palette tokens
+and shared button and boot-rule treatments are in `app/app.css`.
 
 No `/test` box on this feature: CLAUDE.md rules out a test runner and browser
 automation for this project, so verification is the manual walkthrough in the
