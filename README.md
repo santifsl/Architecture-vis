@@ -1,87 +1,54 @@
-# Welcome to React Router!
+# Roomify
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Upload a 2D floor plan, pick Claude, Gemini, or both, and get back a
+photorealistic 3D render of the space.
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+Read [`scope.md`](./scope.md) first — it's the living plan and tracks what's
+actually built. [`docs/coding-standards.md`](./docs/coding-standards.md) has the
+conventions.
 
-## Features
+## Stack
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+React 19 · React Router v8 (framework mode, **SPA** — `ssr: false`) · Vite ·
+TypeScript · TailwindCSS v4 · Puter.js as the entire backend.
 
-## Getting Started
+There is no server of ours. Puter.js is a client-only SDK and handles auth,
+file storage, the KV database, and the workers that call Claude and Gemini,
+all from the browser. See scope.md's Deployment section for why.
 
-### Installation
-
-Install the dependencies:
+## Getting started
 
 ```bash
 npm install
-```
-
-### Development
-
-Start the development server with HMR:
-
-```bash
 npm run dev
 ```
 
-Your application will be available at `http://localhost:5173`.
+The app runs at `http://localhost:5173`.
 
-## Building for Production
+Requires `VITE_PUTER_WORKER_URL` in a `.env` file. The app fails fast at
+startup if it's missing.
 
-Create a production build:
+## Scripts
 
-```bash
-npm run build
-```
+| Command             | What it does                                       |
+| ------------------- | -------------------------------------------------- |
+| `npm run dev`       | Dev server with HMR.                                |
+| `npm run build`     | Production build into `build/client/`.              |
+| `npm run typecheck` | Route typegen, then `tsc`.                          |
+
+There's no `start` script — a static SPA has no server to start.
 
 ## Deployment
 
-### Docker Deployment
+Vercel, static. `vercel.json` sets the output directory to `build/client` and
+rewrites all paths to `/index.html` so client-side routes survive a hard
+refresh.
 
-To build and run using Docker:
+## Working in this repo
 
-```bash
-docker build -t my-app .
+Routes must stay SSR-safe: the root route is rendered **at build time** to
+generate `index.html`, so no `window`, `document`, or `puter.*` during the
+initial render. Reach Puter from an effect or an event handler.
 
-# Run the container
-docker run -p 3000:3000 my-app
-```
-
-The containerized application can be deployed to any platform that supports Docker, including:
-
-- AWS ECS
-- Google Cloud Run
-- Azure Container Apps
-- Digital Ocean App Platform
-- Fly.io
-- Railway
-
-### DIY Deployment
-
-If you're familiar with deploying Node applications, the built-in app server is production-ready.
-
-Make sure to deploy the output of `npm run build`
-
-```
-├── package.json
-├── package-lock.json (or pnpm-lock.yaml, or bun.lockb)
-├── build/
-│   ├── client/    # Static assets
-│   └── server/    # Server-side code
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+Only `clientLoader` and `clientAction` are available — no server `loader`
+outside the root route.
