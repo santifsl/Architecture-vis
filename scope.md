@@ -72,7 +72,7 @@ cheap decision to make now.
 
 | #   | Feature                                              | Phase      | Status      |
 | --- | ----------------------------------------------------- | ---------- | ----------- |
-| 1   | Connecting to Puter                                  | Foundation | not started |
+| 1   | Connecting to Puter                                  | Foundation | in progress |
 | 2   | Coding standards & tooling                           | Foundation | not started |
 | 3   | Data model                                           | Foundation | not started |
 | 4   | Design & look                                        | Foundation | not started |
@@ -85,7 +85,7 @@ cheap decision to make now.
 
 ## Foundation
 
-### 1. Connecting to Puter · needs a decision
+### 1. Connecting to Puter · in progress
 
 The Vite project itself gets created manually first, `npm create vite@latest`,
 fast and simple, no reason to spend agent time or tokens on something that
@@ -98,8 +98,38 @@ re-checking it in five different places. Decide that shape once, then wire
 `puter.fs`, `puter.kv`, and `puter.workers` into the project alongside it,
 since all four are really one connection to the same platform.
 
-- [ ] Decide the approach
-- [ ] Write the spec
+**Spec: [0001](docs/specs/0001-puter-auth-and-platform-access.md).** Decided: sign
+in only from a deliberate click, the user resolved once at boot from Puter's own
+non-interactive cached check (`puter.whoamiCache_`, never `getUser()`, which
+raises a login popup on an expired token), held in root `clientLoader` data and
+revalidated on sign in and sign out. SDK via the `@heyputer/puter.js` npm package
+for its real types. No temporary accounts.
+
+- [x] Decide the approach
+- [x] Write the spec
+- [ ] Build it: `/develop` feature 1
+  - [ ] Platform access module, the single SDK import, and the non-interactive
+        boot check, satisfies AC-1, AC-9, AC-10
+  - [ ] Root route wired with sign in and sign out working end to end. **This is
+        the review point**, the thin thread should genuinely run here before
+        anything below is built, satisfies AC-2, AC-3, AC-4
+  - [ ] Popup failures, the session-ended banner, and the route guard, satisfies
+        AC-5, AC-6, AC-7
+  - [ ] Environment validation with a readable boot screen, plus the check that
+        only the access module imports the SDK, satisfies AC-8, AC-11
+  - [ ] Typecheck, lint, real build, and the manual browser walkthrough,
+        satisfies AC-9
+- [ ] Verify it: `/check verify` feature 1
+
+No `/test` box on this feature: CLAUDE.md rules out a test runner and browser
+automation for this project, so verification is the manual walkthrough in the
+spec's test scenarios.
+
+Also from spec 0001: write a project-local `.agents/skills/puter/` skill
+mirroring the bundled `react-router` one. No usable Puter skill exists in the
+registry (the one candidate was reviewed and declined; it teaches the CDN global
+this project rejects). The installed package's own source and generated types are
+the only accurate reference.
 
 ### 2. Coding standards & tooling
 
@@ -111,6 +141,10 @@ written ahead of the tooling it describes.
 - [ ] Decide the approach
 - [ ] Install lint, format, and whatever else is needed, and write it up in
       `docs/coding-standards.md`
+- [ ] From spec 0001: an ESLint `no-restricted-imports` rule allowing
+      `@heyputer/puter.js` only in the platform access module. Feature 1's AC-11
+      rests on a grep until this exists, and the rule is what stops a stray SDK
+      import quietly reintroducing an unbidden login popup.
 
 ### 3. Data model · needs a decision
 
@@ -123,6 +157,18 @@ however the community feed actually finds public projects without scanning
 every key a user has ever written. That lookup shape is worth deciding
 carefully now, since it's the one part of a KV store that doesn't come for
 free the way a relational query would.
+
+**Constraint raised by spec 0001, settle it here before feature 9 is built.**
+`puter.kv` is scoped per user per app. That is why `puter.perms` exists at all:
+one app reaching another app's data for a user needs an explicit grant. A signed
+out visitor is not a reader with fewer permissions, they hold no credentials at
+all, so there is no obvious way for them to read anybody's KV records. Feature
+9's promise that anyone can browse the community feed without an account
+therefore does not follow from a KV lookup, and the lookup shape above has to
+answer this rather than assume it. The likely escape hatch is a public feed index
+published as a hosted artifact (`puter.hosting`, or a file with a public
+`puter.fs` URL) that anonymous visitors fetch over ordinary HTTP. Treat that as
+the thing to verify, not as settled.
 
 - [ ] Decide the approach
 - [ ] Build it
