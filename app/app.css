@@ -1,15 +1,128 @@
 @import "tailwindcss";
 
+/*
+ * Roomify's decided palette and the shared treatments built from it.
+ * The palette itself is decided in scope.md, feature 4 (Design & look):
+ * near-monochrome bone and ivory, warm near-black ink, one burnt-clay accent
+ * used only for things you interact with. Nothing else gets the accent.
+ *
+ * Raw hex values live here and nowhere else, per CLAUDE.md.
+ */
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  --color-bone: #faf8f4;
+  --color-ivory: #efebe3;
+  --color-ink: #1c1b19;
+  --color-ink-soft: #8a8478;
+  --color-hairline: #e3ded3;
+  --color-clay: #b5551f;
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+  background-color: var(--color-bone);
+  color: var(--color-ink);
+  color-scheme: light;
+}
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
+/*
+ * One focus treatment for every interactive element in the app, in the accent.
+ * Keyboard focus has to be genuinely visible against bone, so it is an offset
+ * ring rather than a tinted background.
+ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-clay);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* The call to action. Outlined rather than filled: the accent stays quiet. */
+.btn-accent {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-clay);
+  border-radius: 2px;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--color-clay);
+  background-color: transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.btn-accent:hover {
+  background-color: var(--color-clay);
+  color: var(--color-bone);
+}
+
+/* A secondary action. Reads as text until you reach for it. */
+.btn-quiet {
+  border: 0;
+  background: none;
+  padding: 0.4rem 0.25rem;
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  cursor: pointer;
+  text-underline-offset: 0.25em;
+  transition: color 120ms ease;
+}
+
+.btn-quiet:hover {
+  color: var(--color-clay);
+  text-decoration: underline;
+}
+
+.btn-accent[disabled],
+.btn-quiet[disabled] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/*
+ * The boot rule: the app's one loading signal. Per scope.md, work in progress is
+ * the accent at reduced opacity rather than a second hue, so this is a hairline
+ * that fills in clay and then recedes, never a spinner and never a new color.
+ */
+.boot-rule {
+  position: relative;
+  height: 1px;
+  width: 100%;
+  background-color: var(--color-hairline);
+  overflow: hidden;
+}
+
+.boot-rule::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 40%;
+  background-color: var(--color-clay);
+  opacity: 0.55;
+  animation: boot-sweep 1.4s ease-in-out infinite;
+}
+
+@keyframes boot-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-rule::after {
+    animation: none;
+    width: 100%;
+  }
+
+  .btn-accent,
+  .btn-quiet {
+    transition: none;
   }
 }
