@@ -126,3 +126,42 @@ body {
     transition: none;
   }
 }
+
+/*
+ * The session-ended strip. It sits between the header and the page, on the
+ * surface tone rather than a raised panel, because an ended session is a fact to
+ * state, not an alarm to raise. Public/private and error states follow the same
+ * rule elsewhere: no status color, ever.
+ */
+.banner {
+  border-bottom: 1px solid var(--color-hairline);
+  background-color: var(--color-ivory);
+  padding: 0.75rem 1.5rem;
+}
+
+/*
+ * The one error treatment in the app, per scope.md's design feature: body ink
+ * plus a thin accent-outlined mark with no fill. Used anywhere an auth action
+ * could not complete, so the sentence is the loud part and the mark is not.
+ */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  max-width: 42ch;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.notice-mark {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+  margin-top: 0.15rem;
+  fill: none;
+  stroke: var(--color-clay);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+}

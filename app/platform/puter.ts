@@ -105,9 +105,9 @@ export const readCurrentUser = async (): Promise<RoomifyUser | null> => {
  * per AC-2: this is the only path in the app that is allowed to raise it.
  *
  * Resolves to the failure code on a rejection rather than throwing, so callers
- * handle a blocked popup and a closed popup as ordinary outcomes. Milestone 2
- * treats every failure the same way (back to signed out); milestone 3 is where
- * `popup_blocked` grows its own sentence and retry, per AC-5.
+ * handle a blocked popup and a closed popup as ordinary outcomes rather than as
+ * exceptions. `useSignIn` is what turns each code into what a person sees, per
+ * AC-5: a sentence and a retry for a blocked popup, silence for a closed one.
  */
 export const openSignIn = async (): Promise<{ readonly ok: true } | { readonly ok: false; readonly failure: SignInFailure }> => {
   try {
@@ -139,4 +139,33 @@ export const clearSignIn = (): void => {
 export const withPuter = async <T>(fn: (sdk: typeof puter) => Promise<T>): Promise<T> => {
   if (!hasStoredToken()) throw new PuterGateError();
   return fn(puter);
+};
+
+/**
+ * Fires when Puter itself decides the session is over. Spec 0001, AC-6.
+ *
+ * The SDK's network layer emits `puter.auth.reauth_required` when a request the
+ * person did not start comes back 401. On that path the SDK drops the dead token
+ * and announces it rather than raising a popup, which is exactly the moment the
+ * banner is for. Returns its own unsubscribe.
+ */
+export const onSessionEnded = (handler: () => void): (() => void) => {
+  const off = puter.on("puter.auth.reauth_required", handler);
+  return () => {
+    off();
+  };
+};
+
+/**
+ * Fires whenever the stored token changes, whichever code path changed it.
+ *
+ * A safety net rather than a source of truth: it only asks the root loader to
+ * run again, so the router's copy of the auth fact cannot go stale behind the
+ * app's back. It never decides anything itself.
+ */
+export const onAuthTokenChanged = (handler: () => void): (() => void) => {
+  const off = puter.onAuthStateChanged(handler);
+  return () => {
+    off();
+  };
 };

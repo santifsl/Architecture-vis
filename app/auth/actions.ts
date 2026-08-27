@@ -17,8 +17,8 @@ export type SignInOutcome =
  *
  * A blocked popup and a popup the person closed themselves are both ordinary
  * outcomes here, not exceptions, so nothing raw ever reaches a screen. Telling
- * them apart is what AC-5 needs in milestone 3: a blocked popup earns a plain
- * sentence and a retry, a closed one is treated as the cancel it is.
+ * them apart is what AC-5 needs: `useSignIn` gives a blocked popup its own plain
+ * sentence and a retry, and treats a closed one as the cancel it is.
  */
 export const signIn = (): Promise<SignInOutcome> => openSignIn();
 

@@ -10,7 +10,9 @@ import {
 import type { Route } from "./+types/root";
 import { AuthControl } from "~/auth/AuthControl";
 import { BootScreen } from "~/auth/BootScreen";
+import { SessionBanner } from "~/auth/SessionBanner";
 import { resolveAuthState } from "~/auth/state";
+import { useAuthEvents } from "~/auth/useAuthEvents";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -67,12 +69,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
+  // Mounted once, here, because the layout outlives every page: Puter ending a
+  // session has to be heard wherever the person happens to be.
+  useAuthEvents();
+
   return (
     <>
-      <header className="flex items-center justify-between gap-4 border-b border-hairline px-6 py-3">
+      <header className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-3">
         <span className="text-base font-medium tracking-tight text-ink">Roomify</span>
         <AuthControl state={loaderData.auth} />
       </header>
+      <SessionBanner state={loaderData.auth} />
       <Outlet />
     </>
   );
