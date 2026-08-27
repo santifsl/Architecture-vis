@@ -15,8 +15,9 @@
  * person has to read and act on.
  *
  * There is no retry control on purpose. A reload cannot fix this: the fix is a
- * file on disk and a restarted dev server, so the screen says that instead of
- * offering a button that would fail the same way.
+ * file on disk and a restarted dev server locally, or a rebuild and redeploy on
+ * a deployed build, so the screen says that instead of offering a button that
+ * would fail the same way.
  */
 import type { RequiredVariable } from "~/platform/env";
 
@@ -64,6 +65,12 @@ export function ConfigScreen({ missing }: { readonly missing: readonly RequiredV
             deployed Puter worker was given.
           </li>
           <li>Restart the dev server.</li>
+          <li>
+            On a deployed build, set {plural ? "the same variables" : "the same variable"} in the
+            build environment instead, then rebuild and redeploy. Vite inlines{" "}
+            <code className="code-token">VITE_</code> values at build time, so a running deployment
+            cannot pick {plural ? "them" : "it"} up without a new build.
+          </li>
         </ol>
       </div>
     </main>

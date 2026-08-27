@@ -263,9 +263,9 @@ result this design turns on. Tasks 5 to 7 are built, and their scenarios were
 walked and passed on 2026-08-26, with the shared sign-in cases walked on
 2026-08-27 once the interaction moved into `signInStore`; all of it is recorded
 case by case in `verify.md`. Build tasks 8 and 9 landed on 2026-08-27 and their
-commands pass; what is still open is the browser walk for the configuration
-screen, the offline boot case, and the individual checks `verify.md` leaves
-unticked with a reason beside each.
+commands pass, and all four configuration-screen checks were walked in a real
+browser on 2026-08-27 and passed; what is still open is the offline boot case
+and the individual checks `verify.md` leaves unticked with a reason beside each.
 
 - **Verified.** Happy path: load the app signed out, activate sign in, complete Puter's popup,
   and confirm the navbar shows the username with no reload. Verifies **AC-2**,
@@ -352,7 +352,9 @@ already runs.
     variable set and with it unset, and the prerendered `index.html` contains
     the boot screen and no Puter call. Lint does not exist yet: feature 2
     installs it, so `npm run check` runs typecheck plus the import check for
-    now. The manual browser walk is still owed; `verify.md` lists what is left.
+    now. The manual browser walk of the configuration screen was done on
+    2026-08-27 and passed all four checks; the offline boot case and the checks
+    `verify.md` leaves unticked with a reason are what remain.
     Satisfies **AC-9**.
 
 Task 4 is the review point. If the thread does not work there, the plan is wrong

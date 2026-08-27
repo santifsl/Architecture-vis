@@ -134,13 +134,14 @@ for its real types. No temporary accounts.
         to sit inside. The import rule landed as `scripts/check-sdk-import.mjs`
         (`npm run check:imports`) instead of a bare grep, and was proven against
         a planted violation rather than only against a clean tree
-  - [x] Typecheck, lint, real build, and the manual browser walkthrough,
-        satisfies AC-9. Typecheck and a real build pass, with the variable set
+  - [x] Typecheck, real build, and the manual browser walkthrough, satisfies
+        AC-9 except for lint. Typecheck and a real build pass, with the variable set
         and unset, and no Puter call runs during the build-time root render. All
         four configuration-screen steps were walked in a real browser on
-        2026-08-27 and passed. Lint is the one part not done here and cannot be:
-        feature 2 is what installs it, and its ESLint `no-restricted-imports`
-        task is what finally replaces `npm run check:imports`
+        2026-08-27 and passed
+  - [ ] Lint, the remaining part of AC-9. Not done here and cannot be: feature 2
+        is what installs it, and its ESLint `no-restricted-imports` task is what
+        finally replaces `npm run check:imports`
 - [ ] Verify it: `/check verify` feature 1
       _Skipped deliberately. The manual walkthrough in `verify.md` is this
       project's verification (CLAUDE.md rules out a test runner and browser

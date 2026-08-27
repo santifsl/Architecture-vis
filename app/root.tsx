@@ -11,6 +11,7 @@ import type { Route } from "./+types/root";
 import { AuthControl } from "~/auth/AuthControl";
 import { BootScreen } from "~/auth/BootScreen";
 import { SessionBanner } from "~/auth/SessionBanner";
+import type { AuthState } from "~/auth/state";
 import { resolveAuthState } from "~/auth/state";
 import { useAuthEvents } from "~/auth/useAuthEvents";
 import { ConfigScreen } from "~/platform/ConfigScreen";
@@ -79,27 +80,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App({ loaderData }: Route.ComponentProps) {
-  // Mounted once, here, because the layout outlives every page: Puter ending a
-  // session has to be heard wherever the person happens to be. Called before
-  // the configuration branch below so the hook order never changes; with no
-  // worker URL there is no Puter to hear from anyway.
+/**
+ * The configured app. Separate component on purpose: it is the only thing that
+ * subscribes to Puter, and it renders only once configuration has passed, so a
+ * missing worker URL can never leave listeners registered against the SDK.
+ *
+ * The subscription is mounted here, above every page, because the layout
+ * outlives them all: Puter ending a session has to be heard wherever the person
+ * happens to be. Its hook order is fixed because this component is either
+ * mounted whole or not at all.
+ */
+function ConfiguredApp({ auth }: { readonly auth: AuthState }) {
   useAuthEvents();
-
-  if (loaderData.config === "missing") {
-    return <ConfigScreen missing={loaderData.missing} />;
-  }
 
   return (
     <>
       <header className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-3">
         <span className="text-base font-medium tracking-tight text-ink">Roomify</span>
-        <AuthControl state={loaderData.auth} />
+        <AuthControl state={auth} />
       </header>
-      <SessionBanner state={loaderData.auth} />
+      <SessionBanner state={auth} />
       <Outlet />
     </>
   );
+}
+
+export default function App({ loaderData }: Route.ComponentProps) {
+  if (loaderData.config === "missing") {
+    return <ConfigScreen missing={loaderData.missing} />;
+  }
+
+  return <ConfiguredApp auth={loaderData.auth} />;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

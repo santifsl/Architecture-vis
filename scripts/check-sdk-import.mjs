@@ -22,7 +22,7 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const scanned = join(root, "app");
 const allowed = join("app", "platform", "puter.ts");
 const sdk = "@heyputer/puter.js";
-const extensions = [".ts", ".tsx", ".js", ".jsx", ".mts", ".cts"];
+const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"];
 
 const walk = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -33,9 +33,12 @@ const walk = (dir) =>
 
 // Matches a static import, a re-export, and a dynamic `import()` alike. A
 // bare substring search would also flag this file's own prose, so the module
-// specifier has to be in quotes and in an import position.
+// specifier has to be in quotes and in an import position. The specifier is
+// escaped before it goes into the pattern, so the `.` in the package name is a
+// literal dot rather than a wildcard that would match a near-miss name.
+const escaped = sdk.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const importsSdk = (source) =>
-  new RegExp(`(from|import)\\s*\\(?\\s*["']${sdk.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}["']`).test(source);
+  new RegExp(`(from|import)\\s*\\(?\\s*["']${escaped}["']`).test(source);
 
 const offenders = walk(scanned)
   .map((file) => relative(root, file))
