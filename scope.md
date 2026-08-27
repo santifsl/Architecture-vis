@@ -98,7 +98,7 @@ re-checking it in five different places. Decide that shape once, then wire
 `puter.fs`, `puter.kv`, and `puter.workers` into the project alongside it,
 since all four are really one connection to the same platform.
 
-**Spec: [0001](docs/specs/0001-puter-auth-and-platform-access.md).** Decided: sign
+**Spec: [0001](docs/specs/0001-puter-auth-and-platform-access/index.md).** Decided: sign
 in only from a deliberate click, the user resolved once at boot from Puter's own
 non-interactive cached check (`puter.whoamiCache_`, never `getUser()`, which
 raises a login popup on an expired token), held in root `clientLoader` data and
@@ -112,11 +112,19 @@ for its real types. No temporary accounts.
         boot check, satisfies AC-1, AC-9, AC-10
   - [x] Root route wired with sign in and sign out working end to end. **This is
         the review point**, the thin thread should genuinely run here before
-        anything below is built, satisfies AC-2, AC-3, AC-4. Built, not yet
-        confirmed in a browser: the boot-with-a-dead-token walkthrough is the
-        one that proves it
-  - [ ] Popup failures, the session-ended banner, and the route guard, satisfies
-        AC-5, AC-6, AC-7
+        anything below is built, satisfies AC-2, AC-3, AC-4. Confirmed in a
+        real browser before the PR merged: signed-out load, sign in, signed-in
+        reload, and the corrupted-token reload, which settled to signed out
+        with no Puter popup. The thread genuinely runs
+  - [x] Popup failures, the session-ended banner, and the route guard, satisfies
+        AC-5, AC-6, AC-7. Built on branch `feature/auth-failures-and-guard`.
+        Typecheck and a real build pass, and all seven manual cases were walked
+        in a real browser on 2026-08-26 and passed. Two of them (a blocked popup,
+        and Puter ending a live session) have no interface that can produce them,
+        so `verify.md` records the console recipes that drive the real SDK path
+        for each. A cold reload holding a dead token deliberately shows no
+        banner: AC-6 is about a session ending mid-use, and the SDK's boot event
+        fires before anything is listening anyway
   - [ ] Environment validation with a readable boot screen, plus the check that
         only the access module imports the SDK, satisfies AC-8, AC-11
   - [ ] Typecheck, lint, real build, and the manual browser walkthrough,
@@ -124,15 +132,22 @@ for its real types. No temporary accounts.
 - [ ] Verify it: `/check verify` feature 1
 
 Code: `app/platform/puter.ts` is the only module importing the SDK (`withPuter`,
-the non-interactive `readCurrentUser`, sign in and sign out). `app/auth/` holds
-`AuthState` and `resolveAuthState` (`state.ts`), the two deliberate actions
-(`actions.ts`), and the chrome (`AuthControl.tsx`, `BootScreen.tsx`). The root
-`clientLoader` and `HydrateFallback` are in `app/root.tsx`; the palette tokens
-and shared button and boot-rule treatments are in `app/app.css`.
+the non-interactive `readCurrentUser`, sign in and sign out, and the two event
+subscriptions). `app/auth/` holds `AuthState`, `resolveAuthState` and
+`requireUser` (`state.ts`), the two deliberate actions (`actions.ts`), the
+one-shot session-ended flag (`sessionEnded.ts`), the shared hooks (`useSignIn`,
+`useAuthState`, `useAuthEvents`), and the chrome (`AuthControl.tsx`,
+`SessionBanner.tsx`, `SignInPrompt.tsx`, `RequireUser.tsx`, `AuthNotice.tsx`,
+`BootScreen.tsx`). The root `clientLoader`, `HydrateFallback`, and the event
+subscription live in `app/root.tsx`; `app/routes/projects.tsx` is the first
+guarded route, a placeholder feature 7 fills in. The palette tokens and the
+shared button, banner, notice, and boot-rule treatments are in `app/app.css`.
 
 No `/test` box on this feature: CLAUDE.md rules out a test runner and browser
-automation for this project, so verification is the manual walkthrough in the
-spec's test scenarios.
+automation for this project, so verification is the manual walkthrough in
+[the spec's verify checklist](docs/specs/0001-puter-auth-and-platform-access/verify.md).
+That file is the running record of what has actually been walked in a browser and
+what has not, milestone by milestone.
 
 Also from spec 0001: write a project-local `.agents/skills/puter/` skill
 mirroring the bundled `react-router` one. No usable Puter skill exists in the
