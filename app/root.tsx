@@ -11,8 +11,11 @@ import type { Route } from "./+types/root";
 import { AuthControl } from "~/auth/AuthControl";
 import { BootScreen } from "~/auth/BootScreen";
 import { SessionBanner } from "~/auth/SessionBanner";
+import type { AuthState } from "~/auth/state";
 import { resolveAuthState } from "~/auth/state";
 import { useAuthEvents } from "~/auth/useAuthEvents";
+import { ConfigScreen } from "~/platform/ConfigScreen";
+import { checkPuterEnv } from "~/platform/env";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -36,9 +39,18 @@ export const links: Route.LinksFunction = () => [
  * both useless and unsafe. `resolveAuthState` never rejects and never raises a
  * sign-in popup, so there is nothing here for an error boundary to catch and
  * nothing a returning visitor with a dead token can be ambushed by.
+ *
+ * Configuration is checked first, per AC-8. A missing `VITE_PUTER_WORKER_URL`
+ * short-circuits: there is no point resolving who is signed in for an app that
+ * cannot render anything. It returns the failure as data rather than throwing,
+ * so `ConfigScreen` renders in the ordinary way instead of through
+ * `ErrorBoundary`, which is what keeps a raw exception off the screen.
  */
 export async function clientLoader() {
-  return { auth: await resolveAuthState() };
+  const config = checkPuterEnv();
+  if (!config.ok) return { config: "missing", missing: config.missing } as const;
+
+  return { config: "ok", auth: await resolveAuthState() } as const;
 }
 
 // Stated explicitly: this loader runs during initial hydration. With no server
@@ -68,21 +80,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function App({ loaderData }: Route.ComponentProps) {
-  // Mounted once, here, because the layout outlives every page: Puter ending a
-  // session has to be heard wherever the person happens to be.
+/**
+ * The configured app. Separate component on purpose: it is the only thing that
+ * subscribes to Puter, and it renders only once configuration has passed, so a
+ * missing worker URL can never leave listeners registered against the SDK.
+ *
+ * The subscription is mounted here, above every page, because the layout
+ * outlives them all: Puter ending a session has to be heard wherever the person
+ * happens to be. Its hook order is fixed because this component is either
+ * mounted whole or not at all.
+ */
+function ConfiguredApp({ auth }: { readonly auth: AuthState }) {
   useAuthEvents();
 
   return (
     <>
       <header className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-3">
         <span className="text-base font-medium tracking-tight text-ink">Roomify</span>
-        <AuthControl state={loaderData.auth} />
+        <AuthControl state={auth} />
       </header>
-      <SessionBanner state={loaderData.auth} />
+      <SessionBanner state={auth} />
       <Outlet />
     </>
   );
+}
+
+export default function App({ loaderData }: Route.ComponentProps) {
+  if (loaderData.config === "missing") {
+    return <ConfigScreen missing={loaderData.missing} />;
+  }
+
+  return <ConfiguredApp auth={loaderData.auth} />;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

@@ -5,7 +5,9 @@
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "check:imports": "node scripts/check-sdk-import.mjs",
+    "check": "npm run typecheck && npm run check:imports"
   },
   "dependencies": {
     "@heyputer/puter.js": "2.6.2",

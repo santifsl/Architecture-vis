@@ -184,28 +184,62 @@ AC-6 and belongs to `/architect`, not a quiet patch here.
       the dev server anyway, which serves the SPA fallback whether or not the
       rewrite is right. Walk it on the first Vercel deployment._
 
+## Milestone 4 · configuration and the import rule
+
+Built on 2026-08-27 on branch `feature/env-validation-and-import-guard`. The
+commands below were run and passed, and all four browser steps were walked by
+hand on 2026-08-27 and passed. Re-walk them after any change to `env.ts`, to
+`ConfigScreen`, or to the configuration branch in the root `clientLoader`.
+
+**Setup for these steps.** `VITE_PUTER_WORKER_URL` is read by Vite at startup,
+not per request, so every change to it needs the dev server stopped and started
+again. A running server will not pick it up, and neither will a browser reload.
+
+- [x] With no `.env` file at all (or the variable blank), `npm run dev` and open
+      http://localhost:5173 → a readable screen headed "Roomify", stating that
+      Roomify can't start, naming `VITE_PUTER_WORKER_URL`, and telling you to
+      copy `.env.example` to `.env` and restart. No blank page, no console
+      stack, no raw exception, no red → AC-8
+- [x] On that same screen, navigate straight to http://localhost:5173/projects →
+      the same configuration screen, not the sign-in prompt and not a broken
+      page. A missing worker URL replaces the whole app, so no route renders its
+      own content → AC-8
+- [x] Set `VITE_PUTER_WORKER_URL` in `.env` to any `https://…puter.work` value,
+      restart the dev server, reload → the normal app returns: header, sign-in
+      control, home page. Nothing about the configuration screen lingers → AC-8
+- [x] Tab through the configuration screen → nothing is focusable except
+      ordinary text selection, and no focus trap. It offers no retry button on
+      purpose: a reload cannot fix a file on disk → AC-8
+
+_All four walked on 2026-08-27 and passed._
+
 ## Still owed from later build tasks
 
-Not built yet as of 2026-08-26. Listed here so this file stays the full picture
-of what proving spec 0001 takes.
+As of 2026-08-27 the only step here with no build behind it is the offline one.
+Build task 8 has landed, so its case moved up into milestone 4 above.
 
 - [ ] Boot offline: hold a valid token, disconnect the network, reload → the app
       settles on signed out with no hang and no raw error → AC-1
-- [ ] Unset `VITE_PUTER_WORKER_URL`, start the dev server → a readable screen
-      naming the variable and pointing at `.env.example`, not a blank page →
-      AC-8 (build task 8)
+      _Built since milestone 2: `readCurrentUser` already resolves a network
+      failure to signed out. Never actually walked with the network cut._
 
 ## Commands
 
 - [x] `npm run typecheck` → passes → AC-9
 - [x] `npm run build` → succeeds under `ssr: false`, and no Puter call runs
       during the build-time root render → AC-9
-- [x] `grep -rn "@heyputer/puter.js" app/` → hits `app/platform/puter.ts` only →
+- [x] `npm run check:imports` → exits 0 and prints that the SDK is imported by
+      `app/platform/puter.ts` only → AC-11
+      _Build task 9. `scripts/check-sdk-import.mjs` replaces the hand-run grep:
+      it walks `app/`, matches static imports, re-exports, and dynamic
+      `import()` alike, and exits non-zero naming the offending files. Proven
+      against a planted violation of each kind on 2026-08-27, so it fails when
+      it should rather than passing vacuously. Until feature 2 installs the
+      ESLint `no-restricted-imports` rule this is the whole of AC-11, so run it
+      before every merge. It is evidence for AC-11 only: it proves where the SDK
+      is imported, not that every use of it goes through `withPuter`._
+- [x] `npm run check` → runs typecheck then the import check, both pass → AC-9,
       AC-11
-      _Until feature 2 installs the ESLint `no-restricted-imports` rule, this
-      grep is the whole of AC-11. Run it before every merge. It is evidence for
-      AC-11 only: it proves where the SDK is imported, not that every use of it
-      goes through `withPuter`._
 - [ ] Every `puter.fs`, `puter.kv`, and `puter.workers` use goes through
       `withPuter` → AC-10
       _Not verifiable yet by the import grep, and nothing in the app makes such a
@@ -226,7 +260,8 @@ of what proving spec 0001 takes.
 - **AC-6** ended session states itself and keeps the page · the six ended-session
   steps
 - **AC-7** guarded route prompts in place, no redirect · the three guard steps
-- **AC-8** missing environment variable fails readably · owed, build task 8
+- **AC-8** missing environment variable fails readably · the four milestone 4
+  steps, all walked on 2026-08-27
 - **AC-9** the real build passes with no Puter call at build time · the commands
 - **AC-10** `puter.fs`, `puter.kv`, and `puter.workers` only through `withPuter` ·
   **not verified.** The import grep is AC-11's evidence and does not reach this:

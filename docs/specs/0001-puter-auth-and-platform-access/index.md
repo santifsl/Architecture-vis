@@ -1,7 +1,7 @@
 # 0001. Gate Puter behind an explicit auth fact resolved once at boot
 
 **Date**: 2026-08-25
-**Status**: In Progress
+**Status**: Accepted
 
 The decision history (context, the options weighed, the reasoning, and the
 sources) lives beside this file in `rationale.md`. The hand walkthrough that
@@ -262,8 +262,10 @@ point. The dead-token case settled to signed out with no popup, which is the
 result this design turns on. Tasks 5 to 7 are built, and their scenarios were
 walked and passed on 2026-08-26, with the shared sign-in cases walked on
 2026-08-27 once the interaction moved into `signInStore`; all of it is recorded
-case by case in `verify.md`. What is still open is build tasks 8 to 10, plus the
-individual checks `verify.md` leaves unticked with a reason beside each.
+case by case in `verify.md`. Build tasks 8 and 9 landed on 2026-08-27 and their
+commands pass, and all four configuration-screen checks were walked in a real
+browser on 2026-08-27 and passed; what is still open is the offline boot case
+and the individual checks `verify.md` leaves unticked with a reason beside each.
 
 - **Verified.** Happy path: load the app signed out, activate sign in, complete Puter's popup,
   and confirm the navbar shows the username with no reload. Verifies **AC-2**,
@@ -329,14 +331,31 @@ already runs.
 7. Add the `requireUser` helper returning a discriminated result, and the in
    place sign in prompt a guarded route renders on `ok: false`. Satisfies
    **AC-7**.
-8. Add startup validation of `VITE_PUTER_WORKER_URL` and the readable boot error
-   screen. Satisfies **AC-8**.
-9. Enforce the single import rule. Add the check now as a grep over `app/` for
-   `@heyputer/puter.js` outside the access module, and enroll the ESLint
-   `no-restricted-imports` rule as a task on feature 2, which is what installs
-   linting. Satisfies **AC-11**.
-10. Run typecheck, lint, and a real production build, and walk the manual
-    scenarios above in a browser. Satisfies **AC-9**.
+8. **Built.** Add startup validation of `VITE_PUTER_WORKER_URL` and the readable
+   boot error screen. Satisfies **AC-8**. `app/platform/env.ts` owns the check
+   and `app/platform/ConfigScreen.tsx` is the screen; the root `clientLoader`
+   checks configuration before it resolves auth and returns the failure as data
+   rather than throwing, so the screen renders normally instead of through
+   `ErrorBoundary`. One correction found while building: the check reads
+   `import.meta.env.VITE_PUTER_WORKER_URL` written out in full rather than
+   through a computed key, because Vite only substitutes the literal form. A
+   computed read works in dev and then reports the variable missing on every
+   production build.
+9. **Built.** Enforce the single import rule. Satisfies **AC-11**. It landed as
+   `scripts/check-sdk-import.mjs` (`npm run check:imports`) rather than a bare
+   grep, because a grep also matches this project's own prose about the SDK and
+   returns nothing usable as an exit code. The script matches static imports,
+   re-exports, and dynamic `import()`, and was proven against a planted
+   violation of each kind. The ESLint `no-restricted-imports` rule is enrolled
+   on feature 2, which is what installs linting.
+10. **Partly done.** Typecheck and a real production build pass, both with the
+    variable set and with it unset, and the prerendered `index.html` contains
+    the boot screen and no Puter call. Lint does not exist yet: feature 2
+    installs it, so `npm run check` runs typecheck plus the import check for
+    now. The manual browser walk of the configuration screen was done on
+    2026-08-27 and passed all four checks; the offline boot case and the checks
+    `verify.md` leaves unticked with a reason are what remain.
+    Satisfies **AC-9**.
 
 Task 4 is the review point. If the thread does not work there, the plan is wrong
 and should be fixed before tasks 5 to 8 are built on top of it. Passed: walked in
