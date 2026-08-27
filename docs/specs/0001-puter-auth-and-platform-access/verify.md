@@ -1,4 +1,4 @@
-# Verify: Connecting to Puter · spec 0001 · updated 2026-08-26
+# Verify: Connecting to Puter · spec 0001 · updated 2026-08-27
 
 _Steps derived from spec 0001's acceptance criteria (`index.md`). `/check verify`
 runs these. There is no test runner and no browser automation on this project by
@@ -92,9 +92,10 @@ the ended session both needed the console recipes above, because neither can be
 produced by clicking or by browser settings; both recipes enter the real SDK path
 rather than faking a result.
 
-Four boxes below are deliberately still open. None of them is in doubt: each is
+Three boxes below are deliberately still open. None of them is in doubt: each is
 either a regression guard, or a case that cannot be settled on a dev server. They
-are marked individually with why.
+are marked individually with why. The shared sign-in cases added on 2026-08-27
+were walked when the interaction moved into `signInStore`.
 
 ### Sign-in failures (AC-5)
 
@@ -112,10 +113,19 @@ are marked individually with why.
 - [x] Restore `window.open`, click Sign in and complete it → any sentence left
       over from the blocked attempt is gone → AC-3, AC-5
       _Passed 2026-08-26._
-- [ ] Double-click Sign in fast → exactly one Puter window opens, not two → AC-5
-      _Not part of the seven cases walked on 2026-08-26. The single-flight latch
-      it exercises is unchanged from milestone 2, so this is a guard against a
-      future regression rather than an open question._
+- [x] Double-click Sign in fast → exactly one Puter window opens, not two → AC-5
+      _Passed 2026-08-27, re-walked after the latch moved from a per-component
+      `useRef` to one module-level latch in `signInStore`._
+- [x] Signed out at `/projects`, with both the navbar button and the route's own
+      prompt on screen, start a sign in from one → the other goes busy with it
+      and cannot open a second Puter window → AC-5
+      _Passed 2026-08-27. This is the case per-component state got wrong: each
+      control held its own latch, so the second button stayed live and a click on
+      it opened a second popup. Re-walk it with two controls on screen, not one,
+      after any change to `signInStore` or `useSignIn`._
+- [x] Complete that sign in from the prompt → the real content appears at
+      `/projects` with no reload and no leftover notice → AC-3, AC-5, AC-7
+      _Passed 2026-08-27._
 
 ### The ended session (AC-6)
 
@@ -193,7 +203,14 @@ of what proving spec 0001 takes.
 - [x] `grep -rn "@heyputer/puter.js" app/` → hits `app/platform/puter.ts` only →
       AC-11
       _Until feature 2 installs the ESLint `no-restricted-imports` rule, this
-      grep is the whole of AC-11. Run it before every merge._
+      grep is the whole of AC-11. Run it before every merge. It is evidence for
+      AC-11 only: it proves where the SDK is imported, not that every use of it
+      goes through `withPuter`._
+- [ ] Every `puter.fs`, `puter.kv`, and `puter.workers` use goes through
+      `withPuter` → AC-10
+      _Not verifiable yet by the import grep, and nothing in the app makes such a
+      call before feature 5. Tick it when a call-site check over `app/`, or the
+      enforced lint rule from feature 2, actually covers the three surfaces._
 
 ## Acceptance-criteria coverage
 
@@ -204,15 +221,17 @@ of what proving spec 0001 takes.
 - **AC-3** signing in updates everything with no reload · milestone 2 step 2, the
   cleared-sentence step, the banner sign-in step
 - **AC-4** signing out leaves nothing behind · the deliberate sign out steps
-- **AC-5** blocked popup explained, closed popup silent · the four sign-in
-  failure steps
+- **AC-5** blocked popup explained, closed popup silent · the six sign-in
+  failure steps, including the two shared-control steps
 - **AC-6** ended session states itself and keeps the page · the six ended-session
   steps
 - **AC-7** guarded route prompts in place, no redirect · the three guard steps
 - **AC-8** missing environment variable fails readably · owed, build task 8
 - **AC-9** the real build passes with no Puter call at build time · the commands
 - **AC-10** `puter.fs`, `puter.kv`, and `puter.workers` only through `withPuter` ·
-  covered by AC-11's check today; it gains real behavioural coverage when feature
-  5 makes the first storage call
+  **not verified.** The import grep is AC-11's evidence and does not reach this:
+  a file could import the access module and still reach past `withPuter`. It
+  needs a call-site check or the enforced lint rule, and it gains real
+  behavioural coverage when feature 5 makes the first storage call
 - **AC-11** only the access module imports the SDK · the grep, until feature 2's
   lint rule replaces it

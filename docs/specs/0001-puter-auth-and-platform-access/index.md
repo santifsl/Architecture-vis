@@ -259,8 +259,10 @@ automation.
 Status, as of 2026-08-26: the three boot-and-sign-in scenarios below were walked
 by hand in a real browser before PR #1 merged, covering the milestone 2 review
 point. The dead-token case settled to signed out with no popup, which is the
-result this design turns on. The remaining scenarios cover build tasks 5 to 10,
-which are not built yet.
+result this design turns on. Tasks 5 to 7 are built, and their scenarios were
+walked and passed on 2026-08-26, recorded case by case in `verify.md`. What is
+still open is build tasks 8 to 10, plus the individual checks `verify.md` leaves
+unticked with a reason beside each.
 
 - **Verified.** Happy path: load the app signed out, activate sign in, complete Puter's popup,
   and confirm the navbar shows the username with no reload. Verifies **AC-2**,
@@ -277,13 +279,13 @@ which are not built yet.
 - Boot offline: disconnect the network while holding a valid token, reload, and
   confirm the app settles on signed out with no hang and no raw error. Verifies
   **AC-1**.
-- Failure case: block popups for the site, activate sign in, and confirm a plain
+- **Verified.** Failure case: block popups for the site, activate sign in, and confirm a plain
   sentence and a working retry appear. Then allow popups, activate sign in, close
   the popup manually, and confirm the app returns to signed out with no error
   shown. Verifies **AC-5**.
-- Failure case: trigger a reauth condition and confirm the banner appears while
+- **Verified.** Failure case: trigger a reauth condition and confirm the banner appears while
   the current page survives. Verifies **AC-6**.
-- Auth and permission: visit a guarded route signed out, confirm a sign in prompt
+- **Verified.** Auth and permission: visit a guarded route signed out, confirm a sign in prompt
   renders at that URL, sign in, and confirm the real content appears at the same
   URL with no redirect. Verifies **AC-7**.
 - Configuration: unset `VITE_PUTER_WORKER_URL`, start the dev server, and confirm
