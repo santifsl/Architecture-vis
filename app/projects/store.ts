@@ -232,6 +232,14 @@ export type ProjectChanges = Partial<
  * against the statuses actually stored, not against whatever the caller thought
  * they were.
  *
+ * `renders` merges per model rather than replacing the map. Its type is a
+ * partial record, so `{ renders: { claude } }` is a legal thing to write, and a
+ * caller reporting one model's progress should not have to resend the other
+ * model's state to keep it. Replacing wholesale would drop the untouched model,
+ * which `checkProject` would then refuse as a missing render: a confusing
+ * refusal for a change that was never wrong. AC-2 wants one model's progress to
+ * leave the other alone, and merging is what makes that true here.
+ *
  * This is not safe against two writers at once, and nothing in the store makes
  * it so. It does not need to be: this store is scoped to one person and one
  * app, and every path that writes it is driven by that person acting. The
@@ -252,6 +260,9 @@ export const updateProject = async (
     ...current.value,
     ...changes,
     ...(changes.name === undefined ? {} : { name: changes.name.trim() }),
+    ...(changes.renders === undefined
+      ? {}
+      : { renders: { ...current.value.renders, ...changes.renders } }),
     updatedAt: Date.now(),
   });
 };

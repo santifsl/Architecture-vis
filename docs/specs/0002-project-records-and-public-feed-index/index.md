@@ -1,7 +1,9 @@
 # 0002. Own the project record in the owner's KV, derive the public feed in the worker
 
 **Date**: 2026-08-27
-**Status**: Accepted
+**Status**: Accepted for the owner half, feature 3, which is built and verified.
+The public half, feature 9, has six open design problems found in review; see
+*Open problems raised in review* under Follow-up. It is not accepted yet.
 
 The decision history (context, what was weighed, the reasoning, and everything
 that was actually verified against the SDK and live hosts) lives beside this
@@ -450,3 +452,61 @@ nothing.
       single project page shows for an id that was public and no longer is.
 - [ ] `scope.md` feature 3 should link this spec, and its open question note can
       be replaced by that link.
+
+### Open problems raised in review, 2026-08-27
+
+A review of this spec found six things wrong with the publish design. All six
+sit in the public half, feature 9, which is not built, so none of them is a bug
+in shipped code today. None is answered here on purpose: each is a real design
+fork, and this project decides those with `/architect`, not in passing. **Feature
+9 does not start until these are settled.**
+
+- [ ] **The fenced lock cannot be built as written.** *Locking* above has a
+      publisher `kv.set` the lock "only when the key is absent or its
+      `expiresAt` has passed", and delete it "only when the token still
+      matches". Both are read-then-write. The pinned SDK's `puter.kv` has no
+      conditional write and no compare-and-swap: `set` is unconditional, and the
+      only atomic primitives are `incr` and `decr` (`node_modules/@heyputer/
+      puter.js/types/modules/kv/index.d.ts`). Two publishers can both read the
+      key as absent and both set it, each believing it holds the lock, and the
+      token fencing does not help because both wrote. The lock needs rebuilding
+      on a primitive that actually exists, most likely `incr`, which this spec
+      dismissed as "a counter, not a mutex" without noticing it is the only
+      atomic thing on offer.
+- [ ] **Publication commits through the client, which may never come back.**
+      `PublicAssets` is "written by the client from the publish response", so if
+      the browser closes, or the store A write fails, after the worker committed
+      store B and C, the project is live in the feed while its own record still
+      reads private. That contradicts AC-13. Needs a compensating commit
+      protocol across the three stores, one that does not treat the client's
+      response handler as the authority.
+- [ ] **A failed publish leaks publicly readable images.** *Write order on
+      publish* copies every store C file first and abandons on any failure.
+      Abandoning leaves those copies live at a guessable `*.puter.site` URL with
+      no feed entry and no record pointing at them, which AC-13 forbids. Either
+      stage them somewhere not publicly readable, or track every copied path
+      durably and delete all of them whenever the lock, the feed writes, or the
+      worker aborts. `feed:cleanup:<projectId>` covers unpublish, not this.
+- [ ] **Republishing breaks newest-first ordering.** An entry updated in place
+      keeps its old chunk while `publishedAt` becomes the worker's clock at the
+      moment of the rewrite, so a freshly republished project sits at an old
+      position with a new timestamp. Either keep the original `publishedAt` on
+      an in-place update, or splice the entry out of its old chunk, reinsert it
+      into the newest one, and update `feed:where:<projectId>`.
+- [ ] **The staleness check compares two different clocks.** The owner's project
+      view derives "the public copy is out of date" from `updatedAt >
+      publishedAt`, but `updatedAt` is the browser's clock and `publishedAt` is
+      the worker's. A slow browser clock hides a genuinely stale copy; a fast
+      one shows a fresh copy as permanently stale. This wants one shared,
+      server issued revision or mutation number that both the owner store update
+      and the publish write and compare.
+- [ ] **`updateProject` is not safe against two renders finishing at once.**
+      The code says so deliberately, reasoning that the store is one person's
+      and every write is driven by that person acting. Feature 6 breaks that
+      reasoning: it fires both models at once, so two completions land in the
+      same tab and interleave read-modify-write, and the second one to write
+      wins with a stale copy of the first one's render. That is exactly the
+      independence AC-2 promises. Merging `renders` per model, done since,
+      narrows the window but does not close it. With no compare-and-swap in the
+      SDK, the buildable answer is probably serializing writes per project in
+      the client, but that is feature 6's decision to make and take.

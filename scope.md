@@ -211,11 +211,13 @@ free the way a relational query would.
 The constraint spec 0001 raised is settled. `puter.kv` really is scoped per user
 per app, and `puter.fs.share` only reaches a named Puter account, so an anonymous
 visitor has no credential to read anybody's records and the community feed cannot
-be a KV lookup performed as the visitor. Two anonymous channels were verified
-against the installed SDK and by real unauthenticated requests: `*.puter.site`
-static hosting, and worker endpoints, whose handler separates `user.puter` (the
-caller, only when a session was sent) from `me.puter` (the worker owner's own
-store). Decided: a project lives in its owner's own KV and that copy is the
+be a KV lookup performed as the visitor. Two anonymous channels carry this. `*.puter.site`
+static hosting was verified against the installed SDK and by real
+unauthenticated requests. Worker endpoints were checked against the installed
+SDK only, whose handler separates `user.puter` (the caller, only when a session
+was sent) from `me.puter` (the worker owner's own store); no worker is deployed
+yet, so that half is not confirmed by a real unauthenticated request and is
+verified with feature 9. Decided: a project lives in its owner's own KV and that copy is the
 truth; publishing sends only the project id to the worker, which re reads the
 project through `user.puter`, copies its images into one app owned hosted
 directory, and writes a small entry into a chunked feed index in `me.puter`;
