@@ -13,6 +13,8 @@ import { BootScreen } from "~/auth/BootScreen";
 import { SessionBanner } from "~/auth/SessionBanner";
 import { resolveAuthState } from "~/auth/state";
 import { useAuthEvents } from "~/auth/useAuthEvents";
+import { ConfigScreen } from "~/platform/ConfigScreen";
+import { checkPuterEnv } from "~/platform/env";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -36,9 +38,18 @@ export const links: Route.LinksFunction = () => [
  * both useless and unsafe. `resolveAuthState` never rejects and never raises a
  * sign-in popup, so there is nothing here for an error boundary to catch and
  * nothing a returning visitor with a dead token can be ambushed by.
+ *
+ * Configuration is checked first, per AC-8. A missing `VITE_PUTER_WORKER_URL`
+ * short-circuits: there is no point resolving who is signed in for an app that
+ * cannot render anything. It returns the failure as data rather than throwing,
+ * so `ConfigScreen` renders in the ordinary way instead of through
+ * `ErrorBoundary`, which is what keeps a raw exception off the screen.
  */
 export async function clientLoader() {
-  return { auth: await resolveAuthState() };
+  const config = checkPuterEnv();
+  if (!config.ok) return { config: "missing", missing: config.missing } as const;
+
+  return { config: "ok", auth: await resolveAuthState() } as const;
 }
 
 // Stated explicitly: this loader runs during initial hydration. With no server
@@ -70,8 +81,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App({ loaderData }: Route.ComponentProps) {
   // Mounted once, here, because the layout outlives every page: Puter ending a
-  // session has to be heard wherever the person happens to be.
+  // session has to be heard wherever the person happens to be. Called before
+  // the configuration branch below so the hook order never changes; with no
+  // worker URL there is no Puter to hear from anyway.
   useAuthEvents();
+
+  if (loaderData.config === "missing") {
+    return <ConfigScreen missing={loaderData.missing} />;
+  }
 
   return (
     <>

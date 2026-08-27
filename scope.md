@@ -72,7 +72,7 @@ cheap decision to make now.
 
 | #   | Feature                                              | Phase      | Status      |
 | --- | ----------------------------------------------------- | ---------- | ----------- |
-| 1   | Connecting to Puter                                  | Foundation | in progress |
+| 1   | Connecting to Puter                                  | Foundation | done        |
 | 2   | Coding standards & tooling                           | Foundation | not started |
 | 3   | Data model                                           | Foundation | not started |
 | 4   | Design & look                                        | Foundation | not started |
@@ -85,7 +85,7 @@ cheap decision to make now.
 
 ## Foundation
 
-### 1. Connecting to Puter · in progress
+### 1. Connecting to Puter · done
 
 The Vite project itself gets created manually first, `npm create vite@latest`,
 fast and simple, no reason to spend agent time or tokens on something that
@@ -107,7 +107,7 @@ for its real types. No temporary accounts.
 
 - [x] Decide the approach
 - [x] Write the spec
-- [ ] Build it: `/develop` feature 1
+- [x] Build it: `/develop` feature 1
   - [x] Platform access module, the single SDK import, and the non-interactive
         boot check, satisfies AC-1, AC-9, AC-10
   - [x] Root route wired with sign in and sign out working end to end. **This is
@@ -125,11 +125,31 @@ for its real types. No temporary accounts.
         for each. A cold reload holding a dead token deliberately shows no
         banner: AC-6 is about a session ending mid-use, and the SDK's boot event
         fires before anything is listening anyway
-  - [ ] Environment validation with a readable boot screen, plus the check that
-        only the access module imports the SDK, satisfies AC-8, AC-11
-  - [ ] Typecheck, lint, real build, and the manual browser walkthrough,
-        satisfies AC-9
+  - [x] Environment validation with a readable boot screen, plus the check that
+        only the access module imports the SDK, satisfies AC-8, AC-11. Built on
+        branch `feature/env-validation-and-import-guard`. `app/platform/env.ts`
+        checks configuration and `app/platform/ConfigScreen.tsx` is the screen a
+        missing `VITE_PUTER_WORKER_URL` produces; it replaces the whole app
+        rather than sitting inside it, since with no worker URL there is no app
+        to sit inside. The import rule landed as `scripts/check-sdk-import.mjs`
+        (`npm run check:imports`) instead of a bare grep, and was proven against
+        a planted violation rather than only against a clean tree
+  - [x] Typecheck, lint, real build, and the manual browser walkthrough,
+        satisfies AC-9. Typecheck and a real build pass, with the variable set
+        and unset, and no Puter call runs during the build-time root render. All
+        four configuration-screen steps were walked in a real browser on
+        2026-08-27 and passed. Lint is the one part not done here and cannot be:
+        feature 2 is what installs it, and its ESLint `no-restricted-imports`
+        task is what finally replaces `npm run check:imports`
 - [ ] Verify it: `/check verify` feature 1
+      _Skipped deliberately. The manual walkthrough in `verify.md` is this
+      project's verification (CLAUDE.md rules out a test runner and browser
+      automation), and all four milestone-4 cases plus the earlier milestones
+      were walked by hand and passed. Five checks stay unticked in `verify.md`,
+      each with its reason: the offline boot case, two AC-3/AC-4 steps not
+      re-walked since milestone 2, the `/projects` hard-refresh that needs a
+      real Vercel deployment rather than the dev server, and AC-10, which has
+      no call site to verify until feature 5 makes the first storage call._
 
 Code: `app/platform/puter.ts` is the only module importing the SDK (`withPuter`,
 the non-interactive `readCurrentUser`, sign in and sign out, and the two event
@@ -138,8 +158,12 @@ subscriptions). `app/auth/` holds `AuthState`, `resolveAuthState` and
 one-shot session-ended flag (`sessionEnded.ts`), the shared hooks (`useSignIn`,
 `useAuthState`, `useAuthEvents`), and the chrome (`AuthControl.tsx`,
 `SessionBanner.tsx`, `SignInPrompt.tsx`, `RequireUser.tsx`, `AuthNotice.tsx`,
-`BootScreen.tsx`). The root `clientLoader`, `HydrateFallback`, and the event
-subscription live in `app/root.tsx`; `app/routes/projects.tsx` is the first
+`BootScreen.tsx`). `app/platform/env.ts` checks the required environment
+variables and `app/platform/ConfigScreen.tsx` is what a missing one renders;
+`scripts/check-sdk-import.mjs` (`npm run check:imports`) is what holds the
+single-import rule until feature 2 installs the lint rule. The root
+`clientLoader`, `HydrateFallback`, and the event subscription live in
+`app/root.tsx`; `app/routes/projects.tsx` is the first
 guarded route, a placeholder feature 7 fills in. The palette tokens and the
 shared button, banner, notice, and boot-rule treatments are in `app/app.css`.
 

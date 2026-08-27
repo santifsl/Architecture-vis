@@ -165,3 +165,19 @@ body {
   stroke-width: 1.25;
   stroke-linecap: round;
 }
+
+/*
+ * A variable name, a path, or a URL shown inside a sentence. Set on the surface
+ * tone in body ink, never in the accent: clay is reserved for things you
+ * interact with, and a name on screen is not one.
+ */
+.code-token {
+  display: inline-block;
+  border-radius: 2px;
+  background-color: var(--color-ivory);
+  padding: 0.05rem 0.3rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}

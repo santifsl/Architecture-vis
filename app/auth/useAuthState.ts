@@ -15,7 +15,11 @@ const signedOut: AuthState = { status: "signedOut" };
 
 export const useAuthState = (): AuthState => {
   const data = useRouteLoaderData<typeof clientLoader>("root");
-  // Root data is always present by the time a child route renders. Falling back
-  // to signed out rather than throwing keeps the failure closed either way.
-  return data?.auth ?? signedOut;
+  // Root data is always present by the time a child route renders, and it only
+  // carries the auth fact once configuration checked out (AC-8): a missing
+  // worker URL replaces the whole app, so no child route renders at all.
+  // Falling back to signed out rather than throwing keeps the failure closed
+  // either way.
+  if (data === undefined || data.config !== "ok") return signedOut;
+  return data.auth;
 };
