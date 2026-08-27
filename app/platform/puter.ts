@@ -23,8 +23,10 @@ import puter from "@heyputer/puter.js";
  * carries roughly fifteen further optional fields; narrowing at the boundary
  * keeps an over-wide vendor type out of the app.
  *
- * `uuid` is the stable account identifier and the thing a later feature stores
- * as a project's owner. `username` is display text and nothing else.
+ * `uuid` is the stable account identifier. `username` is what a project stores
+ * as its `owner`, and what the community feed shows as an entry's author: spec
+ * 0002 settled that, because the worker derives an entry's author from the
+ * caller's session inside the worker, where the username is what it has.
  */
 export type RoomifyUser = {
   readonly uuid: string;

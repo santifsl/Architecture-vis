@@ -74,7 +74,7 @@ cheap decision to make now.
 | --- | ----------------------------------------------------- | ---------- | ----------- |
 | 1   | Connecting to Puter                                  | Foundation | done        |
 | 2   | Coding standards & tooling                           | Foundation | not started |
-| 3   | Data model                                           | Foundation | not started |
+| 3   | Data model                                           | Foundation | in-progress |
 | 4   | Design & look                                        | Foundation | not started |
 | 5   | Upload & host a floor plan                           | Slice 1    | not started |
 | 6   | Create a project & generate the 3D render            | Slice 1    | not started |
@@ -195,7 +195,7 @@ written ahead of the tooling it describes.
       rests on a grep until this exists, and the rule is what stops a stray SDK
       import quietly reintroducing an unbidden login popup.
 
-### 3. Data model · needs a decision
+### 3. Data model
 
 There's no relational database here, Puter's KV store is the only
 persistence layer, so the "data model" is really the shape of the keys and
@@ -207,20 +207,39 @@ every key a user has ever written. That lookup shape is worth deciding
 carefully now, since it's the one part of a KV store that doesn't come for
 free the way a relational query would.
 
-**Constraint raised by spec 0001, settle it here before feature 9 is built.**
-`puter.kv` is scoped per user per app. That is why `puter.perms` exists at all:
-one app reaching another app's data for a user needs an explicit grant. A signed
-out visitor is not a reader with fewer permissions, they hold no credentials at
-all, so there is no obvious way for them to read anybody's KV records. Feature
-9's promise that anyone can browse the community feed without an account
-therefore does not follow from a KV lookup, and the lookup shape above has to
-answer this rather than assume it. The likely escape hatch is a public feed index
-published as a hosted artifact (`puter.hosting`, or a file with a public
-`puter.fs` URL) that anonymous visitors fetch over ordinary HTTP. Treat that as
-the thing to verify, not as settled.
+**Spec: [0002](docs/specs/0002-project-records-and-public-feed-index/index.md).**
+The constraint spec 0001 raised is settled. `puter.kv` really is scoped per user
+per app, and `puter.fs.share` only reaches a named Puter account, so an anonymous
+visitor has no credential to read anybody's records and the community feed cannot
+be a KV lookup performed as the visitor. Two anonymous channels were verified
+against the installed SDK and by real unauthenticated requests: `*.puter.site`
+static hosting, and worker endpoints, whose handler separates `user.puter` (the
+caller, only when a session was sent) from `me.puter` (the worker owner's own
+store). Decided: a project lives in its owner's own KV and that copy is the
+truth; publishing sends only the project id to the worker, which re reads the
+project through `user.puter`, copies its images into one app owned hosted
+directory, and writes a small entry into a chunked feed index in `me.puter`;
+anonymous visitors read that index and single public projects over plain HTTP.
+Publishing needs at least one complete render. The public half of this belongs to
+feature 9; feature 3 builds the record shape the rest of the app writes to.
 
-- [ ] Decide the approach
-- [ ] Build it
+- [x] Decide the approach
+- [x] Write the spec
+- [x] Build it: `/develop` feature 3, code in `app/projects/`
+  - [x] The record types and key builders: `Project`, `RenderState`, `ModelId`,
+        `PublicAssets`, `FeedEntry`, all `readonly`, plus the time sortable id
+        generator, satisfies AC-2
+  - [x] The owner side store module over `withPuter`: create, read, list by
+        prefix, update, delete, with a plain failure message on the way out,
+        satisfies AC-1, AC-14
+  - [x] The invariant checks the store module calls (`renders` matches `models`,
+        `publishedAt` agrees with `visibility`, name length, value size before a
+        write), satisfies AC-11, AC-13
+- [ ] Verify it: `/check verify` feature 3, steps in
+      [verify.md](docs/specs/0002-project-records-and-public-feed-index/verify.md)
+      _The public half of this spec (AC-3 to AC-10, AC-12) cannot be verified
+      here. It needs a deployed worker and the hosted subdomain, so those
+      criteria are verified with feature 9, not now._
 
 ### 4. Design & look
 
@@ -358,8 +377,22 @@ Only creating a project and toggling its visibility need sign-in. The
 owner's own view is identical to what anyone else sees, plus the ability to
 actually edit or regenerate.
 
-- [ ] Decide the approach
-- [ ] Build it
+**Spec: [0002](docs/specs/0002-project-records-and-public-feed-index/index.md).**
+The approach is already decided there, alongside feature 3's record shape, since
+the two could not be settled apart: an anonymous visitor holds no credential, so
+the feed is served by the worker out of a store only the worker can write, and
+public images are copied into one app owned `*.puter.site` directory. What is
+left here is the public half of that spec's build plan, **tasks 4 to 11**, which
+the feature 3 pass deliberately left untouched because they have nothing to run
+against until a real worker is deployed: the hosted subdomain and its worker
+constant, the two anonymous `GET` routes, the fenced lock helper, `POST /publish`
+and `POST /unpublish`, the republish-on-mutation path with its "public copy is
+out of date" state, and the two public SPA routes. AC-3 to AC-10 and AC-12 are
+verified here too, for the same reason.
+
+- [x] Decide the approach
+- [ ] Build it: tasks 4 to 11 of spec 0002's build plan
+- [ ] Verify it: AC-3 to AC-10 and AC-12, deferred here from feature 3
 
 ### 10. Export
 
