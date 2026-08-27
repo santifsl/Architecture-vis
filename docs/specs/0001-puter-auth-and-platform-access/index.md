@@ -256,13 +256,14 @@ Verified by hand against a running dev server and a real browser, per CLAUDE.md'
 standing decision that this project adds no test runner and no browser
 automation.
 
-Status, as of 2026-08-26: the three boot-and-sign-in scenarios below were walked
+Status, as of 2026-08-27: the three boot-and-sign-in scenarios below were walked
 by hand in a real browser before PR #1 merged, covering the milestone 2 review
 point. The dead-token case settled to signed out with no popup, which is the
 result this design turns on. Tasks 5 to 7 are built, and their scenarios were
-walked and passed on 2026-08-26, recorded case by case in `verify.md`. What is
-still open is build tasks 8 to 10, plus the individual checks `verify.md` leaves
-unticked with a reason beside each.
+walked and passed on 2026-08-26, with the shared sign-in cases walked on
+2026-08-27 once the interaction moved into `signInStore`; all of it is recorded
+case by case in `verify.md`. What is still open is build tasks 8 to 10, plus the
+individual checks `verify.md` leaves unticked with a reason beside each.
 
 - **Verified.** Happy path: load the app signed out, activate sign in, complete Puter's popup,
   and confirm the navbar shows the username with no reload. Verifies **AC-2**,
