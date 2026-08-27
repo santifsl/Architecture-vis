@@ -41,6 +41,7 @@ export type StoreFailure =
   | "unreadable"
   | "invalid"
   | "stillPublic"
+  | "unsafeToDelete"
   | "tooLarge";
 
 export type StoreResult<T> =
@@ -50,7 +51,7 @@ export type StoreResult<T> =
       readonly failure: StoreFailure;
       /** A plain sentence, safe to render as-is. */
       readonly message: string;
-      /** The broken rules, for a developer. Empty unless the failure is `invalid` or `tooLarge`. */
+      /** The broken rules, for a developer. Empty unless the failure names a rule the record broke. */
       readonly violations: readonly Violation[];
     };
 
@@ -61,6 +62,8 @@ const MESSAGES: Readonly<Record<StoreFailure, string>> = {
   unreadable: "That project was saved by a newer version of Roomify and cannot be opened here.",
   invalid: "That change could not be saved because it would leave the project in an impossible state.",
   stillPublic: "Make this project private first, so its public copies come down with it.",
+  unsafeToDelete:
+    "This project cannot be read, so there is no way to tell whether it was shared publicly. It has been left in place rather than deleted with its public copies possibly still up.",
   tooLarge: "That project is too large to save. Try a shorter name.",
 };
 
@@ -283,17 +286,39 @@ const illegalTransitions = (
 };
 
 /**
- * Deletes a project.
+ * Deletes a project, and refuses whenever it cannot prove the deletion is safe.
  *
  * Deleting a public project leaves its feed entry and its hosted image copies
  * behind, which AC-9 forbids. Withdrawing those is the worker's job and belongs
  * to feature 9, so this refuses to delete a public project rather than quietly
  * doing half of what AC-9 asks. Unpublish first, then delete.
+ *
+ * A record this build cannot parse is refused for the same reason, and it is a
+ * named case rather than an oversight: an unreadable record's `visibility` is
+ * unknown, so deleting it is a coin flip on whether a live feed entry and a set
+ * of hosted copies just lost the only record that knew about them. Nothing else
+ * can clean them up, because the worker cannot enumerate anyone else's store.
+ * Failing closed leaves a record that a later build, or a hand edit, can still
+ * read and unpublish properly; failing open destroys that chance for good. The
+ * two refusals carry different sentences on purpose: one asks for an unpublish,
+ * the other reports a record that needs looking at.
  */
 export const deleteProject = async (id: string): Promise<StoreResult<true>> => {
   const current = await readProject(id);
 
-  if (current.ok && current.value.visibility === "public") {
+  if (!current.ok) {
+    return current.failure === "unreadable"
+      ? fail<true>("unsafeToDelete", [
+          {
+            rule: "delete.unreadable",
+            detail:
+              "The stored record does not parse, so its visibility is unknown and deleting it could strand a feed entry and its hosted copies.",
+          },
+        ])
+      : current;
+  }
+
+  if (current.value.visibility === "public") {
     return fail<true>("stillPublic", [
       {
         rule: "delete.public",
@@ -301,8 +326,6 @@ export const deleteProject = async (id: string): Promise<StoreResult<true>> => {
       },
     ]);
   }
-
-  if (!current.ok && current.failure !== "unreadable") return current;
 
   try {
     await withPuter((sdk) => sdk.kv.del(projectKey(id)));

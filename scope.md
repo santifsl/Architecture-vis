@@ -74,7 +74,7 @@ cheap decision to make now.
 | --- | ----------------------------------------------------- | ---------- | ----------- |
 | 1   | Connecting to Puter                                  | Foundation | done        |
 | 2   | Coding standards & tooling                           | Foundation | not started |
-| 3   | Data model                                           | Foundation | in-progress |
+| 3   | Data model                                           | Foundation | done        |
 | 4   | Design & look                                        | Foundation | not started |
 | 5   | Upload & host a floor plan                           | Slice 1    | not started |
 | 6   | Create a project & generate the 3D render            | Slice 1    | not started |
@@ -195,7 +195,7 @@ written ahead of the tooling it describes.
       rests on a grep until this exists, and the rule is what stops a stray SDK
       import quietly reintroducing an unbidden login popup.
 
-### 3. Data model
+### 3. Data model · done
 
 There's no relational database here, Puter's KV store is the only
 persistence layer, so the "data model" is really the shape of the keys and
@@ -231,11 +231,15 @@ feature 9; feature 3 builds the record shape the rest of the app writes to.
         generator, satisfies AC-2
   - [x] The owner side store module over `withPuter`: create, read, list by
         prefix, update, delete, with a plain failure message on the way out,
-        satisfies AC-1, AC-14
+        satisfies AC-1, AC-14. Delete fails closed: a public project is refused
+        until it is unpublished, and a record that no longer parses is refused
+        too, since its visibility is unknown and deleting it could strand a feed
+        entry and its hosted copies. Two different sentences, because they need
+        two different fixes
   - [x] The invariant checks the store module calls (`renders` matches `models`,
         `publishedAt` agrees with `visibility`, name length, value size before a
         write), satisfies AC-11, AC-13
-- [ ] Verify it: `/check verify` feature 3, steps in
+- [x] Verify it: `/check verify` feature 3, steps in
       [verify.md](docs/specs/0002-project-records-and-public-feed-index/verify.md)
       _The public half of this spec (AC-3 to AC-10, AC-12) cannot be verified
       here. It needs a deployed worker and the hosted subdomain, so those

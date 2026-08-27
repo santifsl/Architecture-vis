@@ -1,7 +1,7 @@
 # 0002. Own the project record in the owner's KV, derive the public feed in the worker
 
 **Date**: 2026-08-27
-**Status**: In Progress
+**Status**: Accepted
 
 The decision history (context, what was weighed, the reasoning, and everything
 that was actually verified against the SDK and live hosts) lives beside this
@@ -254,6 +254,13 @@ when the reader is signed out, which is what makes them genuinely anonymous.
 - A `FeedEntry` is only ever written after every one of its store C files has
   been copied successfully, so an entry never points at a URL that does not
   resolve.
+- A project record is only ever deleted when its `visibility` is known and is
+  `private`. A public record is refused until it is unpublished, and a record
+  this build cannot parse is refused too, because its visibility is unknown and
+  deleting it could strand a feed entry and its hosted copies with no record
+  left that names them. Both refusals are plain sentences, and they are
+  deliberately different sentences: one asks for an unpublish, the other reports
+  a record that needs looking at.
 - Every URL in `publicAssets` and in a `FeedEntry` begins with
   `https://<PUBLIC_SUBDOMAIN>.puter.site/`, which is what "valid URL shape"
   means in AC-11. Anything else is refused.
