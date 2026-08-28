@@ -280,6 +280,15 @@ file, and the hook's self-installation against a genuine fresh clone plus
 `npm install`. That record has since been re-walked independently, and
 `verify.md` is fully ticked.
 
+One defect surfaced in review after the feature was first called done, and is
+fixed: the `lint-staged` globs did not mirror what is actually configured, so
+the hook let through staged files that `npm run verify` then rejected. A `.js`
+file got Prettier and no ESLint even though `eslint.config.js` lints it, and
+`.mts` and `.cts` matched no group at all. The globs now follow one rule, every
+extension ESLint is configured for gets ESLint then Prettier, everything else
+Prettier parses gets Prettier alone, and `verify.md` carries a step that holds
+them to it.
+
 ### 3. Data model · done
 
 There's no relational database here, Puter's KV store is the only

@@ -136,6 +136,21 @@ Run these on a scratch branch.
       `.git/hooks/pre-commit`. After it, `core.hooksPath` was `.husky/_`, and a
       commit carrying an explicit `any` was refused. Nothing was run by hand
       between the two._
+- [x] The `lint-staged` globs cover every extension `eslint.config.js` and
+      Prettier actually cover, so the hook cannot pass a file `npm run verify`
+      then rejects → AC-6
+      _Added after the feature was first called done, because they did not. A
+      staged `.js` file got Prettier and no ESLint: an unused variable appended
+      to `eslint.config.js` committed cleanly and `npm run lint` then failed on
+      the committed content. Staged `.mts` and `.cts` matched no group at all,
+      though the type-aware block and the four named rules both name them.
+      Re-walked after the fix: the same unused variable is refused, and an
+      explicit `any` in an `.mts` file is refused with `no-explicit-any` and
+      `no-unsafe-return` both firing, which also proves the project service
+      resolves `.mts`. `jsx` is in the Prettier-only group deliberately —
+      ESLint has no configuration for it, and passing it one fails at
+      `--max-warnings 0` on a "no matching configuration" warning rather than
+      on anything real._
 
 ## Documentation
 
