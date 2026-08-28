@@ -51,6 +51,16 @@ Husky runs `.husky/pre-commit`, which does two things:
    only. Fast, and it only ever touches what you were already committing.
 2. `npm run typecheck` — the whole project, every time.
 
+The `lint-staged` globs in `package.json` have to mirror what `eslint.config.js`
+and Prettier actually cover, or the hook passes a file that `npm run verify`
+then rejects. Every extension ESLint is configured for gets ESLint and then
+Prettier: `js`, `mjs`, `cjs`, `ts`, `mts`, `cts`, `tsx`. Everything else
+Prettier parses gets Prettier alone. `jsx` sits in the Prettier-only group
+deliberately, because `eslint.config.js` does not configure it either, and
+running ESLint on a file it has no configuration for fails at
+`--max-warnings 0` on a "no matching configuration" warning rather than on
+anything real. If a rule is ever added for `jsx`, it moves groups.
+
 The typecheck is not scoped to staged files on purpose. Types are cross-file: a
 changed return type breaks its callers, and those callers are exactly the files
 you did not stage. A staged-only typecheck would pass while the project is

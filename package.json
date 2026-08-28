@@ -44,11 +44,11 @@
     "vite": "^8.0.3"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
+    "*.{js,mjs,cjs,ts,mts,cts,tsx}": [
       "eslint --fix --max-warnings 0",
       "prettier --write"
     ],
-    "*.{js,mjs,cjs,json,css,md}": [
+    "*.{jsx,json,css,md,html,yml,yaml}": [
       "prettier --write"
     ]
   }
