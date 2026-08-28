@@ -399,3 +399,93 @@ body {
   color: var(--color-ink);
   overflow-wrap: anywhere;
 }
+
+/*
+ * The upload card. Spec 0005, and scope.md feature 4's structural reference:
+ * icon, heading, file type note, drop zone, hairline border, and deliberately
+ * no decorative grid pattern behind it.
+ *
+ * The card IS the drop zone. A separate inner dashed rectangle is the usual
+ * answer and it is wrong twice over here: dashes are decoration feature 4 cut
+ * from this card, and a second bordered box inside a bordered box gives the one
+ * screen that is meant to feel like a gallery wall two competing frames.
+ */
+.plan-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius);
+  background-color: var(--color-bone);
+  padding: 3rem 1.5rem;
+  text-align: center;
+  transition:
+    border-color var(--duration-quick) var(--ease-standard),
+    background-color var(--duration-quick) var(--ease-standard);
+}
+
+/*
+ * Dragging a file over it. The hairline takes the accent and the surface drops
+ * to the ivory tone, which is the whole treatment: this is an interactive
+ * moment, so clay is allowed, and no second hue or dashed outline is needed to
+ * say the same thing.
+ */
+.plan-card[data-dragging="true"] {
+  border-color: var(--color-clay);
+  background-color: var(--color-ivory);
+}
+
+/*
+ * The mark. A room outline with a door swing, not a cloud with an arrow.
+ * Roomify's subject is architectural drawing, and the generic upload glyph says
+ * nothing about floor plans. Set in soft ink rather than clay: it is an
+ * illustration, and clay is only ever for things you interact with.
+ */
+.plan-mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  fill: none;
+  stroke: var(--color-ink-soft);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The stored plan, once it is up. Sized by its box, never cropped. */
+.plan-preview {
+  display: block;
+  max-height: 20rem;
+  width: auto;
+  max-width: 100%;
+  border-radius: var(--radius);
+}
+
+/*
+ * The determinate progress rule. Spec 0004 fixed the look of work in progress,
+ * clay at 55% with a hairline beneath, and this is that same signal with its
+ * width driven by the real fraction instead of an animation, because an upload
+ * is the one operation here that can actually report where it is.
+ */
+.plan-progress {
+  position: relative;
+  height: var(--border-hairline);
+  width: 100%;
+  background-color: var(--color-hairline);
+  overflow: hidden;
+}
+
+.plan-progress-bar {
+  height: 100%;
+  width: calc(var(--fraction, 0) * 100%);
+  background-color: var(--color-clay);
+  opacity: 0.55;
+  transition: width var(--duration-quick) var(--ease-standard);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-card,
+  .plan-progress-bar {
+    transition: none;
+  }
+}

@@ -79,10 +79,23 @@ export type RenderState = {
   readonly finishedAt: number | null;
 };
 
-/** The uploaded plan, as feature 5's `puter.fs` write leaves it. */
+/**
+ * The uploaded plan, as feature 5's `puter.fs` write leaves it.
+ *
+ * Path only, deliberately. Spec 0005 corrected spec 0002 here: `puter.fs.write`
+ * returns no URL, and the only anonymous URL the SDK offers, `getReadURL`,
+ * expires. A URL stored beside the path would go stale on a timer and the
+ * symptom would be a gallery of broken images a day after upload, a long way
+ * from its cause. The path never expires, so it is the thing worth keeping, and
+ * `app/upload/store.ts` mints a short lived view URL whenever a screen needs
+ * one.
+ *
+ * `PublicAssets.floorPlanUrl` is a different field and is still a real stored
+ * URL: it is the hosted copy the worker writes at publish time, which does not
+ * expire.
+ */
 export type FloorPlan = {
   readonly path: string;
-  readonly url: string;
 };
 
 export type Visibility = "private" | "public";

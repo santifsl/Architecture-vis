@@ -134,10 +134,18 @@ const parseModels = (value: unknown): readonly ModelId[] | null => {
   return items.every(isModelId) ? items : null;
 };
 
+/**
+ * Spec 0005 dropped `url` from `FloorPlan`, and this parser is the half that
+ * enforced it at runtime. Requiring a field the writer no longer produces does
+ * not fail to compile: it makes `parseProject` return `null` for every record,
+ * so `readProject` reports each project unreadable and `listProjects` skips
+ * them all, and the gallery is simply empty. Whenever the stored shape changes,
+ * this function changes with the type or the change is not done.
+ */
 const parseFloorPlan = (value: unknown): Project["floorPlan"] | null => {
   if (!isRecordValue(value)) return null;
-  const { path, url } = value;
-  return isNonEmptyString(path) && isNonEmptyString(url) ? { path, url } : null;
+  const { path } = value;
+  return isNonEmptyString(path) ? { path } : null;
 };
 
 /**
