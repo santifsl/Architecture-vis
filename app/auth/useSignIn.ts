@@ -24,7 +24,11 @@ export type SignInInteraction = SignInState & {
 
 export const useSignIn = (): SignInInteraction => {
   const revalidator = useRevalidator();
-  const { busy, notice } = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const { busy, notice } = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getSnapshot,
+  );
 
   const start = (): void => {
     startSignIn(() => revalidator.revalidate());

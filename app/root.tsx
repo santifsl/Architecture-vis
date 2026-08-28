@@ -48,7 +48,8 @@ export const links: Route.LinksFunction = () => [
  */
 export async function clientLoader() {
   const config = checkPuterEnv();
-  if (!config.ok) return { config: "missing", missing: config.missing } as const;
+  if (!config.ok)
+    return { config: "missing", missing: config.missing } as const;
 
   return { config: "ok", auth: await resolveAuthState() } as const;
 }
@@ -96,7 +97,9 @@ function ConfiguredApp({ auth }: { readonly auth: AuthState }) {
   return (
     <>
       <header className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-3">
-        <span className="text-base font-medium tracking-tight text-ink">Roomify</span>
+        <span className="text-base font-medium tracking-tight text-ink">
+          Roomify
+        </span>
         <AuthControl state={auth} />
       </header>
       <SessionBanner state={auth} />
@@ -130,11 +133,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
+    <main className="container mx-auto p-4 pt-16">
       <h1>{message}</h1>
       <p>{details}</p>
       {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
+        <pre className="w-full overflow-x-auto p-4">
           <code>{stack}</code>
         </pre>
       )}

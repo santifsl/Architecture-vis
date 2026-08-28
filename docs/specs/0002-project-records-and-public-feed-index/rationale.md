@@ -91,6 +91,7 @@ unauthenticated `GET` requests for feed pages and single public projects, and is
 the only writer of that index.
 
 **Pros**:
+
 - Anonymous readers are served by a channel that is genuinely anonymous, with no
   credentials and no sign in popup, which is what AC-2 of spec 0001 demands.
 - The worker is the only place ownership can be checked, because it is the only
@@ -99,6 +100,7 @@ the only writer of that index.
 - Real pagination, since the index is chunked and every read is bounded.
 
 **Cons**:
+
 - The worker becomes a single point of failure for the public feed. If it is
   down, the feed is down, while the personal gallery keeps working.
 - The index is a second copy of data, so it can drift from the owner records.
@@ -110,11 +112,13 @@ The worker regenerates a `feed.json` into a hosted directory on each publish;
 visitors fetch that file straight from `*.puter.site`.
 
 **Pros**:
+
 - The cheapest and most cacheable read possible. No worker invocation per
   visitor, and static hosting is the one channel proven anonymous by direct test.
 - Survives a worker outage, since the file is already published.
 
 **Cons**:
+
 - Every publish rewrites a whole file, so concurrent publishes clobber each
   other far more destructively than a chunked KV page does.
 - Pagination means slicing files by hand and republishing the slices.
@@ -127,10 +131,12 @@ Every project, private ones included, lives in the worker owner's KV keyed by
 username.
 
 **Pros**:
+
 - One store, one representation, no drift by construction.
 - Cross user queries become straightforward.
 
 **Cons**:
+
 - Throws away the per user isolation Puter gives for free, and puts every
   person's private work in one account that one bug can expose.
 - Every gallery read becomes a worker call, so a signed in person's own projects
@@ -143,9 +149,11 @@ Store an authentication free read URL per project on the record and let the feed
 point at those.
 
 **Pros**:
+
 - No second store, no worker in the read path, nothing to keep in step.
 
 **Cons**:
+
 - `getReadUrl` expires and is revocable by design, so a feed built on it decays
   silently.
 - It reads one known file and cannot enumerate anything, so there is no way to
@@ -187,6 +195,7 @@ per user creation would have to fight.
 ## References
 
 **Project sources**:
+
 - `CLAUDE.md`: Puter is the whole backend, no API route and no database; fail
   fast on missing configuration; never show a raw provider error; no test runner
   and no browser automation, verify by hand or with `curl`.
@@ -197,10 +206,11 @@ per user creation would have to fight.
   bars any unbidden sign in popup, which is what rules out a KV read as the
   anonymous read path.
 - The installed `@heyputer/puter.js` 2.6.2 types and source, quoted in
-  *What was verified* above. Per CLAUDE.md the package itself is the reference,
+  _What was verified_ above. Per CLAUDE.md the package itself is the reference,
   not training data.
 
 **Practices & standards**:
+
 - Denormalized read model derived from a system of record, so the copy is never
   authoritative even though it is durable.
 - A fenced lock rather than a bare expiring one, so a stalled holder cannot
@@ -212,6 +222,7 @@ per user creation would have to fight.
 - Bounded pagination on every list read, including the first version.
 
 **Links** (fetched and confirmed on 2026-08-27):
+
 - Puter serverless workers: https://docs.puter.com/Workers/
 - Worker router and handler context: https://docs.puter.com/Workers/router/
 - `puter.hosting.create()`: https://docs.puter.com/Hosting/create/

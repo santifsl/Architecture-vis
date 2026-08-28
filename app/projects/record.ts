@@ -31,7 +31,12 @@ export const isModelId = (value: unknown): value is ModelId =>
  * carries its own `RenderState`, so one model failing cannot touch the other's
  * status, URL, or error code.
  */
-export const RENDER_STATUSES = ["pending", "running", "complete", "failed"] as const;
+export const RENDER_STATUSES = [
+  "pending",
+  "running",
+  "complete",
+  "failed",
+] as const;
 export type RenderStatus = (typeof RENDER_STATUSES)[number];
 
 export const isRenderStatus = (value: unknown): value is RenderStatus =>
@@ -46,14 +51,19 @@ export const isRenderStatus = (value: unknown): value is RenderStatus =>
  * middle of it. A status staying where it is counts as legal, so a write that
  * changes something else about a render is never rejected as a bad transition.
  */
-const LEGAL_RENDER_TRANSITIONS: Readonly<Record<RenderStatus, readonly RenderStatus[]>> = {
+const LEGAL_RENDER_TRANSITIONS: Readonly<
+  Record<RenderStatus, readonly RenderStatus[]>
+> = {
   pending: ["running"],
   running: ["complete", "failed"],
   complete: ["pending"],
   failed: ["pending"],
 };
 
-export const isLegalRenderTransition = (from: RenderStatus, to: RenderStatus): boolean =>
+export const isLegalRenderTransition = (
+  from: RenderStatus,
+  to: RenderStatus,
+): boolean =>
   from === to || LEGAL_RENDER_TRANSITIONS[from].some((status) => status === to);
 
 /** One model's render. Embedded in the project, one per requested model. */
@@ -167,7 +177,10 @@ export const PROJECT_ID_PATTERN = /^[0-9a-z]{9}-[0-9a-z]{8}$/;
 export const isProjectId = (value: unknown): value is string =>
   typeof value === "string" && PROJECT_ID_PATTERN.test(value);
 
-const drawIdChars = (needed: number, drawn: readonly string[] = []): readonly string[] => {
+const drawIdChars = (
+  needed: number,
+  drawn: readonly string[] = [],
+): readonly string[] => {
   if (drawn.length >= needed) return drawn.slice(0, needed);
 
   const bytes = crypto.getRandomValues(new Uint8Array(needed * 2));
@@ -216,13 +229,16 @@ const MAX_FEED_CHUNK = 10 ** FEED_CHUNK_DIGITS - 1;
  */
 export const feedPageKey = (chunk: number): string => {
   if (!Number.isInteger(chunk) || chunk < 0 || chunk > MAX_FEED_CHUNK) {
-    throw new RangeError(`Feed chunk must be an integer between 0 and ${MAX_FEED_CHUNK}.`);
+    throw new RangeError(
+      `Feed chunk must be an integer between 0 and ${MAX_FEED_CHUNK}.`,
+    );
   }
   return `feed:page:${String(chunk).padStart(FEED_CHUNK_DIGITS, "0")}`;
 };
 
 /** Store B: which chunk holds a project's entry, so an update needs no scan. */
-export const feedWhereKey = (projectId: string): string => `feed:where:${projectId}`;
+export const feedWhereKey = (projectId: string): string =>
+  `feed:where:${projectId}`;
 
 /** Store B: the one read that tells the feed route where to start. */
 export const FEED_META_KEY = "feed:meta";

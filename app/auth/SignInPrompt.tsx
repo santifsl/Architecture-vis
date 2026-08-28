@@ -13,8 +13,14 @@ export function SignInPrompt({ what }: { readonly what: string }) {
   const { busy, notice, start } = useSignIn();
 
   return (
-    <section className="mx-auto max-w-sm px-6 py-24" aria-labelledby="sign-in-prompt">
-      <h1 id="sign-in-prompt" className="text-lg font-medium tracking-tight text-ink">
+    <section
+      className="mx-auto max-w-sm px-6 py-24"
+      aria-labelledby="sign-in-prompt"
+    >
+      <h1
+        id="sign-in-prompt"
+        className="text-lg font-medium tracking-tight text-ink"
+      >
         Sign in to see {what}
       </h1>
       <p className="mt-2 text-sm text-ink-soft">

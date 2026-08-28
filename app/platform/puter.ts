@@ -36,7 +36,9 @@ export type RoomifyUser = {
 /** Raised when a gated Puter call is attempted while signed out. Never shown to a person. */
 export class PuterGateError extends Error {
   constructor() {
-    super("Puter was called while signed out. Gate this behind the auth state from the root loader.");
+    super(
+      "Puter was called while signed out. Gate this behind the auth state from the root loader.",
+    );
     this.name = "PuterGateError";
   }
 }
@@ -111,7 +113,10 @@ export const readCurrentUser = async (): Promise<RoomifyUser | null> => {
  * exceptions. `useSignIn` is what turns each code into what a person sees, per
  * AC-5: a sentence and a retry for a blocked popup, silence for a closed one.
  */
-export const openSignIn = async (): Promise<{ readonly ok: true } | { readonly ok: false; readonly failure: SignInFailure }> => {
+export const openSignIn = async (): Promise<
+  | { readonly ok: true }
+  | { readonly ok: false; readonly failure: SignInFailure }
+> => {
   try {
     await puter.auth.signIn();
     return { ok: true };
@@ -138,7 +143,9 @@ export const clearSignIn = (): void => {
  * covered, because neither `puter.fs` nor `puter.kv` exposes a per-call
  * non-interactive option. AC-2 is scoped to boot and navigation for that reason.
  */
-export const withPuter = async <T>(fn: (sdk: typeof puter) => Promise<T>): Promise<T> => {
+export const withPuter = async <T>(
+  fn: (sdk: typeof puter) => Promise<T>,
+): Promise<T> => {
   if (!hasStoredToken()) throw new PuterGateError();
   return fn(puter);
 };

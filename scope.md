@@ -70,18 +70,18 @@ cheap decision to make now.
 
 ## At a glance
 
-| #   | Feature                                              | Phase      | Status      |
-| --- | ----------------------------------------------------- | ---------- | ----------- |
-| 1   | Connecting to Puter                                  | Foundation | done        |
-| 2   | Coding standards & tooling                           | Foundation | in-progress |
-| 3   | Data model                                           | Foundation | done        |
-| 4   | Design & look                                        | Foundation | not started |
-| 5   | Upload & host a floor plan                           | Slice 1    | not started |
-| 6   | Create a project & generate the 3D render            | Slice 1    | not started |
-| 7   | App shell & project gallery                          | Slice 2    | not started |
-| 8   | Side-by-side comparison view                         | Slice 3    | not started |
-| 9   | Public/private visibility & the community feed       | Slice 4    | not started |
-| 10  | Export                                               | Slice 4    | not started |
+| #   | Feature                                        | Phase      | Status      |
+| --- | ---------------------------------------------- | ---------- | ----------- |
+| 1   | Connecting to Puter                            | Foundation | done        |
+| 2   | Coding standards & tooling                     | Foundation | in-progress |
+| 3   | Data model                                     | Foundation | done        |
+| 4   | Design & look                                  | Foundation | not started |
+| 5   | Upload & host a floor plan                     | Slice 1    | not started |
+| 6   | Create a project & generate the 3D render      | Slice 1    | not started |
+| 7   | App shell & project gallery                    | Slice 2    | not started |
+| 8   | Side-by-side comparison view                   | Slice 3    | not started |
+| 9   | Public/private visibility & the community feed | Slice 4    | not started |
+| 10  | Export                                         | Slice 4    | not started |
 
 ## Foundation
 
@@ -355,7 +355,7 @@ typography, or accent rules already decided above.
 
 A user uploads a 2D floor plan image. It's written to permanent storage
 through `puter.fs`, which returns a real public URL, that URL is what
-everything downstream (the worker, the KV record, the comparison view) 
+everything downstream (the worker, the KV record, the comparison view)
 actually points at, never a local blob URL that dies when the tab closes.
 
 The upload card's layout is governed by feature 4's structural reference for

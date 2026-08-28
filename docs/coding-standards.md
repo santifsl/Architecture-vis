@@ -14,14 +14,14 @@ Two categories, and the difference matters:
 
 ## Running it
 
-| Command               | What it does                                          |
-| ---------------------- | ------------------------------------------------------ |
-| `npm run dev`          | Development server.                                     |
-| `npm run typecheck`    | `tsc --noEmit` over the whole project.                  |
-| `npm run lint`         | ESLint, including the type-aware rules.                 |
-| `npm run lint:fix`     | The same, applying every fix it can.                    |
-| `npm run format`       | Prettier, writing.                                       |
-| `npm run format:check` | Prettier, reporting only. This is what CI would run.    |
+| Command                | What it does                                                |
+| ---------------------- | ----------------------------------------------------------- |
+| `npm run dev`          | Development server.                                         |
+| `npm run typecheck`    | `tsc --noEmit` over the whole project.                      |
+| `npm run lint`         | ESLint, including the type-aware rules.                     |
+| `npm run lint:fix`     | The same, applying every fix it can.                        |
+| `npm run format`       | Prettier, writing.                                          |
+| `npm run format:check` | Prettier, reporting only. This is what CI would run.        |
 | `npm run verify`       | Typecheck, lint, format check, and a real production build. |
 
 `npm run verify` is the one to run before calling any piece of work done. The

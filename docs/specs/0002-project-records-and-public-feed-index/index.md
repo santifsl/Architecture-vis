@@ -3,7 +3,7 @@
 **Date**: 2026-08-27
 **Status**: Accepted for the owner half, feature 3, which is built and verified.
 The public half, feature 9, has six open design problems found in review; see
-*Open problems raised in review* under Follow-up. It is not accepted yet.
+_Open problems raised in review_ under Follow-up. It is not accepted yet.
 
 The decision history (context, what was weighed, the reasoning, and everything
 that was actually verified against the SDK and live hosts) lives beside this
@@ -103,57 +103,57 @@ Reasoning, the options weighed, and the verification record: see
 Three stores. Store A is the truth, store B is derived from it, store C holds
 bytes.
 
-*Store A: the owner's own `puter.kv`, scoped per user per app.*
+_Store A: the owner's own `puter.kv`, scoped per user per app._
 
-| Key | Value |
-| --- | --- |
+| Key                   | Value     |
+| --------------------- | --------- |
 | `project:<projectId>` | `Project` |
 
 `Project`
 
-| Field | Type | Required | Notes |
-| --- | --- | --- | --- |
-| `schemaVersion` | `1` | yes | so a later shape change is detectable, not guessed |
-| `id` | `string` | yes, primary key | time sortable: a base36 millisecond timestamp, a `-`, then 8 random base36 characters drawn from `crypto.getRandomValues`. Sorts by creation time on its own, and two devices publishing in the same millisecond do not collide |
-| `name` | `string` | yes | 1 to 80 characters after trimming |
-| `owner` | `string` | yes | Puter username, denormalized so a snapshot needs no second lookup |
-| `floorPlan` | `{ path: string, url: string }` | yes | the `puter.fs` path and the owner readable URL from feature 5 |
-| `models` | `readonly ModelId[]` | yes | what was requested, at least one, `ModelId` is `"claude" \| "gemini"` |
-| `renders` | `Readonly<Record<ModelId, RenderState>>` | yes | one entry per requested model, no entry for a model not requested |
-| `visibility` | `"private" \| "public"` | yes | defaults to `private` |
-| `publishedAt` | `number \| null` | yes | epoch milliseconds, `null` while private |
-| `publicAssets` | `PublicAssets \| null` | yes | `null` while private |
-| `createdAt` | `number` | yes | epoch milliseconds |
-| `updatedAt` | `number` | yes | epoch milliseconds |
+| Field           | Type                                     | Required         | Notes                                                                                                                                                                                                                           |
+| --------------- | ---------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schemaVersion` | `1`                                      | yes              | so a later shape change is detectable, not guessed                                                                                                                                                                              |
+| `id`            | `string`                                 | yes, primary key | time sortable: a base36 millisecond timestamp, a `-`, then 8 random base36 characters drawn from `crypto.getRandomValues`. Sorts by creation time on its own, and two devices publishing in the same millisecond do not collide |
+| `name`          | `string`                                 | yes              | 1 to 80 characters after trimming                                                                                                                                                                                               |
+| `owner`         | `string`                                 | yes              | Puter username, denormalized so a snapshot needs no second lookup                                                                                                                                                               |
+| `floorPlan`     | `{ path: string, url: string }`          | yes              | the `puter.fs` path and the owner readable URL from feature 5                                                                                                                                                                   |
+| `models`        | `readonly ModelId[]`                     | yes              | what was requested, at least one, `ModelId` is `"claude" \| "gemini"`                                                                                                                                                           |
+| `renders`       | `Readonly<Record<ModelId, RenderState>>` | yes              | one entry per requested model, no entry for a model not requested                                                                                                                                                               |
+| `visibility`    | `"private" \| "public"`                  | yes              | defaults to `private`                                                                                                                                                                                                           |
+| `publishedAt`   | `number \| null`                         | yes              | epoch milliseconds, `null` while private                                                                                                                                                                                        |
+| `publicAssets`  | `PublicAssets \| null`                   | yes              | `null` while private                                                                                                                                                                                                            |
+| `createdAt`     | `number`                                 | yes              | epoch milliseconds                                                                                                                                                                                                              |
+| `updatedAt`     | `number`                                 | yes              | epoch milliseconds                                                                                                                                                                                                              |
 
 `RenderState` (embedded, one per requested model)
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `status` | `"pending" \| "running" \| "complete" \| "failed"` | drives the per model progress in the gallery |
-| `path` | `string \| null` | `puter.fs` path, set on `complete` |
-| `url` | `string \| null` | owner readable URL, set on `complete` |
-| `errorCode` | `string \| null` | a short internal code, never a provider message |
-| `startedAt` | `number \| null` | |
-| `finishedAt` | `number \| null` | |
+| Field        | Type                                               | Notes                                           |
+| ------------ | -------------------------------------------------- | ----------------------------------------------- |
+| `status`     | `"pending" \| "running" \| "complete" \| "failed"` | drives the per model progress in the gallery    |
+| `path`       | `string \| null`                                   | `puter.fs` path, set on `complete`              |
+| `url`        | `string \| null`                                   | owner readable URL, set on `complete`           |
+| `errorCode`  | `string \| null`                                   | a short internal code, never a provider message |
+| `startedAt`  | `number \| null`                                   |                                                 |
+| `finishedAt` | `number \| null`                                   |                                                 |
 
 `PublicAssets` (embedded, written by the client from the publish response)
 
-| Field | Type | Notes |
-| --- | --- | --- |
-| `floorPlanUrl` | `string` | the `*.puter.site` copy |
-| `renderUrls` | `Readonly<Partial<Record<ModelId, string>>>` | one per model that had a complete render at publish time |
+| Field          | Type                                         | Notes                                                    |
+| -------------- | -------------------------------------------- | -------------------------------------------------------- |
+| `floorPlanUrl` | `string`                                     | the `*.puter.site` copy                                  |
+| `renderUrls`   | `Readonly<Partial<Record<ModelId, string>>>` | one per model that had a complete render at publish time |
 
-*Store B: the app account's `puter.kv`, reachable only as `me.puter` inside the
-worker. Derived from store A, and repaired per owner by a republish.*
+_Store B: the app account's `puter.kv`, reachable only as `me.puter` inside the
+worker. Derived from store A, and repaired per owner by a republish._
 
-| Key | Value | Notes |
-| --- | --- | --- |
-| `feed:page:<nnnn>` | `{ chunk: number, entries: FeedEntry[] }` | up to 50 entries, newest first within the chunk. Chunks are **appended**: `0000` is the oldest and `feed:meta.newestChunk` names the newest, so a roll never rewrites an existing chunk |
-| `feed:where:<projectId>` | `number` | which chunk holds this entry. Read before an insert to update in place instead of duplicating, and read on unpublish to find the entry without scanning |
-| `feed:meta` | `{ newestChunk: number, totalPublished: number }` | one read tells the feed route where to start and how far it can page |
-| `feed:lock` | `{ token: string, expiresAt: number }` | a fenced lock, see *Locking* below |
-| `feed:cleanup:<projectId>` | `{ paths: string[] }` | store C files an unpublish failed to delete, retried by the next publish or unpublish |
+| Key                        | Value                                             | Notes                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `feed:page:<nnnn>`         | `{ chunk: number, entries: FeedEntry[] }`         | up to 50 entries, newest first within the chunk. Chunks are **appended**: `0000` is the oldest and `feed:meta.newestChunk` names the newest, so a roll never rewrites an existing chunk |
+| `feed:where:<projectId>`   | `number`                                          | which chunk holds this entry. Read before an insert to update in place instead of duplicating, and read on unpublish to find the entry without scanning                                 |
+| `feed:meta`                | `{ newestChunk: number, totalPublished: number }` | one read tells the feed route where to start and how far it can page                                                                                                                    |
+| `feed:lock`                | `{ token: string, expiresAt: number }`            | a fenced lock, see _Locking_ below                                                                                                                                                      |
+| `feed:cleanup:<projectId>` | `{ paths: string[] }`                             | store C files an unpublish failed to delete, retried by the next publish or unpublish                                                                                                   |
 
 `FeedEntry`: `schemaVersion`, `projectId`, `name`, `author`, `models` (only
 those with a complete render), `renderUrls`, `floorPlanUrl`, `publishedAt`.
@@ -180,7 +180,7 @@ sorted and never compacted across chunks, so a chunk can hold fewer than 50
 entries, which is harmless because paging is driven by the chunk index rather
 than by counts.
 
-*Store C: the app account's hosted directory*, published once with
+_Store C: the app account's hosted directory_, published once with
 `puter.hosting.create`. Files at `/<projectId>/floor-plan.<ext>` and
 `/<projectId>/<model>.<ext>`, served anonymously at
 `https://<subdomain>.puter.site/...`. This is the only place a signed out
@@ -202,12 +202,12 @@ at least one render is `complete` (AC-6).
 
 **API surface** (the worker, at `VITE_PUTER_WORKER_URL`)
 
-| Endpoint | Method | Key inputs | Key outputs | Auth | Key errors |
-|---|---|---|---|---|---|
-| `/feed` | GET | `chunk:number` (opt, defaults to `feed:meta.newestChunk`) | `entries: FeedEntry[]`, `chunk`, `hasMore:boolean` | none, anonymous | 400 bad chunk, 503 index unavailable |
-| `/feed/project/:projectId` | GET | `projectId:string` (req) | one `FeedEntry` | none, anonymous | 404, returned identically for a project that is private, unknown, or withdrawn, so the route never reveals that a private project exists |
-| `/publish` | POST | `projectId:string` (req) | `publicAssets`, `publishedAt` | Puter session required | 401 no session, 404 no such project for this caller, 409 no complete render, 422 malformed record, 503 lock unavailable |
-| `/unpublish` | POST | `projectId:string` (req) | `{ ok: true }` | Puter session required | 401 no session, 404 not published |
+| Endpoint                   | Method | Key inputs                                                | Key outputs                                        | Auth                   | Key errors                                                                                                                               |
+| -------------------------- | ------ | --------------------------------------------------------- | -------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `/feed`                    | GET    | `chunk:number` (opt, defaults to `feed:meta.newestChunk`) | `entries: FeedEntry[]`, `chunk`, `hasMore:boolean` | none, anonymous        | 400 bad chunk, 503 index unavailable                                                                                                     |
+| `/feed/project/:projectId` | GET    | `projectId:string` (req)                                  | one `FeedEntry`                                    | none, anonymous        | 404, returned identically for a project that is private, unknown, or withdrawn, so the route never reveals that a private project exists |
+| `/publish`                 | POST   | `projectId:string` (req)                                  | `publicAssets`, `publishedAt`                      | Puter session required | 401 no session, 404 no such project for this caller, 409 no complete render, 422 malformed record, 503 lock unavailable                  |
+| `/unpublish`               | POST   | `projectId:string` (req)                                  | `{ ok: true }`                                     | Puter session required | 401 no session, 404 not published                                                                                                        |
 
 The client reaches all four through `puter.workers.exec()` behind `withPuter`
 from spec 0001. The two `GET` routes are sent with the `x-puter-no-auth` header
@@ -215,25 +215,25 @@ when the reader is signed out, which is what makes them genuinely anonymous.
 
 **Value sourcing**
 
-| Action | Value produced / displayed | Source |
-|---|---|---|
-| create project | `id` | generated client side, base36 `Date.now()` plus a random suffix |
-| create project | `owner` | the resolved user from spec 0001's root loader, never typed or posted |
-| create project | `floorPlan.path` / `.url` | the `puter.fs` write result from feature 5 |
-| render | `renders[model].url` / `.path` | the worker's render result from feature 6 |
-| render | `renders[model].errorCode` | mapped from the provider failure to a short internal code inside the worker, so no provider text can reach a screen |
-| publish | `FeedEntry.author` | the caller's username from `user.puter` inside the worker, never the request body |
-| publish | `FeedEntry.publishedAt` | the worker's own clock at the moment the entry is written |
-| publish | `FeedEntry.models` | derived: the keys of `renders` whose status is `complete` at read back time |
-| publish | `FeedEntry.renderUrls` / `floorPlanUrl` | the store C paths the worker just wrote, composed onto the configured subdomain |
-| publish | target chunk | `feed:meta.newestChunk`, with a new chunk appended when that one holds 50 entries |
-| publish | whether this is an insert or an update in place | `feed:where:<projectId>`, plus a scan of the newest chunk, so a double publish cannot make two entries |
-| publish | the lock token | generated per attempt from `crypto.randomUUID()`, compared before every write and on release |
-| unpublish | which chunk holds the entry | `feed:where:<projectId>` |
-| feed read | `hasMore` | derived: `chunk > 0`, since chunk `0000` is the oldest |
-| owner's project view | whether the public copy is stale | derived: `visibility` is `public` and `updatedAt > publishedAt`, which is what shows the plain "public copy is out of date" state and its retry |
-| feed card | which models rendered it | `FeedEntry.models`, which is what feature 4's meta line shows instead of a generic author and clock line |
-| gallery | ordering | `Project.id`, which sorts by creation time on its own |
+| Action               | Value produced / displayed                      | Source                                                                                                                                          |
+| -------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| create project       | `id`                                            | generated client side, base36 `Date.now()` plus a random suffix                                                                                 |
+| create project       | `owner`                                         | the resolved user from spec 0001's root loader, never typed or posted                                                                           |
+| create project       | `floorPlan.path` / `.url`                       | the `puter.fs` write result from feature 5                                                                                                      |
+| render               | `renders[model].url` / `.path`                  | the worker's render result from feature 6                                                                                                       |
+| render               | `renders[model].errorCode`                      | mapped from the provider failure to a short internal code inside the worker, so no provider text can reach a screen                             |
+| publish              | `FeedEntry.author`                              | the caller's username from `user.puter` inside the worker, never the request body                                                               |
+| publish              | `FeedEntry.publishedAt`                         | the worker's own clock at the moment the entry is written                                                                                       |
+| publish              | `FeedEntry.models`                              | derived: the keys of `renders` whose status is `complete` at read back time                                                                     |
+| publish              | `FeedEntry.renderUrls` / `floorPlanUrl`         | the store C paths the worker just wrote, composed onto the configured subdomain                                                                 |
+| publish              | target chunk                                    | `feed:meta.newestChunk`, with a new chunk appended when that one holds 50 entries                                                               |
+| publish              | whether this is an insert or an update in place | `feed:where:<projectId>`, plus a scan of the newest chunk, so a double publish cannot make two entries                                          |
+| publish              | the lock token                                  | generated per attempt from `crypto.randomUUID()`, compared before every write and on release                                                    |
+| unpublish            | which chunk holds the entry                     | `feed:where:<projectId>`                                                                                                                        |
+| feed read            | `hasMore`                                       | derived: `chunk > 0`, since chunk `0000` is the oldest                                                                                          |
+| owner's project view | whether the public copy is stale                | derived: `visibility` is `public` and `updatedAt > publishedAt`, which is what shows the plain "public copy is out of date" state and its retry |
+| feed card            | which models rendered it                        | `FeedEntry.models`, which is what feature 4's meta line shows instead of a generic author and clock line                                        |
+| gallery              | ordering                                        | `Project.id`, which sorts by creation time on its own                                                                                           |
 
 **Key invariants**
 
@@ -334,16 +334,16 @@ nothing.
 **Feature 3, now:** built, `app/projects/`.
 
 1. [x] Write the record types in one place: `Project`, `RenderState`, `ModelId`,
-   `PublicAssets`, `FeedEntry`, all `readonly`, no `any`, plus the time sortable
-   id generator and the key builders (`project:<id>`, `feed:page:<nnnn>`,
-   `feed:where:<id>`). Satisfies **AC-2**, part of **AC-11**.
+       `PublicAssets`, `FeedEntry`, all `readonly`, no `any`, plus the time sortable
+       id generator and the key builders (`project:<id>`, `feed:page:<nnnn>`,
+       `feed:where:<id>`). Satisfies **AC-2**, part of **AC-11**.
 2. [x] Write the owner side store module over `withPuter` from spec 0001: create,
-   read, list by prefix, update, delete, with the shape validated on the way in
-   and out and a plain failure message on the way out. Satisfies **AC-1**,
-   **AC-11**, **AC-14**.
+       read, list by prefix, update, delete, with the shape validated on the way in
+       and out and a plain failure message on the way out. Satisfies **AC-1**,
+       **AC-11**, **AC-14**.
 3. [x] Write the invariant checks as plain functions the store module calls
-   (`renders` matches `models`, `publishedAt` agrees with `visibility`, name
-   length, value size before a write). Satisfies **AC-11**, **AC-13**.
+       (`renders` matches `models`, `publishedAt` agrees with `visibility`, name
+       length, value size before a write). Satisfies **AC-11**, **AC-13**.
 
 **Feature 9, when the public half is built:**
 
@@ -461,14 +461,15 @@ in shipped code today. None is answered here on purpose: each is a real design
 fork, and this project decides those with `/architect`, not in passing. **Feature
 9 does not start until these are settled.**
 
-- [ ] **The fenced lock cannot be built as written.** *Locking* above has a
+- [ ] **The fenced lock cannot be built as written.** _Locking_ above has a
       publisher `kv.set` the lock "only when the key is absent or its
       `expiresAt` has passed", and delete it "only when the token still
       matches". Both are read-then-write. The pinned SDK's `puter.kv` has no
       conditional write and no compare-and-swap: `set` is unconditional, and the
-      only atomic primitives are `incr` and `decr` (`node_modules/@heyputer/
-      puter.js/types/modules/kv/index.d.ts`). Two publishers can both read the
-      key as absent and both set it, each believing it holds the lock, and the
+      only atomic primitives are `incr` and `decr`
+      (`node_modules/@heyputer/puter.js/types/modules/kv/index.d.ts`). Two
+      publishers can both read the key as absent and both set it, each
+      believing it holds the lock, and the
       token fencing does not help because both wrote. The lock needs rebuilding
       on a primitive that actually exists, most likely `incr`, which this spec
       dismissed as "a counter, not a mutex" without noticing it is the only
@@ -480,8 +481,8 @@ fork, and this project decides those with `/architect`, not in passing. **Featur
       reads private. That contradicts AC-13. Needs a compensating commit
       protocol across the three stores, one that does not treat the client's
       response handler as the authority.
-- [ ] **A failed publish leaks publicly readable images.** *Write order on
-      publish* copies every store C file first and abandons on any failure.
+- [ ] **A failed publish leaks publicly readable images.** _Write order on
+      publish_ copies every store C file first and abandons on any failure.
       Abandoning leaves those copies live at a guessable `*.puter.site` URL with
       no feed entry and no record pointing at them, which AC-13 forbids. Either
       stage them somewhere not publicly readable, or track every copied path
@@ -494,9 +495,10 @@ fork, and this project decides those with `/architect`, not in passing. **Featur
       an in-place update, or splice the entry out of its old chunk, reinsert it
       into the newest one, and update `feed:where:<projectId>`.
 - [ ] **The staleness check compares two different clocks.** The owner's project
-      view derives "the public copy is out of date" from `updatedAt >
-      publishedAt`, but `updatedAt` is the browser's clock and `publishedAt` is
-      the worker's. A slow browser clock hides a genuinely stale copy; a fast
+      view derives "the public copy is out of date" from
+      `updatedAt > publishedAt`, but `updatedAt` is the browser's clock and
+      `publishedAt` is the worker's. A slow browser clock hides a genuinely
+      stale copy; a fast
       one shows a fresh copy as permanently stale. This wants one shared,
       server issued revision or mutation number that both the owner store update
       and the publish write and compare.

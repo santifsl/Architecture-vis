@@ -15,7 +15,11 @@ const sentences: Readonly<Record<SignInNotice, string>> = {
   didNotFinish: "Sign-in didn't finish, so nothing changed. Try again.",
 };
 
-export function AuthNotice({ notice }: { readonly notice: SignInNotice | null }) {
+export function AuthNotice({
+  notice,
+}: {
+  readonly notice: SignInNotice | null;
+}) {
   if (notice === null) return null;
 
   return (

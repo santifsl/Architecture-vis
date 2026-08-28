@@ -70,8 +70,10 @@ export const startSignIn = (revalidate: () => Promise<void>): void => {
         return;
       }
 
-      if (outcome.failure === "popup_blocked") publish({ busy: true, notice: "popupBlocked" });
-      else if (outcome.failure === "unknown") publish({ busy: true, notice: "didNotFinish" });
+      if (outcome.failure === "popup_blocked")
+        publish({ busy: true, notice: "popupBlocked" });
+      else if (outcome.failure === "unknown")
+        publish({ busy: true, notice: "didNotFinish" });
       // `auth_window_closed` is a deliberate cancel: nothing changed, and
       // nothing is said about it.
     } finally {

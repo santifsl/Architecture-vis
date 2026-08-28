@@ -22,7 +22,16 @@ const root = fileURLToPath(new URL("..", import.meta.url));
 const scanned = join(root, "app");
 const allowed = join("app", "platform", "puter.ts");
 const sdk = "@heyputer/puter.js";
-const extensions = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".mts", ".cts"];
+const extensions = [
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+];
 
 const walk = (dir) =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

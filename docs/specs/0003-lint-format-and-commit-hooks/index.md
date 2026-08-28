@@ -179,13 +179,13 @@ tokens.
 
 The npm scripts, which are the interface everything else uses:
 
-| Script                 | Runs                                                          |
-| ---------------------- | ------------------------------------------------------------- |
-| `lint`                 | `eslint . --max-warnings 0`                                    |
-| `lint:fix`             | `eslint . --fix --max-warnings 0`                              |
-| `format`               | `prettier --write .`                                           |
-| `format:check`         | `prettier --check .`                                           |
-| `verify`               | `typecheck`, then `lint`, then `format:check`, then `build`     |
+| Script         | Runs                                                        |
+| -------------- | ----------------------------------------------------------- |
+| `lint`         | `eslint . --max-warnings 0`                                 |
+| `lint:fix`     | `eslint . --fix --max-warnings 0`                           |
+| `format`       | `prettier --write .`                                        |
+| `format:check` | `prettier --check .`                                        |
+| `verify`       | `typecheck`, then `lint`, then `format:check`, then `build` |
 
 The hook, `.husky/pre-commit`:
 
@@ -214,18 +214,18 @@ installs the hook on `npm install` with nothing to remember.
 
 ### Enforcement
 
-| Rule                                            | Enforced by                                                       |
-| ----------------------------------------------- | ------------------------------------------------------------------ |
-| No `any`                                        | `@typescript-eslint/no-explicit-any`, error                        |
-| No floating promises                            | `@typescript-eslint/no-floating-promises`, error, type aware       |
-| Consistent inline type imports                  | `@typescript-eslint/consistent-type-imports` plus `verbatimModuleSyntax` already on in `tsconfig.json` |
-| `readonly` on never reassigned class fields     | `@typescript-eslint/prefer-readonly`, error                        |
-| Only `app/platform/puter.ts` imports the SDK    | `no-restricted-imports` plus `no-restricted-syntax`, error, with a per file override |
-| Formatting and Tailwind class order             | Prettier plus `prettier-plugin-tailwindcss`, checked by `format:check` |
-| Hook rules and hot reload safety                | `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`         |
-| The machine checkable part of accessibility     | `eslint-plugin-jsx-a11y`, recommended set                          |
-| All of the above, at commit time                | Husky plus `lint-staged`                                           |
-| Types across the whole project, at commit time  | `npm run typecheck` in the hook, unscoped on purpose               |
+| Rule                                           | Enforced by                                                                                            |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| No `any`                                       | `@typescript-eslint/no-explicit-any`, error                                                            |
+| No floating promises                           | `@typescript-eslint/no-floating-promises`, error, type aware                                           |
+| Consistent inline type imports                 | `@typescript-eslint/consistent-type-imports` plus `verbatimModuleSyntax` already on in `tsconfig.json` |
+| `readonly` on never reassigned class fields    | `@typescript-eslint/prefer-readonly`, error                                                            |
+| Only `app/platform/puter.ts` imports the SDK   | `no-restricted-imports` plus `no-restricted-syntax`, error, with a per file override                   |
+| Formatting and Tailwind class order            | Prettier plus `prettier-plugin-tailwindcss`, checked by `format:check`                                 |
+| Hook rules and hot reload safety               | `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`                                             |
+| The machine checkable part of accessibility    | `eslint-plugin-jsx-a11y`, recommended set                                                              |
+| All of the above, at commit time               | Husky plus `lint-staged`                                                                               |
+| Types across the whole project, at commit time | `npm run typecheck` in the hook, unscoped on purpose                                                   |
 
 Everything under the Judgment heading in `docs/coding-standards.md` stays
 judgment. `jsx-a11y` moves part of the accessibility baseline into Enforced, but

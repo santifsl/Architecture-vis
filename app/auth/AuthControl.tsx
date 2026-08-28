@@ -27,7 +27,11 @@ export function AuthControl({ state }: { readonly state: AuthState }) {
     return (
       <div className="flex items-center gap-3">
         <span className="text-sm text-ink">{state.user.username}</span>
-        <button type="button" className="btn-quiet" onClick={() => void handleSignOut()}>
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={() => void handleSignOut()}
+        >
           Sign out
         </button>
       </div>

@@ -102,8 +102,8 @@ spec. The model below is the in memory auth fact, held in root loader data.
 
 ```ts
 type RoomifyUser = {
-  readonly uuid: string;      // Puter User.uuid, stable account identifier
-  readonly username: string;  // Puter User.username, the only display name Puter gives
+  readonly uuid: string; // Puter User.uuid, stable account identifier
+  readonly username: string; // Puter User.username, the only display name Puter gives
 };
 
 type AuthState =
@@ -143,14 +143,14 @@ permit exactly that and nothing more.
 This feature exposes no HTTP endpoints. Its surface is the module boundary that
 the rest of the app is allowed to touch.
 
-| Function | Signature | Key inputs | Key outputs | Auth | Key errors |
-|---|---|---|---|---|---|
-| `resolveAuthState` | `() => Promise<AuthState>` | none | `AuthState` | none, this is the check | never rejects and never prompts; every failure resolves to `signedOut` |
-| `signIn` | `() => Promise<SignInOutcome>` | none | `{ readonly ok: true } \| { readonly ok: false; readonly failure: SignInFailure }` | must be called from a user activation | `popup_blocked` surfaced, `auth_window_closed` swallowed to `signedOut` |
-| `signOut` | `() => void` | none | void | none | none, Puter's `signOut` is synchronous and cannot fail |
-| `requireUser` | `(state: AuthState) => { readonly ok: true; readonly user: RoomifyUser } \| { readonly ok: false }` | current `AuthState` | a discriminated result | signed in only | none, it throws nothing; the route renders the prompt on `ok: false` |
-| `withPuter` | `<T>(fn: (p: Puter) => Promise<T>) => Promise<T>` | a function taking the SDK | its result | signed in only | rejects with the gate error when signed out, and never lets Puter prompt |
-| `puterEnv` | `() => { workerUrl: string }` | none | validated config | none | throws at startup when unset, caught by the boot screen |
+| Function           | Signature                                                                                           | Key inputs                | Key outputs                                                                        | Auth                                  | Key errors                                                               |
+| ------------------ | --------------------------------------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------ |
+| `resolveAuthState` | `() => Promise<AuthState>`                                                                          | none                      | `AuthState`                                                                        | none, this is the check               | never rejects and never prompts; every failure resolves to `signedOut`   |
+| `signIn`           | `() => Promise<SignInOutcome>`                                                                      | none                      | `{ readonly ok: true } \| { readonly ok: false; readonly failure: SignInFailure }` | must be called from a user activation | `popup_blocked` surfaced, `auth_window_closed` swallowed to `signedOut`  |
+| `signOut`          | `() => void`                                                                                        | none                      | void                                                                               | none                                  | none, Puter's `signOut` is synchronous and cannot fail                   |
+| `requireUser`      | `(state: AuthState) => { readonly ok: true; readonly user: RoomifyUser } \| { readonly ok: false }` | current `AuthState`       | a discriminated result                                                             | signed in only                        | none, it throws nothing; the route renders the prompt on `ok: false`     |
+| `withPuter`        | `<T>(fn: (p: Puter) => Promise<T>) => Promise<T>`                                                   | a function taking the SDK | its result                                                                         | signed in only                        | rejects with the gate error when signed out, and never lets Puter prompt |
+| `puterEnv`         | `() => { workerUrl: string }`                                                                       | none                      | validated config                                                                   | none                                  | throws at startup when unset, caught by the boot screen                  |
 
 `signIn` returns a discriminated result rather than the resulting `AuthState`.
 This was corrected during the build: both `popup_blocked` and `auth_window_closed`
@@ -181,19 +181,19 @@ non interactive option exists.
 
 **Value sourcing**:
 
-| Action | Value produced / displayed | Source |
-|---|---|---|
-| boot check | is there a token at all | `puter.authToken`, checked first so a visitor with no token costs no request |
-| boot check | is there a real signed in user | `await puter.whoamiCache_`, the promise the SDK starts at load, falling back to the `puter.whoami` value. Never `getUser()` or `whoami()`, both of which prompt on an expired token, and never `isSignedIn()`, which never asks the server |
-| boot check | the signed out answer on failure | `null` from `cacheWhoami_`, which already returns `null` for a bad token and for a network failure alike, so failing closed needs no extra branch |
-| boot check | `RoomifyUser.uuid` | `User.uuid` from that cached response |
-| boot check | `RoomifyUser.username` | `User.username` from that cached response |
-| sign in | the user shown after signing in | the root `clientLoader` re running after `revalidator.revalidate()`, not `SignInResult.username`, so one code path produces the user in both cases |
-| sign in failure | which failure occurred | the rejection's `error` field, `"popup_blocked"` or `"auth_window_closed"` |
-| session banner | `reason: "sessionEnded"` | the one shot module flag set by the `puter.auth.reauth_required` handler and cleared by the loader that reads it. Not re derivable from a fresh check, which is why the flag exists |
-| route guard | whether this route may render | `AuthState.status` read from root loader data, never a fresh Puter call |
-| boot screen | the missing variable's name | `import.meta.env.VITE_PUTER_WORKER_URL`, validated once at startup |
-| every Puter call | the SDK instance | the `withPuter` accessor, which is the only module importing `@heyputer/puter.js` |
+| Action           | Value produced / displayed       | Source                                                                                                                                                                                                                                     |
+| ---------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| boot check       | is there a token at all          | `puter.authToken`, checked first so a visitor with no token costs no request                                                                                                                                                               |
+| boot check       | is there a real signed in user   | `await puter.whoamiCache_`, the promise the SDK starts at load, falling back to the `puter.whoami` value. Never `getUser()` or `whoami()`, both of which prompt on an expired token, and never `isSignedIn()`, which never asks the server |
+| boot check       | the signed out answer on failure | `null` from `cacheWhoami_`, which already returns `null` for a bad token and for a network failure alike, so failing closed needs no extra branch                                                                                          |
+| boot check       | `RoomifyUser.uuid`               | `User.uuid` from that cached response                                                                                                                                                                                                      |
+| boot check       | `RoomifyUser.username`           | `User.username` from that cached response                                                                                                                                                                                                  |
+| sign in          | the user shown after signing in  | the root `clientLoader` re running after `revalidator.revalidate()`, not `SignInResult.username`, so one code path produces the user in both cases                                                                                         |
+| sign in failure  | which failure occurred           | the rejection's `error` field, `"popup_blocked"` or `"auth_window_closed"`                                                                                                                                                                 |
+| session banner   | `reason: "sessionEnded"`         | the one shot module flag set by the `puter.auth.reauth_required` handler and cleared by the loader that reads it. Not re derivable from a fresh check, which is why the flag exists                                                        |
+| route guard      | whether this route may render    | `AuthState.status` read from root loader data, never a fresh Puter call                                                                                                                                                                    |
+| boot screen      | the missing variable's name      | `import.meta.env.VITE_PUTER_WORKER_URL`, validated once at startup                                                                                                                                                                         |
+| every Puter call | the SDK instance                 | the `withPuter` accessor, which is the only module importing `@heyputer/puter.js`                                                                                                                                                          |
 
 **Key invariants**:
 
