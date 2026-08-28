@@ -468,17 +468,20 @@ feature 2. Dark mode is deliberately out of scope.
       Real commands and a real browser, same as every other feature here. The
       three steps most worth an independent pass are the two contrast reverts and
       the double-fire check on a busy button, since all three prove a guard
-      rather than a look. **Closed 2026-08-28 with 31 of 45 steps run and passing
-      and 14 waived.** Everything a command can decide was exercised and recorded
+      rather than a look. **Closed 2026-08-28 with 34 of 47 steps run and passing
+      and 13 waived.** Everything a command can decide was exercised and recorded
       in `verify.md`, including both contrast reverts, all twelve planted lint
       violations, and the guard audit showing no `disabled={` left in any JSX. The
-      14 waived steps are the browser walk: the visual states, the keyboard pass,
-      the nine screen review, and the double-fire check on a live sign in. They
-      were not run, and they stay unticked in `verify.md` rather than being
-      claimed. This feature is `done` on the engineer's call, not because the walk
-      passed. The double-fire step is the real exposure: `aria-disabled` does not
-      block a click, so if the handler guard ever regresses, sign in fires twice
-      and nothing on screen looks wrong. `createSingleFlight` is what holds it
+      13 waived steps are the rest of the browser walk: the visual states, the
+      keyboard pass, and the nine screen review. They were not run, and they stay
+      unticked in `verify.md` rather than being claimed. This feature is `done` on
+      the engineer's call, not because that walk passed. The one step that was
+      pulled back out of the waiver and actually done is the double-fire check,
+      which Santiago ran by hand: exactly one sign in call across a second click,
+      `Enter` and `Space`. That was the right one to insist on, because it is the
+      only one whose failure is invisible. `aria-disabled` does not block a click,
+      so a regressed guard fires sign in two or four times and nothing on screen
+      looks wrong. `createSingleFlight` holds it, now confirmed by observation
 
 **Code**: `app/app.css` (the whole token layer, the six `type-*` utilities, and
 the six states on `.btn-accent` and `.btn-quiet`), `scripts/check-contrast.mjs`

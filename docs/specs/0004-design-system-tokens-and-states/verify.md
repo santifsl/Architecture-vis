@@ -11,15 +11,19 @@ those on a branch you are willing to throw away, or `git restore` after each.
 and write beside it what it produced, including when the result differed from
 what this file expected.
 
-**Status, 2026-08-28.** 31 of the 45 steps were run and passed, every one of them
-a command with its output recorded below. The remaining 14 are the browser walk:
-the visual states, the keyboard pass, the nine screen review, and the double fire
-check on a live sign in. Those were **waived by Santiago and shipped without
-being run**, so they stay unticked on purpose. Feature 4 was marked done on that
-basis. If you are picking this up fresh, the browser walk is the outstanding
-work, and the double fire step is the one worth doing first: `aria-disabled` does
-not block a click, so an unguarded handler fires sign in twice and the screen
-still looks completely correct.
+**Status, 2026-08-28.** 34 of the 47 steps were run and passed. Thirty three are
+commands with their output recorded below. The thirty fourth is the double fire
+check, which Santiago ran by hand in a real browser and confirmed: exactly one
+sign in call across a second click, `Enter` and `Space`.
+
+The remaining 13 are the rest of the browser walk: the visual states, the
+keyboard pass, and the nine screen review. Those were **waived by Santiago and
+shipped without being run**, so they stay unticked on purpose. Feature 4 was
+marked done on that basis.
+
+If you are picking this up fresh, that walk is the outstanding work. It is all
+looks-wrong-if-broken now: the one step whose failure would have been invisible,
+the double fire check, has been done.
 
 ## Contrast, the two live failures
 
@@ -148,7 +152,7 @@ Run `npm run dev` and use the sign in button in the header, which is a
       checked underneath it: the dev server serves the route 200 with no console
       errors, the served markup carries the new classes, and the compiled CSS carries
       the matching rules. Reopen this walk before trusting the visual states.**
-- [ ] With a real sign in genuinely in flight (throttle the network so the busy
+- [x] With a real sign in genuinely in flight (throttle the network so the busy
       window is long enough), click the button a second time, then press
       `Enter` on it, then press `Space` on it. Watch the network panel: exactly
       one sign in call is made → AC-11
@@ -156,13 +160,15 @@ Run `npm run dev` and use the sign in button in the header, which is a
       introduces. `aria-disabled` does not block a click, so if the handler is
       not guarded this fires two or four times and the screen still looks
       completely correct._
-      **WAIVED 2026-08-28 by Santiago, not run. This step needs a real browser and a
-      person looking at the screen; `/check verify` has no browser automation, which is
-      the project's own choice, so it was never exercised. It is deliberately left
-      unticked: nobody has observed it, and a tick here would claim otherwise. What was
-      checked underneath it: the dev server serves the route 200 with no console
-      errors, the served markup carries the new classes, and the compiled CSS carries
-      the matching rules. Reopen this walk before trusting the visual states.**
+      **RUN 2026-08-28 by Santiago, in a real browser, and it passed: exactly one
+      sign in call went out across the second click, `Enter` and `Space`. Observed
+      by hand, not by this session, which has no browser automation. This is the
+      one waived step that was pulled back and actually done, because it is the
+      only one of the fourteen whose failure is invisible: the other thirteen look
+      wrong when they break, this one looks completely correct while firing sign
+      in two or four times. `createSingleFlight` in `app/auth/singleFlight.ts` is
+      what holds it, and it is now confirmed by observation rather than by reading
+      the code. Do not remove that latch while any control is busy by ARIA alone.**
 - [x] Read every `disabled={` in `app/` and confirm each one guards a control
       that is genuinely unavailable, never one that is merely busy. The three
       auth buttons should no longer be in that list → AC-11
