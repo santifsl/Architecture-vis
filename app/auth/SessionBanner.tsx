@@ -13,7 +13,8 @@ import { useSignIn } from "~/auth/useSignIn";
 export function SessionBanner({ state }: { readonly state: AuthState }) {
   const { busy, notice, start } = useSignIn();
 
-  if (state.status !== "signedOut" || state.reason !== "sessionEnded") return null;
+  if (state.status !== "signedOut" || state.reason !== "sessionEnded")
+    return null;
 
   return (
     <div className="banner" role="status">

@@ -31,14 +31,18 @@ export class MissingEnvError extends Error {
   readonly missing: readonly RequiredVariable[];
 
   constructor(missing: readonly RequiredVariable[]) {
-    super(`Missing required environment ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}`);
+    super(
+      `Missing required environment ${missing.length === 1 ? "variable" : "variables"}: ${missing.join(", ")}`,
+    );
     this.name = "MissingEnvError";
     this.missing = missing;
   }
 }
 
 const present = (value: unknown): string | undefined =>
-  typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+  typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : undefined;
 
 /**
  * Read statically, one literal per variable. Vite only substitutes
@@ -64,7 +68,10 @@ const read = (name: RequiredVariable): string | undefined => {
 export const checkPuterEnv = (): EnvCheck => {
   const missing = required.filter((name) => read(name) === undefined);
   if (missing.length > 0) return { ok: false, missing };
-  return { ok: true, env: { workerUrl: read("VITE_PUTER_WORKER_URL") as string } };
+  return {
+    ok: true,
+    env: { workerUrl: read("VITE_PUTER_WORKER_URL") as string },
+  };
 };
 
 /**

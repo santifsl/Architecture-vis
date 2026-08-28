@@ -44,8 +44,7 @@ export const resolveAuthState = async (): Promise<AuthState> => {
 };
 
 export type RequireUserResult =
-  | { readonly ok: true; readonly user: RoomifyUser }
-  | { readonly ok: false };
+  { readonly ok: true; readonly user: RoomifyUser } | { readonly ok: false };
 
 /**
  * The only question a guarded route asks. Spec 0001, AC-7.

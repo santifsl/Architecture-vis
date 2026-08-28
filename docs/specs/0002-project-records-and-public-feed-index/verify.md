@@ -17,6 +17,7 @@ hand against a real dev server, a real browser, and the real Puter store.
 
 - [x] `npm run check` → typecheck passes and the SDK import scan reports that
       only `app/platform/puter.ts` imports the SDK → AC-11
+      _Superseded by `npm run verify` (spec 0003), which covers both._
 - [x] `npm run build` → a clean SPA build → AC-11
 
 ## UI / manual

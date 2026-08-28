@@ -30,11 +30,11 @@ startup if it's missing.
 
 ## Scripts
 
-| Command             | What it does                                       |
-| ------------------- | -------------------------------------------------- |
-| `npm run dev`       | Dev server with HMR.                                |
-| `npm run build`     | Production build into `build/client/`.              |
-| `npm run typecheck` | Route typegen, then `tsc`.                          |
+| Command             | What it does                           |
+| ------------------- | -------------------------------------- |
+| `npm run dev`       | Dev server with HMR.                   |
+| `npm run build`     | Production build into `build/client/`. |
+| `npm run typecheck` | Route typegen, then `tsc`.             |
 
 There's no `start` script — a static SPA has no server to start.
 

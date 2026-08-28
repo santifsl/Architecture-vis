@@ -21,13 +21,19 @@
  */
 import type { RequiredVariable } from "~/platform/env";
 
-export function ConfigScreen({ missing }: { readonly missing: readonly RequiredVariable[] }) {
+export function ConfigScreen({
+  missing,
+}: {
+  readonly missing: readonly RequiredVariable[];
+}) {
   const plural = missing.length > 1;
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-16">
+    <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-md">
-        <h1 className="text-base font-medium tracking-tight text-ink">Roomify</h1>
+        <h1 className="text-base font-medium tracking-tight text-ink">
+          Roomify
+        </h1>
         <div className="mt-4 border-t border-hairline" role="presentation" />
 
         <p className="notice" role="status">
@@ -41,9 +47,10 @@ export function ConfigScreen({ missing }: { readonly missing: readonly RequiredV
             <path d="M8 4.75v4" />
             <path d="M8 11.1v.4" />
           </svg>
-          Roomify can&rsquo;t start. {plural ? "These settings are" : "This setting is"} missing, and
-          Roomify needs {plural ? "them" : "it"} to reach the Puter worker that renders your floor
-          plans.
+          Roomify can&rsquo;t start.{" "}
+          {plural ? "These settings are" : "This setting is"} missing, and
+          Roomify needs {plural ? "them" : "it"} to reach the Puter worker that
+          renders your floor plans.
         </p>
 
         <ul className="mt-4 space-y-1">
@@ -54,22 +61,26 @@ export function ConfigScreen({ missing }: { readonly missing: readonly RequiredV
           ))}
         </ul>
 
-        <ol className="mt-6 space-y-2 text-sm text-ink list-decimal ps-5 max-w-[42ch]">
+        <ol className="mt-6 max-w-[42ch] list-decimal space-y-2 ps-5 text-sm text-ink">
           <li>
             Copy <code className="code-token">.env.example</code> to{" "}
             <code className="code-token">.env</code>.
           </li>
           <li>
             Set {plural ? "each value" : "the value"} to the{" "}
-            <code className="code-token">https://&lt;worker-name&gt;.puter.work</code> URL your
-            deployed Puter worker was given.
+            <code className="code-token">
+              https://&lt;worker-name&gt;.puter.work
+            </code>{" "}
+            URL your deployed Puter worker was given.
           </li>
           <li>Restart the dev server.</li>
           <li>
-            On a deployed build, set {plural ? "the same variables" : "the same variable"} in the
-            build environment instead, then rebuild and redeploy. Vite inlines{" "}
-            <code className="code-token">VITE_</code> values at build time, so a running deployment
-            cannot pick {plural ? "them" : "it"} up without a new build.
+            On a deployed build, set{" "}
+            {plural ? "the same variables" : "the same variable"} in the build
+            environment instead, then rebuild and redeploy. Vite inlines{" "}
+            <code className="code-token">VITE_</code> values at build time, so a
+            running deployment cannot pick {plural ? "them" : "it"} up without a
+            new build.
           </li>
         </ol>
       </div>

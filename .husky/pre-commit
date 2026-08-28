@@ -1,0 +1,15 @@
+# Spec 0003. Two checks, and the split between them is deliberate.
+#
+# lint-staged runs ESLint and Prettier over staged files only, so it stays
+# fast and only ever touches what you were already committing.
+#
+# The typecheck is the whole project on purpose. Types are cross-file: a
+# changed return type breaks its callers, and those callers are exactly the
+# files you did not stage. A staged-only typecheck would pass while the
+# project is broken, which reads as a green light and is worse than nothing.
+#
+# The production build stays out. It is slow enough that a hook running it
+# gets bypassed within a week, and `npm run verify` covers it at the moment
+# it actually matters.
+npx lint-staged
+npm run typecheck

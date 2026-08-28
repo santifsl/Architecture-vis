@@ -14,14 +14,14 @@ Two categories, and the difference matters:
 
 ## Running it
 
-| Command               | What it does                                          |
-| ---------------------- | ------------------------------------------------------ |
-| `npm run dev`          | Development server.                                     |
-| `npm run typecheck`    | `tsc --noEmit` over the whole project.                  |
-| `npm run lint`         | ESLint, including the type-aware rules.                 |
-| `npm run lint:fix`     | The same, applying every fix it can.                    |
-| `npm run format`       | Prettier, writing.                                       |
-| `npm run format:check` | Prettier, reporting only. This is what CI would run.    |
+| Command                | What it does                                                |
+| ---------------------- | ----------------------------------------------------------- |
+| `npm run dev`          | Development server.                                         |
+| `npm run typecheck`    | `tsc --noEmit` over the whole project.                      |
+| `npm run lint`         | ESLint, including the type-aware rules.                     |
+| `npm run lint:fix`     | The same, applying every fix it can.                        |
+| `npm run format`       | Prettier, writing.                                          |
+| `npm run format:check` | Prettier, reporting only.                                   |
 | `npm run verify`       | Typecheck, lint, format check, and a real production build. |
 
 `npm run verify` is the one to run before calling any piece of work done. The
@@ -29,6 +29,14 @@ project rule is that a change is not finished until it has been typechecked,
 linted, and built for real, and chaining those into one command is the only
 way that reliably happens rather than being remembered three times out of
 four.
+
+There is no continuous integration. `npm run verify` and the pre-commit
+hook are the whole of the enforcement, and both are local, which means a
+`--no-verify` commit bypasses all of it silently. That is a known gap, recorded
+in spec 0003's Follow up, and worth revisiting when more than one person commits
+here or at the first bypass that reaches `main`. Vercel builds on push, so the
+build half is covered by accident; lint and format are not covered anywhere but
+your own machine.
 
 There is no test runner and no browser automation framework, deliberately.
 Verification here is a running dev server and a real browser, or something as
@@ -42,6 +50,16 @@ Husky runs `.husky/pre-commit`, which does two things:
 1. `lint-staged` — ESLint with `--fix` and then Prettier, over staged files
    only. Fast, and it only ever touches what you were already committing.
 2. `npm run typecheck` — the whole project, every time.
+
+The `lint-staged` globs in `package.json` have to mirror what `eslint.config.js`
+and Prettier actually cover, or the hook passes a file that `npm run verify`
+then rejects. Every extension ESLint is configured for gets ESLint and then
+Prettier: `js`, `mjs`, `cjs`, `ts`, `mts`, `cts`, `tsx`. Everything else
+Prettier parses gets Prettier alone. `jsx` sits in the Prettier-only group
+deliberately, because `eslint.config.js` does not configure it either, and
+running ESLint on a file it has no configuration for fails at
+`--max-warnings 0` on a "no matching configuration" warning rather than on
+anything real. If a rule is ever added for `jsx`, it moves groups.
 
 The typecheck is not scoped to staged files on purpose. Types are cross-file: a
 changed return type breaks its callers, and those callers are exactly the files
@@ -80,10 +98,35 @@ same direction as everything below.
 
 **Formatting.** Prettier owns it entirely, with `eslint-config-prettier` last in
 the ESLint config so the two never argue. Tailwind class order is sorted by
-`prettier-plugin-tailwindcss`, pointed at `app/globals.css` (or the project's
-equivalent entry stylesheet) since Tailwind takes its configuration from the
-stylesheet rather than a JS config file. Class order being automatic means a
-diff never contains a reordering argument.
+`prettier-plugin-tailwindcss`, pointed at `app/app.css`, the entry stylesheet,
+since Tailwind v4 takes its configuration from the stylesheet rather than a JS
+config file. Left unset the plugin sorts against stock Tailwind and treats this
+project's own `@theme` tokens as unknown classes. Class order being automatic
+means a diff never contains a reordering argument.
+
+**Only `app/platform/puter.ts` imports the Puter SDK.** `no-restricted-imports`
+covers the static and re-export forms and a `no-restricted-syntax` selector
+covers the dynamic `import()` form, both errors, with a per-file override for
+that one module. This is not tidiness. Puter's `getUser()`, `whoami()`, and any
+`fs`/`kv` call route a 401 through a reauth policy that raises Puter's own login
+popup by default, so a stray import elsewhere in `app/` is how an unbidden popup
+gets put in front of somebody who only reloaded the page. The exemption is a
+per-file override in `eslint.config.js`, deliberately, not a disable comment in
+the file.
+
+**The machine-checkable part of accessibility.** `eslint-plugin-jsx-a11y`,
+recommended set. It sees missing alt text, a label with no control, a click
+handler on a non-interactive element. It cannot see contrast, whether focus is
+genuinely visible, or whether a screen can actually be operated from the
+keyboard, so those three stay under Judgment below and stay a person's job.
+
+**Never break an inline code span across a line in Markdown.** Prettier formats
+the `.md` files here too, and a span written as `` `npm run `` then a newline
+then `` check` `` makes it oscillate: it rewrites the file and still reports it
+unformatted, so `format:check` fails forever and the cause is not obvious from
+the message. It also renders the span with a stray space in the middle, which is
+how a file path in a spec quietly becomes wrong. Rewrap the sentence so each
+span sits on one line. This cost three rounds during feature 2 alone.
 
 **Build output is excluded, not formatted.** `build/` is the build output (and
 `.react-router/` holds generated route types). Both are gitignored, and both
@@ -116,9 +159,10 @@ at boot, not at the moment a user clicks generate.
 mutating loops. Not lintable without a preset strict enough to fight the
 framework, so it is on the reader.
 
-**Folder by feature, not by layer.** `features/upload/`, `features/generation/`,
-`features/gallery/`, `features/community-feed/`. Routes stay thin: parse,
-protect, delegate to a feature.
+**Folder by feature, not by layer.** Feature folders sit directly under `app/`:
+`app/auth/`, `app/platform/`, `app/projects/`, and the upload, generation,
+gallery, and community-feed folders as those features land. Routes in
+`app/routes/` stay thin: parse, protect, delegate to a feature.
 
 - **More than one feature renders it** — root `components/`. A project card
   is the obvious candidate here, the gallery and the community feed both draw

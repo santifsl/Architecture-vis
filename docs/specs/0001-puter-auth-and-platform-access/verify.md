@@ -234,12 +234,14 @@ Build task 8 has landed, so its case moved up into milestone 4 above.
       it walks `app/`, matches static imports, re-exports, and dynamic
       `import()` alike, and exits non-zero naming the offending files. Proven
       against a planted violation of each kind on 2026-08-27, so it fails when
-      it should rather than passing vacuously. Until feature 2 installs the
-      ESLint `no-restricted-imports` rule this is the whole of AC-11, so run it
-      before every merge. It is evidence for AC-11 only: it proves where the SDK
-      is imported, not that every use of it goes through `withPuter`._
+      it should rather than passing vacuously. **Superseded:** feature 2
+      (spec 0003) moved this onto ESLint and deleted the script, so
+      `npm run lint` is what checks AC-11 now, and neither command below still
+      exists. It is evidence for AC-11 only: it proves where the SDK is
+      imported, not that every use of it goes through `withPuter`._
 - [x] `npm run check` → runs typecheck then the import check, both pass → AC-9,
       AC-11
+      _Superseded by `npm run verify` (spec 0003)._
 - [ ] Every `puter.fs`, `puter.kv`, and `puter.workers` use goes through
       `withPuter` → AC-10
       _Not verifiable yet by the import grep, and nothing in the app makes such a

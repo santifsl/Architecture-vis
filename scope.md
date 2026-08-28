@@ -70,18 +70,18 @@ cheap decision to make now.
 
 ## At a glance
 
-| #   | Feature                                              | Phase      | Status      |
-| --- | ----------------------------------------------------- | ---------- | ----------- |
-| 1   | Connecting to Puter                                  | Foundation | done        |
-| 2   | Coding standards & tooling                           | Foundation | not started |
-| 3   | Data model                                           | Foundation | done        |
-| 4   | Design & look                                        | Foundation | not started |
-| 5   | Upload & host a floor plan                           | Slice 1    | not started |
-| 6   | Create a project & generate the 3D render            | Slice 1    | not started |
-| 7   | App shell & project gallery                          | Slice 2    | not started |
-| 8   | Side-by-side comparison view                         | Slice 3    | not started |
-| 9   | Public/private visibility & the community feed       | Slice 4    | not started |
-| 10  | Export                                               | Slice 4    | not started |
+| #   | Feature                                        | Phase      | Status      |
+| --- | ---------------------------------------------- | ---------- | ----------- |
+| 1   | Connecting to Puter                            | Foundation | done        |
+| 2   | Coding standards & tooling                     | Foundation | done        |
+| 3   | Data model                                     | Foundation | done        |
+| 4   | Design & look                                  | Foundation | not started |
+| 5   | Upload & host a floor plan                     | Slice 1    | not started |
+| 6   | Create a project & generate the 3D render      | Slice 1    | not started |
+| 7   | App shell & project gallery                    | Slice 2    | not started |
+| 8   | Side-by-side comparison view                   | Slice 3    | not started |
+| 9   | Public/private visibility & the community feed | Slice 4    | not started |
+| 10  | Export                                         | Slice 4    | not started |
 
 ## Foundation
 
@@ -132,16 +132,19 @@ for its real types. No temporary accounts.
         missing `VITE_PUTER_WORKER_URL` produces; it replaces the whole app
         rather than sitting inside it, since with no worker URL there is no app
         to sit inside. The import rule landed as `scripts/check-sdk-import.mjs`
-        (`npm run check:imports`) instead of a bare grep, and was proven against
-        a planted violation rather than only against a clean tree
+        instead of a bare grep, and was proven against a planted violation
+        rather than only against a clean tree. Feature 2 has since replaced
+        that script with the ESLint rules and deleted it
   - [x] Typecheck, real build, and the manual browser walkthrough, satisfies
         AC-9 except for lint. Typecheck and a real build pass, with the variable set
         and unset, and no Puter call runs during the build-time root render. All
         four configuration-screen steps were walked in a real browser on
         2026-08-27 and passed
-  - [ ] Lint, the remaining part of AC-9. Not done here and cannot be: feature 2
-        is what installs it, and its ESLint `no-restricted-imports` task is what
-        finally replaces `npm run check:imports`
+  - [x] Lint, the remaining part of AC-9. Closed by feature 2, which installed
+        ESLint and brought the tree to zero at `--max-warnings 0`. AC-11 now
+        rests on `no-restricted-imports` plus a `no-restricted-syntax` selector
+        for the dynamic form, proven against five planted forms, and
+        `scripts/check-sdk-import.mjs` is deleted
 - [ ] Verify it: `/check verify` feature 1
       _Skipped deliberately. The manual walkthrough in `verify.md` is this
       project's verification (CLAUDE.md rules out a test runner and browser
@@ -161,8 +164,8 @@ one-shot session-ended flag (`sessionEnded.ts`), the shared hooks (`useSignIn`,
 `SessionBanner.tsx`, `SignInPrompt.tsx`, `RequireUser.tsx`, `AuthNotice.tsx`,
 `BootScreen.tsx`). `app/platform/env.ts` checks the required environment
 variables and `app/platform/ConfigScreen.tsx` is what a missing one renders;
-`scripts/check-sdk-import.mjs` (`npm run check:imports`) is what holds the
-single-import rule until feature 2 installs the lint rule. The root
+the single-import rule is held by ESLint (`eslint.config.js`), installed by
+feature 2. The root
 `clientLoader`, `HydrateFallback`, and the event subscription live in
 `app/root.tsx`; `app/routes/projects.tsx` is the first
 guarded route, a placeholder feature 7 fills in. The palette tokens and the
@@ -180,20 +183,111 @@ registry (the one candidate was reviewed and declined; it teaches the CDN global
 this project rejects). The installed package's own source and generated types are
 the only accurate reference.
 
-### 2. Coding standards & tooling
+### 2. Coding standards & tooling · done
 
 Write down the real conventions for this project once it actually exists,
 then install linting, formatting, and a pre-commit hook that actually
 enforces them. See `docs/coding-standards.md` for the long version, already
 written ahead of the tooling it describes.
 
-- [ ] Decide the approach
-- [ ] Install lint, format, and whatever else is needed, and write it up in
-      `docs/coding-standards.md`
-- [ ] From spec 0001: an ESLint `no-restricted-imports` rule allowing
-      `@heyputer/puter.js` only in the platform access module. Feature 1's AC-11
-      rests on a grep until this exists, and the rule is what stops a stray SDK
-      import quietly reintroducing an unbidden login popup.
+**Spec: [0003](docs/specs/0003-lint-format-and-commit-hooks/index.md).** The
+conventions were already written; nothing enforced them, so every rule in that
+document's Enforced section was held by care rather than by a tool. Decided:
+install exactly what the document names, ESLint with typescript-eslint's
+`recommendedTypeChecked` plus the four rules it names by hand, `react-hooks`,
+`react-refresh` and `jsx-a11y`, Prettier owning all formatting with the Tailwind
+class-order plugin pointed at the real `app/app.css`, and Husky plus
+`lint-staged` running both over staged files then typechecking the whole
+project. One migration pass, the existing tree brought to zero violations rather
+than carrying a warning baseline, because at twenty-six files the baseline
+machinery costs more than the cleanup it defers. Feature 1's AC-11 moves onto a
+`no-restricted-imports` rule paired with a `no-restricted-syntax` selector for
+the dynamic `import()` form, and `scripts/check-sdk-import.mjs` is deleted rather
+than kept alongside it. No CI: `npm run verify` and the hook are the enforcement.
+
+Three things the spec's config sketch got wrong, all found by running it rather
+than by reading it, and all corrected in the code:
+
+- `eslint-plugin-jsx-a11y` still caps its peer range at ESLint 9, and it is the
+  only holdout; every other plugin already supports 10. ESLint is pinned to `^9`
+  so nothing is force-installed. A one-line bump once the plugin catches up.
+- `eslint-plugin-react-hooks` v7 keeps the old eslintrc-format config at
+  `configs.recommended`. The flat one is `configs.flat.recommended`.
+- esquery delimits its regex with a slash, so the slash inside the package name
+  has to be escaped alongside the usual metacharacters, or the selector is a
+  parse error at lint time.
+
+One rule needed a decision the spec did not anticipate.
+`react-refresh/only-export-components` fires on every React Router route module,
+because a route module is required to export `meta`, `links`, `clientLoader`,
+`ErrorBoundary` and the rest alongside its component. Rather than switch the
+rule off for routes, the config names those exports in `allowExportNames`, which
+keeps the rule live for a genuine violation.
+
+- [x] Decide the approach
+- [x] Write the spec
+- [x] Build it: `/develop` feature 2, tasks 1 to 9 of the spec's build plan
+  - [x] Prettier with `prettier-plugin-tailwindcss` pointed at `app/app.css`,
+        `.prettierignore`, the `format` and `format:check` scripts, and one
+        reformat of the tree committed on its own so it never mixes with a
+        behaviour change, satisfies AC-2, AC-9, AC-10
+  - [x] ESLint on the type-aware project service with `recommendedTypeChecked`,
+        the four named rules, the three plugins, and `eslint-config-prettier`
+        last, then the tree brought to zero at `--max-warnings 0`. Expect the
+        `no-unsafe-*` family to fire in `app/platform/puter.ts`, where the SDK's
+        own declarations type `whoami`, `whoamiCache_` and `on` as `any`; the fix
+        there is a narrow typed accessor at that boundary, not a file-wide
+        disable, satisfies AC-1, AC-10. The `no-unsafe-*` family never fired:
+        `app/platform/puter.ts` already narrows everything the SDK types as
+        `any` down to `unknown` at the boundary, so the spec's expectation was
+        pessimistic and no accessor was needed
+  - [x] The SDK import rule in both forms, proven against a planted static
+        import, a planted re-export and a planted dynamic `import()`, and only
+        then `scripts/check-sdk-import.mjs` and the `check:imports` and `check`
+        scripts deleted, satisfies AC-3, AC-4
+  - [x] `npm run verify` chaining typecheck, lint, format check and a real
+        build, then Husky and `lint-staged` with `"prepare": "husky"`, proven
+        against an auto-fixable violation, a non-fixable one, and a type error
+        in an unstaged file, satisfies AC-5, AC-6, AC-7, AC-8
+  - [x] `docs/coding-standards.md` corrected and completed: `app/app.css` not
+        `app/globals.css`, the real `app/auth`, `app/platform`, `app/projects`
+        layout not `features/`, the SDK import rule and the `jsx-a11y` rules
+        added to Enforced, and no more future-tense CI. Then feature 1's last
+        box below gets ticked, satisfies AC-11, AC-4
+- [x] Verify it: the manual walkthrough in
+      [verify.md](docs/specs/0003-lint-format-and-commit-hooks/verify.md).
+      Real commands and real commits on a scratch branch, same as every other
+      feature here; `CLAUDE.md` rules out a test runner. The three steps that
+      section flagged as worth an independent pass, the SDK import forms in the
+      real `actions.ts` and `store.ts`, the Tailwind scramble in the real
+      `AuthControl.tsx`, and `npm run verify` from a fresh clone, were walked by
+      hand afterwards by a session that had not written the code, and all three
+      passed
+
+Code: `eslint.config.js` is the whole lint configuration, including the SDK
+import rule and its per-file override for `app/platform/puter.ts`.
+`.prettierrc.json` points the Tailwind class-order plugin at `app/app.css`, and
+`.prettierignore` keeps `build/` and `.react-router/` out. `.husky/pre-commit`
+runs `lint-staged` then a whole-project typecheck, with the `lint-staged`
+globs and every script in `package.json`. `scripts/` is gone.
+
+Every acceptance criterion was proven by running it during the build, not only
+by reading the code: the import rule against five planted forms (static,
+re-export, dynamic `import()`, type-only, dynamic subpath), `verify` against a
+deliberate type error to confirm it stops at the first failure, the hook against
+an auto-fixable violation, a non-fixable one and a type error in an unstaged
+file, and the hook's self-installation against a genuine fresh clone plus
+`npm install`. That record has since been re-walked independently, and
+`verify.md` is fully ticked.
+
+One defect surfaced in review after the feature was first called done, and is
+fixed: the `lint-staged` globs did not mirror what is actually configured, so
+the hook let through staged files that `npm run verify` then rejected. A `.js`
+file got Prettier and no ESLint even though `eslint.config.js` lints it, and
+`.mts` and `.cts` matched no group at all. The globs now follow one rule, every
+extension ESLint is configured for gets ESLint then Prettier, everything else
+Prettier parses gets Prettier alone, and `verify.md` carries a step that holds
+them to it.
 
 ### 3. Data model · done
 
@@ -316,7 +410,7 @@ typography, or accent rules already decided above.
 
 A user uploads a 2D floor plan image. It's written to permanent storage
 through `puter.fs`, which returns a real public URL, that URL is what
-everything downstream (the worker, the KV record, the comparison view) 
+everything downstream (the worker, the KV record, the comparison view)
 actually points at, never a local blob URL that dies when the tab closes.
 
 The upload card's layout is governed by feature 4's structural reference for
@@ -422,3 +516,7 @@ Kept here so the plan stays honest about what's deliberately left out.
   existing project.
 - Privacy policy and terms pages.
 - Analytics or session-replay tooling. Nobody's asked for this yet.
+- Continuous integration. Deferred from spec 0003: the pre-commit hook and
+  `npm run verify` are the enforcement, which means it is all local and a
+  `--no-verify` commit bypasses it silently. Worth revisiting when more than one
+  person commits here, or at the first bypass that reaches `main`.

@@ -1,7 +1,6 @@
-import type { Route } from "./+types/projects";
 import { RequireUser } from "~/auth/RequireUser";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Your projects · Roomify" },
     { name: "description", content: "Your floor plans and their renders." },
@@ -20,9 +19,12 @@ export default function Projects() {
     <RequireUser what="your projects">
       {(user) => (
         <main className="px-6 py-16">
-          <h1 className="text-2xl font-medium tracking-tight text-ink">Your projects</h1>
+          <h1 className="text-2xl font-medium tracking-tight text-ink">
+            Your projects
+          </h1>
           <p className="mt-2 text-sm text-ink-soft">
-            Signed in as {user.username}. The gallery itself arrives with feature 7.
+            Signed in as {user.username}. The gallery itself arrives with
+            feature 7.
           </p>
         </main>
       )}

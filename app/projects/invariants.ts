@@ -76,8 +76,14 @@ const parseRenderState = (value: unknown): RenderState | null => {
 
   const { status, path, url, errorCode, startedAt, finishedAt } = value;
   if (!isRenderStatus(status)) return null;
-  if (!isNullableString(path) || !isNullableString(url) || !isNullableString(errorCode)) return null;
-  if (!isNullableTimestamp(startedAt) || !isNullableTimestamp(finishedAt)) return null;
+  if (
+    !isNullableString(path) ||
+    !isNullableString(url) ||
+    !isNullableString(errorCode)
+  )
+    return null;
+  if (!isNullableTimestamp(startedAt) || !isNullableTimestamp(finishedAt))
+    return null;
 
   return { status, path, url, errorCode, startedAt, finishedAt };
 };
@@ -121,7 +127,11 @@ const parsePublicAssets = (value: unknown): PublicAssets | null => {
 
 const parseModels = (value: unknown): readonly ModelId[] | null => {
   if (!Array.isArray(value)) return null;
-  return value.every(isModelId) ? (value as readonly ModelId[]) : null;
+  // `Array.isArray` on an `unknown` widens to `any[]`, which would make the
+  // cast below vacuous. Restating the element type as `unknown` keeps the
+  // guard doing the narrowing.
+  const items: readonly unknown[] = value;
+  return items.every(isModelId) ? items : null;
 };
 
 const parseFloorPlan = (value: unknown): Project["floorPlan"] | null => {
@@ -222,16 +232,36 @@ const checkRendersMatchModels = (project: Project): readonly Violation[] => {
 
   return [
     ...(project.models.length === 0
-      ? [{ rule: "models.empty", detail: "A project has to request at least one model." }]
+      ? [
+          {
+            rule: "models.empty",
+            detail: "A project has to request at least one model.",
+          },
+        ]
       : []),
     ...(requested.size !== project.models.length
-      ? [{ rule: "models.duplicate", detail: "A model can only be requested once." }]
+      ? [
+          {
+            rule: "models.duplicate",
+            detail: "A model can only be requested once.",
+          },
+        ]
       : []),
     ...(missing.length > 0
-      ? [{ rule: "renders.missing", detail: `No render state for ${missing.join(", ")}.` }]
+      ? [
+          {
+            rule: "renders.missing",
+            detail: `No render state for ${missing.join(", ")}.`,
+          },
+        ]
       : []),
     ...(extra.length > 0
-      ? [{ rule: "renders.extra", detail: `Render state for a model that was not requested: ${extra.join(", ")}.` }]
+      ? [
+          {
+            rule: "renders.extra",
+            detail: `Render state for a model that was not requested: ${extra.join(", ")}.`,
+          },
+        ]
       : []),
   ];
 };
@@ -248,7 +278,12 @@ const checkRenderStates = (project: Project): readonly Violation[] =>
     if (render === undefined) return [];
     if (render.status !== "complete") return [];
     return render.path === null || render.url === null
-      ? [{ rule: "renders.complete", detail: `The ${model} render is complete but has no stored image.` }]
+      ? [
+          {
+            rule: "renders.complete",
+            detail: `The ${model} render is complete but has no stored image.`,
+          },
+        ]
       : [];
   });
 
@@ -300,7 +335,9 @@ const PUBLIC_HOST_SUFFIX = ".puter.site";
 const isPublicAssetUrl = (value: string): boolean => {
   try {
     const url = new URL(value);
-    return url.protocol === "https:" && url.hostname.endsWith(PUBLIC_HOST_SUFFIX);
+    return (
+      url.protocol === "https:" && url.hostname.endsWith(PUBLIC_HOST_SUFFIX)
+    );
   } catch {
     return false;
   }
@@ -363,7 +400,8 @@ export const checkProject = (project: Project): readonly Violation[] => [
  * Size, checked before the write leaves.
  */
 
-const byteLength = (value: string): number => new TextEncoder().encode(value).length;
+const byteLength = (value: string): number =>
+  new TextEncoder().encode(value).length;
 
 /**
  * Does this key-and-value pair fit inside the store's ceilings?
@@ -373,16 +411,29 @@ const byteLength = (value: string): number => new TextEncoder().encode(value).le
  * character. The value is measured as JSON because that is what the store
  * receives.
  */
-export const checkWriteSize = (key: string, value: unknown): readonly Violation[] => {
+export const checkWriteSize = (
+  key: string,
+  value: unknown,
+): readonly Violation[] => {
   const keyBytes = byteLength(key);
   const valueBytes = byteLength(JSON.stringify(value) ?? "");
 
   return [
     ...(keyBytes > MAX_KEY_BYTES
-      ? [{ rule: "size.key", detail: `Key is ${keyBytes} bytes; the limit is ${MAX_KEY_BYTES}.` }]
+      ? [
+          {
+            rule: "size.key",
+            detail: `Key is ${keyBytes} bytes; the limit is ${MAX_KEY_BYTES}.`,
+          },
+        ]
       : []),
     ...(valueBytes > MAX_VALUE_BYTES
-      ? [{ rule: "size.value", detail: `Value is ${valueBytes} bytes; the limit is ${MAX_VALUE_BYTES}.` }]
+      ? [
+          {
+            rule: "size.value",
+            detail: `Value is ${valueBytes} bytes; the limit is ${MAX_VALUE_BYTES}.`,
+          },
+        ]
       : []),
   ];
 };

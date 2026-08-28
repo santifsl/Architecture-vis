@@ -57,11 +57,15 @@ export type StoreResult<T> =
 
 const MESSAGES: Readonly<Record<StoreFailure, string>> = {
   signedOut: "You are signed out. Sign in to see your projects.",
-  unavailable: "Your projects could not be reached just now. Check your connection and try again.",
+  unavailable:
+    "Your projects could not be reached just now. Check your connection and try again.",
   notFound: "That project is no longer here. It may have been deleted.",
-  unreadable: "That project was saved by a newer version of Roomify and cannot be opened here.",
-  invalid: "That change could not be saved because it would leave the project in an impossible state.",
-  stillPublic: "Make this project private first, so its public copies come down with it.",
+  unreadable:
+    "That project was saved by a newer version of Roomify and cannot be opened here.",
+  invalid:
+    "That change could not be saved because it would leave the project in an impossible state.",
+  stillPublic:
+    "Make this project private first, so its public copies come down with it.",
   unsafeToDelete:
     "This project cannot be read, so there is no way to tell whether it was shared publicly. It has been left in place rather than deleted with its public copies possibly still up.",
   tooLarge: "That project is too large to save. Try a shorter name.",
@@ -69,7 +73,10 @@ const MESSAGES: Readonly<Record<StoreFailure, string>> = {
 
 const succeed = <T>(value: T): StoreResult<T> => ({ ok: true, value });
 
-const fail = <T>(failure: StoreFailure, violations: readonly Violation[] = []): StoreResult<T> => ({
+const fail = <T>(
+  failure: StoreFailure,
+  violations: readonly Violation[] = [],
+): StoreResult<T> => ({
   ok: false,
   failure,
   message: MESSAGES[failure],
@@ -84,7 +91,9 @@ const fail = <T>(failure: StoreFailure, violations: readonly Violation[] = []): 
  * a store that could not be reached.
  */
 const toFailure = <T>(error: unknown): StoreResult<T> =>
-  error instanceof PuterGateError ? fail<T>("signedOut") : fail<T>("unavailable");
+  error instanceof PuterGateError
+    ? fail<T>("signedOut")
+    : fail<T>("unavailable");
 
 /**
  * Writes a project, refusing anything that breaks an invariant or will not fit.
@@ -127,13 +136,22 @@ export type NewProjectInput = {
  * one, and the clock is read once so `createdAt` and `updatedAt` agree exactly
  * on a record that has never been changed.
  */
-export const createProject = async (input: NewProjectInput): Promise<StoreResult<Project>> => {
+export const createProject = async (
+  input: NewProjectInput,
+): Promise<StoreResult<Project>> => {
   const now = Date.now();
 
   const renders = Object.fromEntries(
     input.models.map((model) => [
       model,
-      { status: "pending", path: null, url: null, errorCode: null, startedAt: null, finishedAt: null },
+      {
+        status: "pending",
+        path: null,
+        url: null,
+        errorCode: null,
+        startedAt: null,
+        finishedAt: null,
+      },
     ]),
   ) as Project["renders"];
 
@@ -160,10 +178,15 @@ export const createProject = async (input: NewProjectInput): Promise<StoreResult
  * means the project is gone, the second means it is there and this build cannot
  * understand it, and those deserve different sentences.
  */
-export const readProject = async (id: string): Promise<StoreResult<Project>> => {
+export const readProject = async (
+  id: string,
+): Promise<StoreResult<Project>> => {
   try {
-    const stored = await withPuter((sdk) => sdk.kv.get<unknown>(projectKey(id)));
-    if (stored === undefined || stored === null) return fail<Project>("notFound");
+    const stored = await withPuter((sdk) =>
+      sdk.kv.get<unknown>(projectKey(id)),
+    );
+    if (stored === undefined || stored === null)
+      return fail<Project>("notFound");
 
     const project = parseProject(stored);
     return project === null ? fail<Project>("unreadable") : succeed(project);
@@ -193,7 +216,10 @@ export type ProjectList = {
 export const listProjects = async (): Promise<StoreResult<ProjectList>> => {
   try {
     const pairs = await withPuter((sdk) =>
-      sdk.kv.list<unknown>({ pattern: PROJECT_LIST_PATTERN, returnValues: true }),
+      sdk.kv.list<unknown>({
+        pattern: PROJECT_LIST_PATTERN,
+        returnValues: true,
+      }),
     );
 
     const parsed = pairs.map((pair) => parseProject(pair.value));
@@ -221,7 +247,10 @@ export const listProjects = async (): Promise<StoreResult<ProjectList>> => {
  * models is a different project.
  */
 export type ProjectChanges = Partial<
-  Pick<Project, "name" | "renders" | "visibility" | "publishedAt" | "publicAssets">
+  Pick<
+    Project,
+    "name" | "renders" | "visibility" | "publishedAt" | "publicAssets"
+  >
 >;
 
 /**
@@ -333,7 +362,8 @@ export const deleteProject = async (id: string): Promise<StoreResult<true>> => {
     return fail<true>("stillPublic", [
       {
         rule: "delete.public",
-        detail: "A public project has to be made private before it can be deleted, so its public copies go too.",
+        detail:
+          "A public project has to be made private before it can be deleted, so its public copies go too.",
       },
     ]);
   }
