@@ -31,9 +31,7 @@ export function ConfigScreen({
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-md">
-        <h1 className="text-base font-medium tracking-tight text-ink">
-          Roomify
-        </h1>
+        <h1 className="type-heading text-ink">Roomify</h1>
         <div className="mt-4 border-t border-hairline" role="presentation" />
 
         <p className="notice" role="status">
@@ -61,7 +59,7 @@ export function ConfigScreen({
           ))}
         </ul>
 
-        <ol className="mt-6 max-w-[42ch] list-decimal space-y-2 ps-5 text-sm text-ink">
+        <ol className="mt-6 max-w-[42ch] list-decimal space-y-2 ps-4 type-body text-ink">
           <li>
             Copy <code className="code-token">.env.example</code> to{" "}
             <code className="code-token">.env</code>.

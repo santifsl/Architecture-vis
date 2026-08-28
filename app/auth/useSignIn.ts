@@ -9,6 +9,16 @@
  *
  * A popup the person closed themselves is a cancel, not a failure, so it
  * produces no notice at all.
+ *
+ * Spec 0004, AC-11. Every sign-in button is now busy by `aria-busy` plus
+ * `aria-disabled` rather than by the real `disabled` attribute, so that a
+ * running sign in does not throw focus away mid action. `aria-disabled` does not
+ * block a click, so this handler is what has to refuse the second one: `start`
+ * is a call into `startSignIn`, whose single-flight latch is read and written
+ * synchronously and drops an overlapping call whatever React has rendered. That
+ * latch is now the only thing standing between a busy button and a second
+ * `signIn()`, by mouse, by Enter, or by Space, so it is load bearing rather than
+ * belt and braces. Do not remove it while any control is busy by ARIA alone.
  */
 import { useSyncExternalStore } from "react";
 import { useRevalidator } from "react-router";

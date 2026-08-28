@@ -1,24 +1,150 @@
 @import "tailwindcss";
 
 /*
- * Roomify's decided palette and the shared treatments built from it.
- * The palette itself is decided in scope.md, feature 4 (Design & look):
- * near-monochrome bone and ivory, warm near-black ink, one burnt-clay accent
- * used only for things you interact with. Nothing else gets the accent.
+ * Roomify's design system. Spec 0004
+ * (docs/specs/0004-design-system-tokens-and-states/index.md).
  *
- * Raw hex values live here and nowhere else, per CLAUDE.md.
+ * The palette is decided in scope.md, feature 4: near-monochrome bone and ivory,
+ * warm near-black ink, one burnt-clay accent used only for things you interact
+ * with. This file turns that into a closed system, so a screen composes named
+ * roles and ladder steps and never states a size, a weight, a colour or a radius
+ * of its own. Raw values live here and nowhere else, per CLAUDE.md, and ESLint
+ * enforces that on every className in app/.
  */
 @theme {
   --font-sans:
     "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
+  /*
+   * Surfaces and ink. Every colour used as text clears 4.5:1 against BOTH bone
+   * and ivory, so no component has to know which background it is sitting on.
+   * ink-soft and clay were both darkened for exactly that reason: their original
+   * values did not clear it, and clay's failed on ivory alone, which is why the
+   * rule names both surfaces rather than just the page background. The values
+   * they were corrected from are recorded in spec 0004's rationale.md, not here:
+   * no off-system colour belongs anywhere in app/, a comment included, and a
+   * grep for one should stay silent. scripts/check-contrast.mjs re-measures this
+   * on every run of npm run verify, so the class of defect cannot come back.
+   */
   --color-bone: #faf8f4;
   --color-ivory: #efebe3;
   --color-ink: #1c1b19;
-  --color-ink-soft: #8a8478;
+  --color-ink-soft: #6e685e;
   --color-hairline: #e3ded3;
-  --color-clay: #b5551f;
+  --color-clay: #a94d19;
+
+  /*
+   * Form. The gallery look is tight and unrounded, decided once.
+   *
+   * The focus ring's width and offset are tokens rather than literals for the
+   * same reason radius and the ladder are: the ring is the one state every
+   * interactive element in the app shares, so its thickness is a system value,
+   * not a number the one rule that draws it happens to hold. They happen to
+   * match --radius today, which is a coincidence of taste rather than a
+   * relationship; keeping them separate means retuning the ring can never
+   * silently round every corner in the app.
+   */
+  --radius: 2px;
+  --border-hairline: 1px;
+  --ring-width: 2px;
+  --ring-offset: 2px;
+
+  /* Motion. */
+  --duration-quick: 120ms;
+  --ease-standard: ease;
+
+  /*
+   * The six type roles. Deliberately NOT the --text-* namespace: Tailwind v4
+   * turns any --text-<name> key into a text-<name> utility automatically, which
+   * would give every role a second, unblocked name and quietly reopen the closed
+   * set. These are plain custom properties, so the only way to reach a role is
+   * its type-* utility below.
+   */
+  --type-display-size: 2.5rem;
+  --type-display-leading: 1.05;
+  --type-display-tracking: -0.03em;
+  --type-display-weight: 500;
+
+  --type-title-size: 1.5rem;
+  --type-title-leading: 1.15;
+  --type-title-tracking: -0.02em;
+  --type-title-weight: 500;
+
+  --type-heading-size: 1rem;
+  --type-heading-leading: 1.4;
+  --type-heading-tracking: -0.01em;
+  --type-heading-weight: 500;
+
+  --type-body-size: 0.875rem;
+  --type-body-leading: 1.55;
+  --type-body-tracking: 0;
+  --type-body-weight: 400;
+
+  --type-meta-size: 0.75rem;
+  --type-meta-leading: 1.4;
+  --type-meta-tracking: 0.06em;
+  --type-meta-weight: 500;
+
+  --type-code-size: 0.8125rem;
+  --type-code-leading: 1.5;
+  --type-code-tracking: 0;
+  --type-code-weight: 400;
+}
+
+/*
+ * One utility per role, so a role is a single name rather than a stack of
+ * utilities a screen has to remember to repeat in the same combination.
+ */
+@utility type-display {
+  font-size: var(--type-display-size);
+  line-height: var(--type-display-leading);
+  letter-spacing: var(--type-display-tracking);
+  font-weight: var(--type-display-weight);
+}
+
+@utility type-title {
+  font-size: var(--type-title-size);
+  line-height: var(--type-title-leading);
+  letter-spacing: var(--type-title-tracking);
+  font-weight: var(--type-title-weight);
+}
+
+@utility type-heading {
+  font-size: var(--type-heading-size);
+  line-height: var(--type-heading-leading);
+  letter-spacing: var(--type-heading-tracking);
+  font-weight: var(--type-heading-weight);
+}
+
+@utility type-body {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
+  letter-spacing: var(--type-body-tracking);
+  font-weight: var(--type-body-weight);
+}
+
+/*
+ * The annotation role. It carries its uppercase here rather than in the markup,
+ * so the underlying text stays sentence case for anything reading it aloud.
+ * This is what replaces "small faded grey text", which is the habit that
+ * produced the contrast defect in the first place.
+ */
+@utility type-meta {
+  font-size: var(--type-meta-size);
+  line-height: var(--type-meta-leading);
+  letter-spacing: var(--type-meta-tracking);
+  font-weight: var(--type-meta-weight);
+  text-transform: uppercase;
+}
+
+@utility type-code {
+  font-family: var(--font-mono);
+  font-size: var(--type-code-size);
+  line-height: var(--type-code-leading);
+  letter-spacing: var(--type-code-tracking);
+  font-weight: var(--type-code-weight);
 }
 
 html,
@@ -29,56 +155,96 @@ body {
 }
 
 /*
- * One focus treatment for every interactive element in the app, in the accent.
+ * State 4 of 6, focus visible. One treatment for every interactive element in
+ * the app, in the accent, never removed and never replaced per component.
  * Keyboard focus has to be genuinely visible against bone, so it is an offset
  * ring rather than a tinted background.
  */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-clay);
-  outline-offset: 2px;
-  border-radius: 2px;
+  outline: var(--ring-width) solid var(--color-clay);
+  outline-offset: var(--ring-offset);
+  border-radius: var(--radius);
+}
+
+/*
+ * The two controls. Both take their type from the body role rather than
+ * restating a size, and both are position: relative so the busy sweep can be an
+ * ::after on the control itself. Written as a sibling element it would need JSX
+ * at every call site, which is how a state ends up applied in four places and
+ * missed in the fifth.
+ */
+.btn-accent,
+.btn-quiet,
+.notice {
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
+  letter-spacing: var(--type-body-tracking);
+  font-weight: var(--type-body-weight);
 }
 
 /* The call to action. Outlined rather than filled: the accent stays quiet. */
 .btn-accent {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--color-clay);
-  border-radius: 2px;
+  border: var(--border-hairline) solid var(--color-clay);
+  border-radius: var(--radius);
   padding: 0.4rem 0.9rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
   color: var(--color-clay);
   background-color: transparent;
   cursor: pointer;
   transition:
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.btn-accent:hover {
-  background-color: var(--color-clay);
-  color: var(--color-bone);
+    background-color var(--duration-quick) var(--ease-standard),
+    color var(--duration-quick) var(--ease-standard);
 }
 
 /* A secondary action. Reads as text until you reach for it. */
 .btn-quiet {
+  position: relative;
   border: 0;
   background: none;
   padding: 0.4rem 0.25rem;
-  font-size: 0.875rem;
   color: var(--color-ink);
   cursor: pointer;
   text-underline-offset: 0.25em;
-  transition: color 120ms ease;
+  transition: color var(--duration-quick) var(--ease-standard);
 }
 
-.btn-quiet:hover {
+/*
+ * State 2 of 6, hover. Excluded while disabled or busy: a control that cannot
+ * act must not answer the pointer as though it can.
+ */
+.btn-accent:hover:not([disabled], [aria-busy="true"]) {
+  background-color: var(--color-clay);
+  color: var(--color-bone);
+}
+
+.btn-quiet:hover:not([disabled], [aria-busy="true"]) {
   color: var(--color-clay);
   text-decoration: underline;
 }
 
+/*
+ * State 3 of 6, active. The hover treatment with the transition suppressed: the
+ * press reads instantly rather than easing, which is what makes a quiet button
+ * feel crisp under the finger.
+ */
+.btn-accent:active:not([disabled], [aria-busy="true"]) {
+  transition: none;
+  background-color: var(--color-clay);
+  color: var(--color-bone);
+}
+
+.btn-quiet:active:not([disabled], [aria-busy="true"]) {
+  transition: none;
+  color: var(--color-clay);
+  text-decoration: underline;
+}
+
+/*
+ * State 5 of 6, disabled. Driven by the real disabled attribute, not a class, so
+ * the control is genuinely inert rather than merely styled as inert.
+ */
 .btn-accent[disabled],
 .btn-quiet[disabled] {
   opacity: 0.55;
@@ -86,13 +252,40 @@ body {
 }
 
 /*
- * The boot rule: the app's one loading signal. Per scope.md, work in progress is
- * the accent at reduced opacity rather than a second hue, so this is a hairline
- * that fills in clay and then recedes, never a spinner and never a new color.
+ * State 6 of 6, busy. Per scope.md, work in progress is the accent at reduced
+ * opacity rather than a second hue, so the label drops to clay at 55% and a
+ * hairline sweeps beneath the control. Never a spinner, never a new colour.
+ *
+ * aria-disabled rather than the real disabled attribute, so the control keeps
+ * focus while the action runs. That is deliberate and it has a cost: aria-disabled
+ * does not block a click, so every busy control's handler returns early while
+ * busy. useSignIn holds that guard for all three sign-in surfaces.
+ */
+.btn-accent[aria-busy="true"],
+.btn-quiet[aria-busy="true"] {
+  color: color-mix(in srgb, var(--color-clay) 55%, transparent);
+  cursor: default;
+}
+
+.btn-accent[aria-busy="true"]::after,
+.btn-quiet[aria-busy="true"]::after {
+  content: "";
+  position: absolute;
+  bottom: calc(-1 * var(--border-hairline));
+  left: 0;
+  width: 40%;
+  height: var(--border-hairline);
+  background-color: var(--color-clay);
+  opacity: 0.55;
+  animation: busy-sweep 1.4s ease-in-out infinite;
+}
+
+/*
+ * The boot rule: the same signal at page scale, while the auth fact resolves.
  */
 .boot-rule {
   position: relative;
-  height: 1px;
+  height: var(--border-hairline);
   width: 100%;
   background-color: var(--color-hairline);
   overflow: hidden;
@@ -109,6 +302,7 @@ body {
   animation: boot-sweep 1.4s ease-in-out infinite;
 }
 
+/* The boot rule clips its own overflow, so the segment may travel past the end. */
 @keyframes boot-sweep {
   0% {
     transform: translateX(-100%);
@@ -118,8 +312,29 @@ body {
   }
 }
 
+/*
+ * A button does not clip, and clipping one would cut the sweep off at the border
+ * it is meant to sit on. So this travel is bounded instead: a 40% wide segment
+ * moved 150% of its own width ends exactly flush with the right edge and never
+ * spills past the control.
+ */
+@keyframes busy-sweep {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(150%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .boot-rule::after {
+    animation: none;
+    width: 100%;
+  }
+
+  .btn-accent[aria-busy="true"]::after,
+  .btn-quiet[aria-busy="true"]::after {
     animation: none;
     width: 100%;
   }
@@ -137,7 +352,7 @@ body {
  * rule elsewhere: no status color, ever.
  */
 .banner {
-  border-bottom: 1px solid var(--color-hairline);
+  border-bottom: var(--border-hairline) solid var(--color-hairline);
   background-color: var(--color-ivory);
   padding: 0.75rem 1.5rem;
 }
@@ -153,8 +368,6 @@ body {
   gap: 0.5rem;
   margin-top: 0.75rem;
   max-width: 42ch;
-  font-size: 0.875rem;
-  line-height: 1.5;
   color: var(--color-ink);
 }
 
@@ -172,15 +385,17 @@ body {
 /*
  * A variable name, a path, or a URL shown inside a sentence. Set on the surface
  * tone in body ink, never in the accent: clay is reserved for things you
- * interact with, and a name on screen is not one.
+ * interact with, and a name on screen is not one. Its type comes from the code
+ * role, not a second copy of the same numbers.
  */
 .code-token {
   display: inline-block;
-  border-radius: 2px;
+  border-radius: var(--radius);
   background-color: var(--color-ivory);
   padding: 0.05rem 0.3rem;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+  font-size: var(--type-code-size);
+  line-height: var(--type-code-leading);
   color: var(--color-ink);
   overflow-wrap: anywhere;
 }

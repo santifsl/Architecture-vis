@@ -14,8 +14,8 @@ export default function Home() {
   // layout's auth chrome to sit above.
   return (
     <main className="px-6 py-16">
-      <h1 className="text-2xl font-medium tracking-tight text-ink">Roomify</h1>
-      <p className="mt-2 text-sm text-ink">
+      <h1 className="type-title text-ink">Roomify</h1>
+      <p className="mt-2 type-body text-ink">
         Upload a floor plan and get a photorealistic render back.
       </p>
     </main>

@@ -128,6 +128,64 @@ the message. It also renders the span with a stray space in the middle, which is
 how a file path in a spec quietly becomes wrong. Rewrap the sentence so each
 span sits on one line. This cost three rounds during feature 2 alone.
 
+**The design system is a closed set.** Spec 0004. A screen composes named type
+roles and ladder steps; it never states a size, a weight, a colour or a radius of
+its own. `app/app.css` is the one place raw values live. Nine
+`no-restricted-syntax` rules over every `className` in `app/` fail the commit on:
+a raw hex or `rgb()`; an arbitrary colour such as `bg-[#...]`; a stock Tailwind
+colour family such as `text-red-500`; a stock text size such as `text-sm`; a
+`font-*` weight; a `tracking-*` or `leading-*`; an arbitrary type value such as
+`text-[13px]`; any `rounded-*`; and any spacing step off the ladder. There are no
+disable comments for these. If a rule and a real need collide, the rule changes
+in spec 0004 and here, per the closing section of this file.
+
+The rules read four shapes, not just a plain string: a literal in `className`, a
+template literal's own text inside `className` (a different node type, and the
+one a literal-only rule silently misses), and either of those hoisted into a
+variable named for classes. Conditionals and helpers like `cx("...")` are covered
+by the first. One gap is left open on purpose: a class string in a variable not
+named for classes escapes, because catching it would mean testing every string in
+the file and eventually firing on prose. Name the variable for what it holds.
+
+- **Six type roles**, and nothing else: `type-display`, `type-title`,
+  `type-heading`, `type-body`, `type-meta`, `type-code`. Each carries size, line
+  height, weight, tracking and case together, so a role is one class name rather
+  than a stack a screen has to repeat in the same combination.
+- **Nine spacing steps**: `1 2 3 4 6 8 12 16 24`. Each has a job in spec 0004's
+  Spacing table. `mx-auto` and layout arbitrary values such as `max-w-[42ch]`
+  stay legal, because layout is not what drifts.
+- **Six colours**: `bone`, `ivory`, `ink`, `ink-soft`, `hairline`, `clay`. There
+  is no status colour, ever: no red, no green, no amber. An error is body ink
+  plus a thin clay outlined mark. Work in progress is clay at 55%, never a
+  second hue and never a spinner.
+
+**Contrast is measured, not eyeballed.** `scripts/check-contrast.mjs` runs inside
+`npm run verify`. It parses the `@theme` block of `app/app.css` and asserts every
+colour used as text clears 4.5:1 against **both** bone and ivory, and that clay
+clears 3:1 as a focus ring against both. Both surfaces, deliberately: the
+original accent cleared 4.62:1 on bone and only 4.12:1 on ivory, and a
+`.btn-accent` sits inside the ivory session-ended banner, so a bone-only check
+would have called it fine. What the lint rules cannot catch is somebody editing
+the palette itself, which is exactly how both of the defects feature 4 fixed were
+introduced.
+
+**Every interactive control defines all six states.** Rest, hover, active, focus
+visible, disabled, loading. A control that can never be busy still declares the
+other five. Two parts of this are load bearing rather than stylistic:
+
+- **A busy control is `aria-busy` plus `aria-disabled`, not the real `disabled`
+  attribute**, so a running action does not throw keyboard focus away. The cost
+  is that `aria-disabled` does not block a click, so the handler behind a busy
+  control must refuse the second activation itself. For sign in, that is
+  `createSingleFlight` in `app/auth/singleFlight.ts`, which is read and written
+  synchronously and so turns away a second call whatever React has rendered. Do
+  not remove that guard while any control is busy by ARIA alone: an unguarded
+  busy button fires its action twice, which is worse than the focus loss the
+  change was made to fix.
+- **The busy sweep is an `::after` on the control**, not a sibling element, so no
+  call site needs new markup. Written as a sibling it is how a state ends up
+  applied in four places and missed in the fifth.
+
 **Build output is excluded, not formatted.** `build/` is the build output (and
 `.react-router/` holds generated route types). Both are gitignored, and both
 belong in `.prettierignore` and ESLint's ignore list. Linting output nobody
@@ -192,6 +250,37 @@ than inventing values here.
 
 **Accessibility baseline on every screen.** Real contrast, visible focus, full
 keyboard operation. Not a pass at the end; part of building the screen.
+
+**Clay is only ever on something you interact with.** Buttons, links, the focus
+ring, the busy state, the thin outlined error mark. Never on a heading, never on
+body prose, never on a label, and never to mark something as important. This one
+cannot be linted: the rules can tell that `text-clay` is a legal token, but not
+whether the thing wearing it is interactive, so it is on you. The palette is
+quiet on purpose so that the floor plan and the render are the only genuinely
+saturated things on screen, and every extra piece of clay spends that budget.
+
+**Hairline borders, not shadows.** A surface is separated by a `1px`
+`--color-hairline` rule, the way a drawing separates one area from another. No
+`shadow-*`, no raised panel, no glow. Nothing enforces this today (a bare
+`shadow-md` passes lint, since it names no colour), so it is a judgment rule. The
+banner, the code token and every divider already follow it, and a shadow anywhere
+would read as borrowed from a different, glossier app.
+
+**Picking the right type role is a judgment call; the lint rules only stop you
+leaving the set.** `type-meta` is the annotation role: short labels, tracked open
+and uppercase, set in full ink. It is wrong for prose, so a full sentence is
+`type-body` even when it is secondary, and `text-ink-soft` carries the
+secondariness. Reaching for a lighter grey to signal "less important" is the
+habit that produced the contrast defect in the first place, and `type-meta` is
+what replaces it.
+
+**A role is chosen by what the text is, not by how big it looks.** A sign-in
+prompt's `h1` is `type-heading`, not `type-title`, because it is a prompt rather
+than a page title, even though the tag is the same.
+
+**When a screen wants a seventh size, change the set.** The answer is a round
+trip through spec 0004, not an off-system value. That cost is the point of a
+closed set, and at five screens it is cheap.
 
 ## When a rule and the code disagree
 

@@ -75,7 +75,7 @@ cheap decision to make now.
 | 1   | Connecting to Puter                            | Foundation | done        |
 | 2   | Coding standards & tooling                     | Foundation | done        |
 | 3   | Data model                                     | Foundation | done        |
-| 4   | Design & look                                  | Foundation | not started |
+| 4   | Design & look                                  | Foundation | done        |
 | 5   | Upload & host a floor plan                     | Slice 1    | not started |
 | 6   | Create a project & generate the 3D render      | Slice 1    | not started |
 | 7   | App shell & project gallery                    | Slice 2    | not started |
@@ -341,14 +341,25 @@ feature 9; feature 3 builds the record shape the rest of the app writes to.
       here. It needs a deployed worker and the hosted subdomain, so those
       criteria are verified with feature 9, not now._
 
-### 4. Design & look
+### 4. Design & look · done
 
 A near-monochrome, gallery-quality palette: bone/ivory backgrounds
 (`#FAF8F4` background, `#EFEBE3` surfaces), near-black warm ink for text
-(`#1C1B19` primary, `#8A8478` secondary), a barely-visible hairline border
-(`#E3DED3`), and exactly one accent, a deep burnt-clay orange (`#B5551F`),
+(`#1C1B19` primary, `#6E685E` secondary), a barely-visible hairline border
+(`#E3DED3`), and exactly one accent, a deep burnt-clay orange (`#A94D19`),
 used only for things you interact with, buttons, links, the upload/generate
 call to action, focus states, nothing else.
+
+Two of those values were corrected while spec 0004 was being written, and the
+correction is the reason the numbers here no longer match what feature 1 built
+against. Secondary ink was `#8A8478` and the accent was `#B5551F`. Measured,
+the first clears only 3.50:1 against bone and 3.12:1 against ivory, and the
+second clears 4.62:1 against bone but 4.12:1 against ivory, all under the 4.5:1
+the accessibility baseline asks for. The second one was already live: a
+`.btn-accent` sits inside the ivory session-ended banner, so that label fails on
+screen today. The rule that replaces the two values is that every text token
+must clear 4.5:1 against **both** surface tones, so no component ever has to
+know which background it is on. Nothing else about the palette changes.
 
 A generation-in-progress state is the same accent color at roughly 55%
 opacity rather than a second hue, the accent quietly recedes while working
@@ -401,8 +412,95 @@ the way the sketches governed LLM Arena's arena screen, leaderboard, and
 models page: it's structure only. Nothing here overrides the palette,
 typography, or accent rules already decided above.
 
-- [ ] Decide the approach
-- [ ] Build it
+**Spec: [0004](docs/specs/0004-design-system-tokens-and-states/index.md).** The
+palette above was never the missing piece; what was missing was everything
+around it. Nothing said which type sizes were allowed, what the spacing rhythm
+was, or which states a control had to define, so every screen re-decided all
+three and none of it could be checked. Decided: a closed token system, six named
+type roles (`type-display`, `type-title`, `type-heading`, `type-body`,
+`type-meta`, `type-code`) built as Tailwind v4 `@utility` classes, a nine-step
+spacing ladder on the stock base, tokens for radius, border width and motion,
+and a six-state matrix (rest, hover, active, focus-visible, disabled, loading)
+that every interactive control must define. `type-meta` is the one real new idea:
+annotation type, tracked open and uppercase, set in full ink, which replaces
+"small faded grey text" and so removes the habit that produced the contrast
+defect in the first place. The busy state is defined here rather than deferred to
+feature 6, because generation-in-progress is this app's signature state and
+`.boot-rule` already proves the pattern: the label drops to clay at 55% and a
+hairline sweeps beneath it, never a spinner and never a second hue. Enforcement
+is ESLint rules on `className` that fail the commit, plus a contrast script in
+`npm run verify`, plus the manual walkthrough. One migration, the existing nine
+files brought onto the system before the rules are switched on, same play as
+feature 2. Dark mode is deliberately out of scope.
+
+- [x] Decide the approach
+- [x] Build it: `/develop` feature 4, the six tasks of spec 0004's build plan
+  - [x] The token layer in `app/app.css`: the two corrected colours, the six type
+        roles and their `type-*` utilities, `--radius`, `--border-hairline`,
+        `--duration-quick`, `--ease-standard`, and the four component classes
+        pointed at the role values instead of their own font sizes. Note the
+        roles deliberately avoid the `--text-*` namespace, which Tailwind would
+        auto-expand into a second, unblocked `text-<role>` utility, satisfies
+        AC-1, AC-2, AC-3, AC-7
+  - [x] `scripts/check-contrast.mjs` wired into `npm run verify`, proven by
+        reverting each of the two colours in turn and watching it fail with the
+        right ratio, not only by watching it pass, satisfies AC-1
+  - [x] The six states on `.btn-accent` and `.btn-quiet`, with the busy sweep as
+        an `::after` so no call site needs new markup, and the three existing
+        auth buttons moved off the real `disabled` attribute onto `aria-busy`
+        plus `aria-disabled` **with their handlers guarded**. `aria-disabled`
+        does not block a click, so an unguarded handler fires sign-in twice,
+        satisfies AC-5, AC-6, AC-7, AC-11
+  - [x] Retrofit the nine existing screens onto the system. The judgment calls
+        are already made in the spec: `SignInPrompt`'s `h1` becomes
+        `type-heading`, both `text-ink-soft` paragraphs become
+        `type-body text-ink-soft`, `mt-5` becomes `mt-6`, `ps-5` becomes `ps-4`,
+        satisfies AC-3, AC-4, AC-8
+  - [x] The ESLint rules, added only once the tree is already clean, then proven
+        against a planted violation of each kind rather than only against a clean
+        tree. Watch the esquery slash-escaping trap feature 2 already paid for,
+        satisfies AC-3, AC-4, AC-8
+  - [x] The documents: the design-system rules into `docs/coding-standards.md`
+        split Enforced and Judgment, and dark mode into "Not doing right now",
+        satisfies AC-9, AC-10
+- [x] Verify it: the manual walkthrough in
+      [verify.md](docs/specs/0004-design-system-tokens-and-states/verify.md).
+      Real commands and a real browser, same as every other feature here. The
+      three steps most worth an independent pass are the two contrast reverts and
+      the double-fire check on a busy button, since all three prove a guard
+      rather than a look. **Closed 2026-08-28 with 31 of 45 steps run and passing
+      and 14 waived.** Everything a command can decide was exercised and recorded
+      in `verify.md`, including both contrast reverts, all twelve planted lint
+      violations, and the guard audit showing no `disabled={` left in any JSX. The
+      14 waived steps are the browser walk: the visual states, the keyboard pass,
+      the nine screen review, and the double-fire check on a live sign in. They
+      were not run, and they stay unticked in `verify.md` rather than being
+      claimed. This feature is `done` on the engineer's call, not because the walk
+      passed. The double-fire step is the real exposure: `aria-disabled` does not
+      block a click, so if the handler guard ever regresses, sign in fires twice
+      and nothing on screen looks wrong. `createSingleFlight` is what holds it
+
+**Code**: `app/app.css` (the whole token layer, the six `type-*` utilities, and
+the six states on `.btn-accent` and `.btn-quiet`), `scripts/check-contrast.mjs`
+plus its `contrast` script in `package.json`, the nine design-system rules in
+`eslint.config.js`, and the retrofit across `app/root.tsx`, `app/auth/` and
+`app/routes/`.
+
+Two corrections the build made to the plan. First, AC-11's handler guard already
+existed: `createSingleFlight` in `app/auth/singleFlight.ts`, built for feature 1,
+is read and written synchronously and already drops a second sign-in call, so
+moving the three buttons to `aria-disabled` did not need a new guard, only a note
+in `useSignIn` recording that the latch is now load bearing rather than belt and
+braces. Second, the ESLint composition had a real trap the spec did not name:
+`no-restricted-syntax` replaces rather than merges across config objects, so
+scoping the design rules to `app/` silently switched off feature 1's SDK
+dynamic-import guard in exactly the directory it exists for. The two are composed
+explicitly now, and a planted `await import("@heyputer/puter.js")` inside `app/`
+was used to prove the guard still fires. Spec 0004's Neutral note about Prettier
+class ordering was also backwards and is corrected there.
+
+No `/test` box on this feature, same as features 1 and 3: `CLAUDE.md` rules out a
+test runner and browser automation, so verification is the manual walkthrough.
 
 ## Slice 1: Core render loop
 
@@ -516,6 +614,13 @@ Kept here so the plan stays honest about what's deliberately left out.
   existing project.
 - Privacy policy and terms pages.
 - Analytics or session-replay tooling. Nobody's asked for this yet.
+- Dark mode. Declined in spec 0004 rather than left as an unexamined gap. The
+  palette is a near-monochrome bone and ivory look chosen so the uploaded floor
+  plan and the render are the only saturated things on screen, and a dark
+  inversion is a second full palette to design, measure for contrast and hold in
+  every component's six states. `color-scheme: light` stays and no `dark:`
+  variant appears in the tree. If it is ever wanted, it is its own feature, not a
+  variant bolted onto this one.
 - Continuous integration. Deferred from spec 0003: the pre-commit hook and
   `npm run verify` are the enforcement, which means it is all local and a
   `--no-verify` commit bypasses it silently. Worth revisiting when more than one

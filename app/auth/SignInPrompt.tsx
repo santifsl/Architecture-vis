@@ -17,22 +17,19 @@ export function SignInPrompt({ what }: { readonly what: string }) {
       className="mx-auto max-w-sm px-6 py-24"
       aria-labelledby="sign-in-prompt"
     >
-      <h1
-        id="sign-in-prompt"
-        className="text-lg font-medium tracking-tight text-ink"
-      >
+      <h1 id="sign-in-prompt" className="type-heading text-ink">
         Sign in to see {what}
       </h1>
-      <p className="mt-2 text-sm text-ink-soft">
+      <p className="mt-2 type-body text-ink-soft">
         Roomify keeps your floor plans and renders in your own Puter account.
       </p>
-      <div className="mt-5">
+      <div className="mt-6">
         <button
           type="button"
           className="btn-accent"
           onClick={start}
-          disabled={busy}
           aria-busy={busy}
+          aria-disabled={busy}
         >
           {busy ? "Waiting for Puter" : "Sign in with Puter"}
         </button>

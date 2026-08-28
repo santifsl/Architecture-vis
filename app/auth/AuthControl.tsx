@@ -26,7 +26,7 @@ export function AuthControl({ state }: { readonly state: AuthState }) {
   if (state.status === "signedIn") {
     return (
       <div className="flex items-center gap-3">
-        <span className="text-sm text-ink">{state.user.username}</span>
+        <span className="type-body text-ink">{state.user.username}</span>
         <button
           type="button"
           className="btn-quiet"
@@ -44,8 +44,8 @@ export function AuthControl({ state }: { readonly state: AuthState }) {
         type="button"
         className="btn-accent"
         onClick={start}
-        disabled={busy}
         aria-busy={busy}
+        aria-disabled={busy}
       >
         {busy ? "Waiting for Puter" : "Sign in"}
       </button>
