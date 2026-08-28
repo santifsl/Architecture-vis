@@ -107,6 +107,15 @@ there, and feature 6 creates the project.
   after a cancellation completes, typed `(operationId: string) => void`, so it
   reports a cancellation and cannot cause one. Corrected during the build. A
   partial file may still remain, which is recorded as a known leak.
+- **AC-18**: Signing out clears the card and the URL cache. The preview, the
+  hosted plan, any held file, and every minted URL in memory are dropped the
+  moment the auth fact stops being signed in, and a write still in flight is
+  cancelled and abandoned without writing a notice. Added during the build,
+  after review: neither sign-out path reloads the page, so without this the card
+  keeps rendering a preview whose `src` is an anonymous read URL that needs no
+  session and stays live for the rest of its hour, and the next person on a
+  shared browser inherits it. This covers a deliberate sign out and Puter ending
+  the session itself, since both arrive as the same change in the auth fact.
 
 ## Decision
 
@@ -235,7 +244,11 @@ unreachable through it.
   and signed out. Anything that would swap or guard it breaks the held file.
 - The URL cache stores a promise per path, so a cache miss can be in flight
   rather than only resolved or absent.
-- No two writes are ever in flight from this card at once.
+- No two writes are ever in flight from this card at once. The guard is a ref
+  claimed synchronously, not the rendered phase: two events in one tick both read
+  the phase from before the first `setPhase` and both get through.
+- Nothing minted for one person outlives their session. Signing out empties the
+  cache and resets the card.
 
 **Security model**:
 

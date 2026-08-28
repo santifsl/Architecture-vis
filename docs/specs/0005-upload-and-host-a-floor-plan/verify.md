@@ -10,18 +10,22 @@ browser at `npm run dev`, signed in to a real Puter account.
 and write beside it what it produced, including when the result differed from
 what this file expected.
 
-**Run log, 2026-08-28. 15 of 50 steps run and passing, 35 left unrun.**
+**Run log, 2026-08-28. 15 of 54 steps run and passing, 39 left unrun.**
 `/check verify` ran the eight command and code shape steps. The engineer then
 walked the seven highest stakes runtime steps by hand in a real browser against a
 real Puter account: the cancelled picker during Replace, the decode check
 refusal, the abort on unmount, and the four signed out held file steps. All seven
 passed, notes beside each.
 
-The remaining 35 are unrun by a deliberate choice, not an oversight. They are the
+The remaining 39 are unrun by a deliberate choice, not an oversight. They are the
 lower stakes browser walk: the path and sanitiser shapes, the progress hairline,
 the preview and the URL cache, the quota pair that needs a nearly full drive, the
 keyboard and screen reader pass, and the second pick guard. They stay unticked
 rather than claimed, the same way features 1 and 4 closed.
+
+Four of those 39 are new, added after a code review found that signing out left
+the previous person's plan on screen and their minted URLs in memory. That is
+AC-18 and the Signing out section below, and none of it has been walked yet.
 
 Two findings from the run, both recorded beside their steps. The `.tiff` Replace
 step cannot be walked as written, because the file input's own `accept` attribute
@@ -168,6 +172,20 @@ as waived and say so rather than ticking them.
 - [x] Repeat, but cancel the sign in popup. Nothing uploads, nothing errors, and
       the card is idle → AC-11
       _Walked 2026-08-28. Passed. The card was left idle with no error._
+
+## Signing out
+
+- [ ] Upload a plan, then sign out without reloading. The preview disappears and
+      the card returns to idle → AC-18
+- [ ] With the preview URL copied beforehand, sign out and paste it into a
+      private window. It still loads, because a minted URL cannot be revoked;
+      what matters is that the app stopped handing it out → AC-18
+      _The expiry is the only thing that kills a minted URL. Clearing the cache
+      stops the app serving it, it does not reach back and cancel it._
+- [ ] Sign back in as a different person. Nothing of the previous person's plan
+      is on the card, and displaying a plan mints a fresh URL → AC-18
+- [ ] Start an upload on a throttled connection, then sign out mid write. The
+      request is cancelled and no failure sentence appears → AC-18
 
 ## Keyboard and accessibility
 

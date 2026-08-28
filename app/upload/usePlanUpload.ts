@@ -29,7 +29,7 @@ import { useSignIn, type SignInNotice } from "~/auth/useSignIn";
 import type { FloorPlan } from "~/projects/record";
 import { UPLOAD_MESSAGES, type UploadFailure } from "~/upload/failures";
 import { validatePlanFile, type AllowedType } from "~/upload/plan";
-import { deletePlan, uploadPlan } from "~/upload/store";
+import { deletePlan, forgetAllPlanUrls, uploadPlan } from "~/upload/store";
 
 /** A plan that is stored and ready for feature 6. */
 export type HostedPlan = {
@@ -96,6 +96,23 @@ export const usePlanUpload = (): PlanUpload => {
   const abortWrite = useRef<(() => void) | null>(null);
 
   /**
+   * True from the moment a pick is accepted until that attempt settles, and the
+   * real guard behind AC-16.
+   *
+   * `phase` cannot carry this on its own, because it is state. A second event
+   * arriving before React commits the `validating` phase reads the phase from
+   * before `setPhase`, sees `idle`, and starts a second attempt: two writes race
+   * to be the hosted result, the loser leaves an orphaned file, and the second
+   * one's abort handle overwrites the first, so unmounting cancels only one of
+   * them (AC-17). A ref is written synchronously, so the second event sees it.
+   *
+   * It doubles as "this attempt is still the current one". Signing out clears
+   * it, which is how an abandoned upload knows not to write state or a notice
+   * for a person who has already left.
+   */
+  const working = useRef(false);
+
+  /**
    * False once the card is gone. Every state write after an await checks it, so
    * a resolved upload never sets state on a component that no longer exists.
    */
@@ -114,6 +131,7 @@ export const usePlanUpload = (): PlanUpload => {
 
   /** Back to whatever was on screen before this attempt, with a sentence. */
   const settleFailure = useCallback((failure: UploadFailure) => {
+    working.current = false;
     held.current = null;
     const previous = hosted.current;
     setPhase(
@@ -138,7 +156,9 @@ export const usePlanUpload = (): PlanUpload => {
         file,
         type,
         onProgress: (fraction) => {
-          if (alive.current) setPhase({ kind: "uploading", fraction });
+          if (alive.current && working.current) {
+            setPhase({ kind: "uploading", fraction });
+          }
         },
         onAbortReady: (abort) => {
           abortWrite.current = abort;
@@ -146,7 +166,9 @@ export const usePlanUpload = (): PlanUpload => {
       });
 
       abortWrite.current = null;
-      if (!alive.current) return;
+      // Gone, or abandoned by a sign out while the write was in flight. Either
+      // way this attempt no longer owns the card and must not touch it.
+      if (!alive.current || !working.current) return;
 
       if (!result.ok) {
         settleFailure(result.failure);
@@ -157,8 +179,13 @@ export const usePlanUpload = (): PlanUpload => {
       const next: HostedPlan = { plan: result.value, filename: file.name };
       hosted.current = next;
       held.current = null;
+      working.current = false;
       setPhase({ kind: "hosted", ...next });
 
+      // Released before the delete rather than after it. The delete is cleanup
+      // of the superseded file, the new plan is already stored and on screen,
+      // and holding the latch through it would leave Replace silently dead for
+      // as long as the delete took, with nothing on the card to explain why.
       if (replaced !== null && replaced.plan.path !== next.plan.path) {
         await deletePlan(replaced.plan.path);
       }
@@ -169,15 +196,21 @@ export const usePlanUpload = (): PlanUpload => {
   const pick = useCallback(
     (file: File) => {
       // AC-16. Anything arriving while the card is working is ignored, so two
-      // writes can never be in flight from one card.
-      if (isBusy(phase)) return;
+      // writes can never be in flight from one card. Checked and claimed against
+      // the ref, not against `phase`, because two events in one tick both read
+      // the phase from before the first `setPhase` and both get through.
+      if (working.current) return;
+      working.current = true;
 
       setPhase({ kind: "validating" });
       setNotice(null);
 
       void (async () => {
         const check = await validatePlanFile(file);
-        if (!alive.current) return;
+        // Gone, or abandoned by a sign out while the file was decoding. The
+        // closure's `auth.status` is the one from before that sign out, so
+        // without this the attempt would carry on into a write it cannot make.
+        if (!alive.current || !working.current) return;
 
         // A refused file leaves any existing plan exactly where it is. AC-10.
         if (!check.ok) {
@@ -188,6 +221,9 @@ export const usePlanUpload = (): PlanUpload => {
         held.current = { file, type: check.type };
 
         if (auth.status !== "signedIn") {
+          // Waiting on a popup is not working. The card is idle and another
+          // pick is allowed, so the latch comes off until the upload starts.
+          working.current = false;
           setPhase({ kind: "held" });
           startSignIn();
           return;
@@ -196,8 +232,50 @@ export const usePlanUpload = (): PlanUpload => {
         await runUpload(file, check.type);
       })();
     },
-    [auth.status, phase, runUpload, settleFailure, startSignIn],
+    [auth.status, runUpload, settleFailure, startSignIn],
   );
+
+  /**
+   * Whoever was signed in as of the last render.
+   *
+   * Sign out is a transition, not a state. Signed out is also the ordinary
+   * first state of this card, so reacting to the state rather than the change
+   * would wipe a file picked before signing in, which is exactly what AC-11
+   * exists to keep.
+   */
+  const wasSignedIn = useRef(auth.status === "signedIn");
+
+  /**
+   * Signing out takes the previous person's plan off the screen and their
+   * minted URLs out of memory.
+   *
+   * Without this the card keeps rendering a preview whose `src` is an anonymous
+   * read URL, one that needs no session and stays live for the rest of its hour,
+   * and the module cache keeps handing that URL to anything that asks. On a
+   * shared browser the next person to use it inherits both. Neither sign-out
+   * path reloads the page, they only revalidate the auth fact, so nothing else
+   * would clear either one.
+   *
+   * This covers the deliberate sign out and Puter ending the session itself,
+   * because both land here as the same change in the auth fact.
+   */
+  useEffect(() => {
+    const signedIn = auth.status === "signedIn";
+    const justSignedOut = wasSignedIn.current && !signedIn;
+    wasSignedIn.current = signedIn;
+    if (!justSignedOut) return;
+
+    abortWrite.current?.();
+    abortWrite.current = null;
+    // Clearing the latch is also what tells an upload still in flight that it
+    // has been abandoned, so it settles without writing to the card.
+    working.current = false;
+    hosted.current = null;
+    held.current = null;
+    forgetAllPlanUrls();
+    setPhase({ kind: "idle" });
+    setNotice(null);
+  }, [auth.status]);
 
   /**
    * The other half of AC-11: the moment the auth fact turns to signed in, a
@@ -214,8 +292,9 @@ export const usePlanUpload = (): PlanUpload => {
     if (auth.status !== "signedIn" || phase.kind !== "held") return;
 
     const waiting = held.current;
-    if (waiting === null) return;
+    if (waiting === null || working.current) return;
 
+    working.current = true;
     void runUpload(waiting.file, waiting.type);
   }, [auth.status, phase.kind, runUpload]);
 

@@ -220,7 +220,13 @@ export const readPlanUrl = async (
   urlCache.set(path, { mintedAt: Date.now(), url: minting });
 
   const result = await minting;
-  if (!result.ok) urlCache.delete(path);
+  // Only evict our own entry. A plan deleted mid mint purges the cache, and a
+  // later caller can have minted a fresh URL into the same key by the time this
+  // one fails; deleting unconditionally would throw that good entry away and
+  // send everyone after it back to the network.
+  if (!result.ok && urlCache.get(path)?.url === minting) {
+    urlCache.delete(path);
+  }
   return result;
 };
 
