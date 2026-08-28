@@ -1,0 +1,7 @@
+# Generated, not written here. Linting or formatting output nobody wrote is noise.
+build/
+.react-router/
+node_modules/
+
+# Lockfile: npm owns its formatting.
+package-lock.json

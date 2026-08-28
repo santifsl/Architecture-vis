@@ -7,7 +7,9 @@
     "dev": "react-router dev",
     "typecheck": "react-router typegen && tsc",
     "check:imports": "node scripts/check-sdk-import.mjs",
-    "check": "npm run typecheck && npm run check:imports"
+    "check": "npm run typecheck && npm run check:imports",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@heyputer/puter.js": "2.6.2",
@@ -23,6 +25,8 @@
     "@types/node": "^22",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "prettier": "^3.9.6",
+    "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^8.0.3"
