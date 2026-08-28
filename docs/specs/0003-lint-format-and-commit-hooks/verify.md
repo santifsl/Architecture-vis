@@ -11,7 +11,9 @@ on a branch you are willing to throw away, or `git restore` after each.
 build on 2026-08-27, on branch `feature/lint-format-and-commit-hooks`, and the
 note beside it says what it produced. Where a step names a specific file and the
 build used a different one, the note says so, so re-walking it is still worth
-doing. An unticked box has not been run by anybody yet.
+doing. An unticked box has not been run by anybody yet. The exception is the
+final section, whose three boxes were walked later the same day by a session
+that had not written the code; each says so in its own note.
 
 ## Commands
 
@@ -158,12 +160,28 @@ Run these on a scratch branch.
 Everything above was run by the same session that wrote the code, which is the
 weakest kind of evidence there is. Three are worth an independent pass:
 
-- [ ] The three SDK import forms planted in the real `app/auth/actions.ts` and
+All three were walked by hand on 2026-08-27 in a separate session from the one
+that wrote the code, and all three passed.
+
+- [x] The three SDK import forms planted in the real `app/auth/actions.ts` and
       `app/projects/store.ts`, rather than in a scratch file → AC-3
-- [ ] The Tailwind scramble in the real `app/auth/AuthControl.tsx` → AC-9
-- [ ] `npm run verify` from a clean checkout on another machine, which is the
+      _All three failed lint in the real files. The static import in
+      `app/auth/actions.ts` and the re-export in `app/projects/store.ts` were
+      caught by `no-restricted-imports`; the dynamic `import()` in
+      `app/projects/store.ts` was caught by the `no-restricted-syntax` selector
+      specifically, not by the import rule. Every file restored clean
+      afterwards, and `app/platform/puter.ts`'s exemption held throughout._
+- [x] The Tailwind scramble in the real `app/auth/AuthControl.tsx` → AC-9
+      _`npm run format` rewrote the scrambled class list back to the plugin's
+      canonical order. Restored clean._
+- [x] `npm run verify` from a clean checkout on another machine, which is the
       only thing that proves the tooling does not depend on state left behind in
       this working directory → AC-5, AC-8
+      _Walked as a fresh clone into a clean directory rather than on a second
+      machine: `git clone`, `npm install`, then `npm run verify` passed end to
+      end with nothing run by hand in between. That covers the state-leakage
+      question this step exists for; a genuinely different machine would also
+      cover a different Node or npm version, which this does not._
 
 ## Acceptance-criteria coverage
 

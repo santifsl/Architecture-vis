@@ -73,7 +73,7 @@ cheap decision to make now.
 | #   | Feature                                        | Phase      | Status      |
 | --- | ---------------------------------------------- | ---------- | ----------- |
 | 1   | Connecting to Puter                            | Foundation | done        |
-| 2   | Coding standards & tooling                     | Foundation | in-progress |
+| 2   | Coding standards & tooling                     | Foundation | done        |
 | 3   | Data model                                     | Foundation | done        |
 | 4   | Design & look                                  | Foundation | not started |
 | 5   | Upload & host a floor plan                     | Slice 1    | not started |
@@ -183,7 +183,7 @@ registry (the one candidate was reviewed and declined; it teaches the CDN global
 this project rejects). The installed package's own source and generated types are
 the only accurate reference.
 
-### 2. Coding standards & tooling · in-progress
+### 2. Coding standards & tooling · done
 
 Write down the real conventions for this project once it actually exists,
 then install linting, formatting, and a pre-commit hook that actually
@@ -254,10 +254,15 @@ keeps the rule live for a genuine violation.
         layout not `features/`, the SDK import rule and the `jsx-a11y` rules
         added to Enforced, and no more future-tense CI. Then feature 1's last
         box below gets ticked, satisfies AC-11, AC-4
-- [ ] Verify it: the manual walkthrough in
+- [x] Verify it: the manual walkthrough in
       [verify.md](docs/specs/0003-lint-format-and-commit-hooks/verify.md).
       Real commands and real commits on a scratch branch, same as every other
-      feature here; `CLAUDE.md` rules out a test runner
+      feature here; `CLAUDE.md` rules out a test runner. The three steps that
+      section flagged as worth an independent pass, the SDK import forms in the
+      real `actions.ts` and `store.ts`, the Tailwind scramble in the real
+      `AuthControl.tsx`, and `npm run verify` from a fresh clone, were walked by
+      hand afterwards by a session that had not written the code, and all three
+      passed
 
 Code: `eslint.config.js` is the whole lint configuration, including the SDK
 import rule and its per-file override for `app/platform/puter.ts`.
@@ -272,7 +277,8 @@ re-export, dynamic `import()`, type-only, dynamic subpath), `verify` against a
 deliberate type error to confirm it stops at the first failure, the hook against
 an auto-fixable violation, a non-fixable one and a type error in an unstaged
 file, and the hook's self-installation against a genuine fresh clone plus
-`npm install`. What is left for `verify.md` is re-walking that record.
+`npm install`. That record has since been re-walked independently, and
+`verify.md` is fully ticked.
 
 ### 3. Data model · done
 
