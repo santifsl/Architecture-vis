@@ -127,7 +127,11 @@ const parsePublicAssets = (value: unknown): PublicAssets | null => {
 
 const parseModels = (value: unknown): readonly ModelId[] | null => {
   if (!Array.isArray(value)) return null;
-  return value.every(isModelId) ? (value as readonly ModelId[]) : null;
+  // `Array.isArray` on an `unknown` widens to `any[]`, which would make the
+  // cast below vacuous. Restating the element type as `unknown` keeps the
+  // guard doing the narrowing.
+  const items: readonly unknown[] = value;
+  return items.every(isModelId) ? items : null;
 };
 
 const parseFloorPlan = (value: unknown): Project["floorPlan"] | null => {

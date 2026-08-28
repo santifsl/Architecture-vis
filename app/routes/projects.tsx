@@ -1,7 +1,6 @@
-import type { Route } from "./+types/projects";
 import { RequireUser } from "~/auth/RequireUser";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() {
   return [
     { title: "Your projects · Roomify" },
     { name: "description", content: "Your floor plans and their renders." },

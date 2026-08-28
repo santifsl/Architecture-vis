@@ -346,13 +346,15 @@ already runs.
    grep, because a grep also matches this project's own prose about the SDK and
    returns nothing usable as an exit code. The script matches static imports,
    re-exports, and dynamic `import()`, and was proven against a planted
-   violation of each kind. The ESLint `no-restricted-imports` rule is enrolled
-   on feature 2, which is what installs linting.
+   violation of each kind. **Superseded by feature 2 (spec 0003):** the rule is
+   now ESLint's `no-restricted-imports` plus a `no-restricted-syntax` selector
+   for the dynamic form, and the script is deleted.
 10. **Partly done.** Typecheck and a real production build pass, both with the
     variable set and with it unset, and the prerendered `index.html` contains
-    the boot screen and no Puter call. Lint does not exist yet: feature 2
-    installs it, so `npm run check` runs typecheck plus the import check for
-    now. The manual browser walk of the configuration screen was done on
+    the boot screen and no Puter call. Lint did not exist yet at the time, so
+    `npm run check` ran typecheck plus the import check; feature 2 (spec 0003)
+    has since installed lint and replaced that script with `npm run verify`.
+    The manual browser walk of the configuration screen was done on
     2026-08-27 and passed all four checks; the offline boot case and the checks
     `verify.md` leaves unticked with a reason are what remain.
     Satisfies **AC-9**.
