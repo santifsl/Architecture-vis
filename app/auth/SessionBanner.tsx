@@ -19,15 +19,15 @@ export function SessionBanner({ state }: { readonly state: AuthState }) {
   return (
     <div className="banner" role="status">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <p className="text-sm text-ink">
+        <p className="type-body text-ink">
           Your Puter session ended. Sign in to pick up where you left off.
         </p>
         <button
           type="button"
           className="btn-accent"
           onClick={start}
-          disabled={busy}
           aria-busy={busy}
+          aria-disabled={busy}
         >
           {busy ? "Waiting for Puter" : "Sign in"}
         </button>
