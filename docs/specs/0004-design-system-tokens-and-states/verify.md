@@ -289,6 +289,31 @@ Plant each violation in a real file, run `npm run lint`, confirm it fails, then
       `ConfigScreen` already uses this one, so a rule that rejects it breaks a
       working screen → AC-4
       **Ran `max-w-[42ch] px-6 py-16 type-body text-ink`: `npm run lint` exit 0. The legal case genuinely passes, so ConfigScreen is not broken by the rules.**
+- [x] A class string that is not a plain literal is still caught: a template
+      literal ``className={`text-sm mt-5 ${x}`}``, a hoisted
+      `const STYLES = "text-sm font-bold mt-5"`, and a hoisted
+      ``const buttonClass = `rounded-md ps-5` `` → AC-3, AC-4
+      **Added and run 2026-08-28, after review found the rules read only direct
+      string literals. All three now fail lint. Previously the template literal's
+      own text was missed entirely (only the `${...}` expression inside it was
+      read) and both hoisted variables passed clean. Conditionals and helper calls
+      like `cx("...")` were already caught, because the selector matches
+      descendants. Known residual gap, left deliberately: a class string in a
+      variable NOT named for classes (`const a = "text-sm"`) still passes, since
+      catching it would mean testing every string in the file and eventually
+      firing on prose.**
+- [x] A new palette token is measured for contrast without being added to a
+      second list: add `--color-warning: #e8c547` to `@theme` and run
+      `npm run verify` → AC-1
+      **Added and run 2026-08-28, after review found the contrast script measured
+      a hand-written list of three token names. The new token used to pass both
+      lint and the contrast check, which still reported 'All 8 pairs clear', while
+      measuring about 1.58:1 on bone. The script now derives the text tokens from
+      the palette itself: everything in `@theme` that is not a named surface and
+      not explicitly listed as decorative is measured. The probe now fails at
+      1.58:1 on bone and 1.41:1 on ivory. Renaming a token fails too:
+      `--color-hairline` to `--color-rule` exits 1 naming the token, rather than
+      silently dropping it from coverage.**
 - [x] `npm run lint -- --max-warnings 0` on the clean tree → exits `0` → AC-8
       **Ran: exit 0.**
 - [x] `npm run verify` from a clean tree → typecheck, lint, format check,

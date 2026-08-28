@@ -57,7 +57,30 @@ const SDK_SYNTAX = {
  * and `w-[40%]`, because layout is not what drifts. `app/app.css` declares every
  * raw value and is not linted here, which is the point of it.
  */
-const CLASSNAME = 'JSXAttribute[name.name="className"] Literal';
+const CLASSNAME = 'JSXAttribute[name.name="className"]';
+
+/**
+ * A class string reaches an element by more than one shape, and a rule that only
+ * reads the plain literal form is a rule with a documented hole in it.
+ *
+ * Four places are covered. Inside a `className` attribute: a string literal, and
+ * a template literal's own text (its quasis), which is a DIFFERENT node type,
+ * `TemplateElement`, and so is not matched by a `Literal` selector. Conditionals
+ * and helper calls such as `cx("...")` are already covered by the first of
+ * those, because the selector is a descendant match rather than a direct child.
+ *
+ * And outside the attribute: a class string hoisted into a variable whose name
+ * says it holds classes. That one cannot be caught structurally, because by the
+ * time it reaches `className` it is just an identifier, so it is caught at the
+ * declaration by name instead.
+ *
+ * The residual gap, stated rather than pretended away: a class string in a
+ * variable NOT named for classes (`const a = "text-sm"`) still passes. Closing
+ * that would mean testing every string in the file, which would eventually fire
+ * on prose. If you are hoisting classes, name the variable for what it holds.
+ */
+const CLASS_VARIABLE =
+  "VariableDeclarator[id.name=/class|Class|CLASS|style|Style|STYLE|cls|CLS/]";
 
 /** The nine ladder steps, longest first so `16` is tried before `1`. */
 const LADDER = "24|16|12|1|2|3|4|6|8";
@@ -78,10 +101,17 @@ const FAMILIES =
 const COLOUR_PREFIX =
   "bg|text|border|ring|outline|fill|stroke|decoration|divide|from|via|to|shadow|accent|caret|placeholder";
 
-const design = (pattern, message) => ({
-  selector: `${CLASSNAME}[value=/${pattern}/]`,
-  message,
-});
+/**
+ * One pattern becomes four selectors, so every shape a class string arrives in
+ * is checked against the same regex and carries the same message.
+ */
+const design = (pattern, message) =>
+  [
+    `${CLASSNAME} Literal[value=/${pattern}/]`,
+    `${CLASSNAME} TemplateElement[value.raw=/${pattern}/]`,
+    `${CLASS_VARIABLE} > Literal[value=/${pattern}/]`,
+    `${CLASS_VARIABLE} TemplateElement[value.raw=/${pattern}/]`,
+  ].map((selector) => ({ selector, message }));
 
 const DESIGN_SYSTEM_RULES = [
   design(
@@ -120,7 +150,7 @@ const DESIGN_SYSTEM_RULES = [
     `(?:^|\\s)-?(?:${SPACING})-(?!(?:${LADDER})(?:$|\\s))(?:[0-9]|\\[)`,
     "Off the spacing ladder. The nine legal steps are 1 2 3 4 6 8 12 16 24, each with a job in spec 0004's Spacing table.",
   ),
-];
+].flat();
 
 export default tseslint.config(
   // Generated output. Nobody wrote it, so nothing lints it.

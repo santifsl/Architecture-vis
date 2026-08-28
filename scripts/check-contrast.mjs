@@ -20,9 +20,30 @@ import { fileURLToPath } from "node:url";
 
 const CSS = fileURLToPath(new URL("../app/app.css", import.meta.url));
 
-/** Which tokens are read as text, and which are the surfaces they sit on. */
+/**
+ * Every palette token has to be classified, and the classification is a closed
+ * set the same way the palette is.
+ *
+ * Only two lists are written by hand: the surfaces other things sit on, and the
+ * tokens that are decorative and so carry no text contrast duty. EVERY other
+ * `--color-*` token in `@theme` is measured as text. That direction is
+ * deliberate and it is the whole point of this file: adding a token opts it INTO
+ * the check by default, so a new colour cannot be introduced, used as text, and
+ * quietly skipped. The earlier version listed the text tokens by hand, which
+ * meant a new `--color-warning` sailed through both lint and this script while
+ * measuring about 1.8:1 against bone.
+ *
+ * Both lists are also checked to still exist, so renaming a token fails loudly
+ * here rather than silently dropping it out of coverage.
+ */
 const SURFACES = ["bone", "ivory"];
-const TEXT = ["ink", "ink-soft", "clay"];
+
+/**
+ * Decorative only. `hairline` draws borders and dividers, never text and never a
+ * boundary a control depends on, so WCAG's text and non-text minimums do not
+ * apply to it. Anything added here needs that same argument in writing.
+ */
+const DECORATIVE = ["hairline"];
 
 /** WCAG 2.2: 4.5:1 for body text, 3:1 for a non-text boundary such as a ring. */
 const TEXT_MINIMUM = 4.5;
@@ -66,12 +87,41 @@ const demand = (tokens, name) => {
   return hex;
 };
 
+/**
+ * Everything not named a surface and not named decorative is text, derived from
+ * the tokens actually declared rather than from a second hand-kept list.
+ */
+const textTokens = (tokens) =>
+  [...tokens.keys()].filter(
+    (name) => !SURFACES.includes(name) && !DECORATIVE.includes(name),
+  );
+
+/**
+ * Fails if a hand-written name no longer exists, so a rename cannot silently
+ * shrink what gets measured.
+ */
+const checkClassification = (tokens) => {
+  const missing = [...SURFACES, ...DECORATIVE].filter(
+    (name) => !tokens.has(name),
+  );
+  if (missing.length > 0)
+    throw new Error(
+      `${CSS} no longer declares ${missing
+        .map((name) => `--color-${name}`)
+        .join(", ")}. ` +
+        `Update SURFACES or DECORATIVE in this file to match the palette.`,
+    );
+};
+
 /** Every pair to measure, as plain data, so the report and the check agree. */
-const pairs = (tokens) =>
-  SURFACES.flatMap((surface) => [
-    ...TEXT.map((text) => ({
-      what: `--color-${text} as text on --color-${surface}`,
-      measured: ratio(demand(tokens, text), demand(tokens, surface)),
+const pairs = (tokens) => {
+  checkClassification(tokens);
+  const text = textTokens(tokens);
+
+  return SURFACES.flatMap((surface) => [
+    ...text.map((name) => ({
+      what: `--color-${name} as text on --color-${surface}`,
+      measured: ratio(demand(tokens, name), demand(tokens, surface)),
       minimum: TEXT_MINIMUM,
     })),
     {
@@ -80,6 +130,7 @@ const pairs = (tokens) =>
       minimum: RING_MINIMUM,
     },
   ]);
+};
 
 const main = async () => {
   const results = pairs(readTokens(await readFile(CSS, "utf8")));
@@ -104,7 +155,8 @@ const main = async () => {
       );
     });
     console.error(
-      "\nFix the palette in app/app.css. Every text token has to clear 4.5:1 against\nboth bone and ivory, so no component has to know which surface it is on.",
+      "\nFix the palette in app/app.css. Every text token has to clear 4.5:1 against\nboth bone and ivory, so no component has to know which surface it is on.\n" +
+        "If the token above is decorative and never carries text, add it to\nDECORATIVE in this file, with the reason, rather than loosening the minimum.",
     );
     process.exitCode = 1;
     return;

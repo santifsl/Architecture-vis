@@ -139,6 +139,14 @@ colour family such as `text-red-500`; a stock text size such as `text-sm`; a
 disable comments for these. If a rule and a real need collide, the rule changes
 in spec 0004 and here, per the closing section of this file.
 
+The rules read four shapes, not just a plain string: a literal in `className`, a
+template literal's own text inside `className` (a different node type, and the
+one a literal-only rule silently misses), and either of those hoisted into a
+variable named for classes. Conditionals and helpers like `cx("...")` are covered
+by the first. One gap is left open on purpose: a class string in a variable not
+named for classes escapes, because catching it would mean testing every string in
+the file and eventually firing on prose. Name the variable for what it holds.
+
 - **Six type roles**, and nothing else: `type-display`, `type-title`,
   `type-heading`, `type-body`, `type-meta`, `type-code`. Each carries size, line
   height, weight, tracking and case together, so a role is one class name rather
