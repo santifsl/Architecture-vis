@@ -96,21 +96,48 @@ export const usePlanUpload = (): PlanUpload => {
   const abortWrite = useRef<(() => void) | null>(null);
 
   /**
-   * True from the moment a pick is accepted until that attempt settles, and the
-   * real guard behind AC-16.
+   * Which attempt owns the card, and the real guard behind AC-16.
    *
-   * `phase` cannot carry this on its own, because it is state. A second event
-   * arriving before React commits the `validating` phase reads the phase from
-   * before `setPhase`, sees `idle`, and starts a second attempt: two writes race
-   * to be the hosted result, the loser leaves an orphaned file, and the second
-   * one's abort handle overwrites the first, so unmounting cancels only one of
-   * them (AC-17). A ref is written synchronously, so the second event sees it.
+   * `phase` cannot carry this, because it is state. A second event arriving
+   * before React commits the `validating` phase reads the phase from before
+   * `setPhase`, sees `idle`, and starts a second attempt: two writes race to be
+   * the hosted result, the loser leaves an orphaned file, and the second one's
+   * abort handle overwrites the first, so unmounting cancels only one of them
+   * (AC-17). A ref is written synchronously, so the second event sees it.
    *
-   * It doubles as "this attempt is still the current one". Signing out clears
-   * it, which is how an abandoned upload knows not to write state or a notice
-   * for a person who has already left.
+   * An id rather than a boolean, because every await here has to answer "is
+   * THIS attempt still the current one", and a boolean can only answer "is
+   * there a current one". Pick a file, sign out while it is still decoding, then
+   * pick another: the flag would be back to true, and the first attempt's
+   * continuation would read that as its own and upload alongside the second.
+   * Comparing ids makes an abandoned attempt permanently unable to come back.
    */
-  const working = useRef(false);
+  const lastAttempt = useRef(0);
+  const currentAttempt = useRef<number | null>(null);
+
+  /** Takes ownership of the card, or `null` if another attempt already has it. */
+  const claim = useCallback((): number | null => {
+    if (currentAttempt.current !== null) return null;
+    lastAttempt.current += 1;
+    currentAttempt.current = lastAttempt.current;
+    return currentAttempt.current;
+  }, []);
+
+  /** Is this attempt still the one the card belongs to? */
+  const owns = useCallback(
+    (attempt: number): boolean => currentAttempt.current === attempt,
+    [],
+  );
+
+  /** Gives the card back, if this attempt still holds it. */
+  const release = useCallback((attempt: number): void => {
+    if (currentAttempt.current === attempt) currentAttempt.current = null;
+  }, []);
+
+  /** Takes the card off whoever holds it. Signing out, and nothing else. */
+  const abandon = useCallback((): void => {
+    currentAttempt.current = null;
+  }, []);
 
   /**
    * False once the card is gone. Every state write after an await checks it, so
@@ -130,15 +157,18 @@ export const usePlanUpload = (): PlanUpload => {
   }, []);
 
   /** Back to whatever was on screen before this attempt, with a sentence. */
-  const settleFailure = useCallback((failure: UploadFailure) => {
-    working.current = false;
-    held.current = null;
-    const previous = hosted.current;
-    setPhase(
-      previous === null ? { kind: "idle" } : { kind: "hosted", ...previous },
-    );
-    setNotice(UPLOAD_MESSAGES[failure]);
-  }, []);
+  const settleFailure = useCallback(
+    (failure: UploadFailure, attempt: number) => {
+      release(attempt);
+      held.current = null;
+      const previous = hosted.current;
+      setPhase(
+        previous === null ? { kind: "idle" } : { kind: "hosted", ...previous },
+      );
+      setNotice(UPLOAD_MESSAGES[failure]);
+    },
+    [release],
+  );
 
   /**
    * Writes the file, then removes what it replaced.
@@ -148,7 +178,7 @@ export const usePlanUpload = (): PlanUpload => {
    * own Puter drive is not a problem to interrupt them about. AC-10.
    */
   const runUpload = useCallback(
-    async (file: File, type: AllowedType) => {
+    async (file: File, type: AllowedType, attempt: number) => {
       setPhase({ kind: "uploading", fraction: 0 });
       setNotice(null);
 
@@ -156,22 +186,28 @@ export const usePlanUpload = (): PlanUpload => {
         file,
         type,
         onProgress: (fraction) => {
-          if (alive.current && working.current) {
+          if (alive.current && owns(attempt)) {
             setPhase({ kind: "uploading", fraction });
           }
         },
         onAbortReady: (abort) => {
-          abortWrite.current = abort;
+          // Same ownership rule as everything else after an await. An attempt
+          // that has been abandoned must not install its handle over the one
+          // belonging to the attempt that replaced it, or unmounting would
+          // cancel a write nobody asked it to cancel and leave the real one
+          // running.
+          if (owns(attempt)) abortWrite.current = abort;
         },
       });
 
-      abortWrite.current = null;
-      // Gone, or abandoned by a sign out while the write was in flight. Either
-      // way this attempt no longer owns the card and must not touch it.
-      if (!alive.current || !working.current) return;
+      if (owns(attempt)) abortWrite.current = null;
+      // Gone, or abandoned by a sign out while the write was in flight, possibly
+      // with a newer attempt already running. Either way this one no longer owns
+      // the card and must not touch it, or its result, or its abort handle.
+      if (!alive.current || !owns(attempt)) return;
 
       if (!result.ok) {
-        settleFailure(result.failure);
+        settleFailure(result.failure, attempt);
         return;
       }
 
@@ -179,7 +215,7 @@ export const usePlanUpload = (): PlanUpload => {
       const next: HostedPlan = { plan: result.value, filename: file.name };
       hosted.current = next;
       held.current = null;
-      working.current = false;
+      release(attempt);
       setPhase({ kind: "hosted", ...next });
 
       // Released before the delete rather than after it. The delete is cleanup
@@ -190,7 +226,7 @@ export const usePlanUpload = (): PlanUpload => {
         await deletePlan(replaced.plan.path);
       }
     },
-    [settleFailure],
+    [owns, release, settleFailure],
   );
 
   const pick = useCallback(
@@ -199,8 +235,8 @@ export const usePlanUpload = (): PlanUpload => {
       // writes can never be in flight from one card. Checked and claimed against
       // the ref, not against `phase`, because two events in one tick both read
       // the phase from before the first `setPhase` and both get through.
-      if (working.current) return;
-      working.current = true;
+      const attempt = claim();
+      if (attempt === null) return;
 
       setPhase({ kind: "validating" });
       setNotice(null);
@@ -210,11 +246,11 @@ export const usePlanUpload = (): PlanUpload => {
         // Gone, or abandoned by a sign out while the file was decoding. The
         // closure's `auth.status` is the one from before that sign out, so
         // without this the attempt would carry on into a write it cannot make.
-        if (!alive.current || !working.current) return;
+        if (!alive.current || !owns(attempt)) return;
 
         // A refused file leaves any existing plan exactly where it is. AC-10.
         if (!check.ok) {
-          settleFailure(check.reason);
+          settleFailure(check.reason, attempt);
           return;
         }
 
@@ -222,17 +258,17 @@ export const usePlanUpload = (): PlanUpload => {
 
         if (auth.status !== "signedIn") {
           // Waiting on a popup is not working. The card is idle and another
-          // pick is allowed, so the latch comes off until the upload starts.
-          working.current = false;
+          // pick is allowed, so ownership comes off until the upload starts.
+          release(attempt);
           setPhase({ kind: "held" });
           startSignIn();
           return;
         }
 
-        await runUpload(file, check.type);
+        await runUpload(file, check.type, attempt);
       })();
     },
-    [auth.status, runUpload, settleFailure, startSignIn],
+    [auth.status, claim, owns, release, runUpload, settleFailure, startSignIn],
   );
 
   /**
@@ -267,15 +303,17 @@ export const usePlanUpload = (): PlanUpload => {
 
     abortWrite.current?.();
     abortWrite.current = null;
-    // Clearing the latch is also what tells an upload still in flight that it
-    // has been abandoned, so it settles without writing to the card.
-    working.current = false;
+    // Taking the card off the current attempt is also what tells an upload still
+    // in flight that it has been abandoned, so it settles without writing to the
+    // card. Its id is spent, so a later attempt claiming the card cannot hand
+    // ownership back to it.
+    abandon();
     hosted.current = null;
     held.current = null;
     forgetAllPlanUrls();
     setPhase({ kind: "idle" });
     setNotice(null);
-  }, [auth.status]);
+  }, [abandon, auth.status]);
 
   /**
    * The other half of AC-11: the moment the auth fact turns to signed in, a
@@ -292,11 +330,13 @@ export const usePlanUpload = (): PlanUpload => {
     if (auth.status !== "signedIn" || phase.kind !== "held") return;
 
     const waiting = held.current;
-    if (waiting === null || working.current) return;
+    if (waiting === null) return;
 
-    working.current = true;
-    void runUpload(waiting.file, waiting.type);
-  }, [auth.status, phase.kind, runUpload]);
+    const attempt = claim();
+    if (attempt === null) return;
+
+    void runUpload(waiting.file, waiting.type, attempt);
+  }, [auth.status, claim, phase.kind, runUpload]);
 
   /*
    * A blocked sign in popup has to surface here, not only in the header. The

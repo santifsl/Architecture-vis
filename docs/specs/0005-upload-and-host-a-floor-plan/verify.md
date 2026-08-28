@@ -10,22 +10,24 @@ browser at `npm run dev`, signed in to a real Puter account.
 and write beside it what it produced, including when the result differed from
 what this file expected.
 
-**Run log, 2026-08-28. 15 of 54 steps run and passing, 39 left unrun.**
+**Run log, 2026-08-28. 15 of 55 steps run and passing, 40 left unrun.**
 `/check verify` ran the eight command and code shape steps. The engineer then
 walked the seven highest stakes runtime steps by hand in a real browser against a
 real Puter account: the cancelled picker during Replace, the decode check
 refusal, the abort on unmount, and the four signed out held file steps. All seven
 passed, notes beside each.
 
-The remaining 39 are unrun by a deliberate choice, not an oversight. They are the
+The remaining 40 are unrun by a deliberate choice, not an oversight. They are the
 lower stakes browser walk: the path and sanitiser shapes, the progress hairline,
 the preview and the URL cache, the quota pair that needs a nearly full drive, the
 keyboard and screen reader pass, and the second pick guard. They stay unticked
 rather than claimed, the same way features 1 and 4 closed.
 
-Four of those 39 are new, added after a code review found that signing out left
-the previous person's plan on screen and their minted URLs in memory. That is
-AC-18 and the Signing out section below, and none of it has been walked yet.
+Five of those 40 are new, added after a code review found that signing out left
+the previous person's plan on screen and their minted URLs in memory, and that an
+attempt abandoned by a sign out could take the card back from the attempt that
+replaced it. That is AC-18 and the Signing out section below, and none of it has
+been walked yet.
 
 Two findings from the run, both recorded beside their steps. The `.tiff` Replace
 step cannot be walked as written, because the file input's own `accept` attribute
@@ -186,6 +188,14 @@ as waived and say so rather than ticking them.
       is on the card, and displaying a plan mints a fresh URL → AC-18
 - [ ] Start an upload on a throttled connection, then sign out mid write. The
       request is cancelled and no failure sentence appears → AC-18
+- [ ] The abandoned attempt case. Pick a large image so it takes a moment to
+      decode, sign out before it finishes, sign back in, and pick a second file.
+      Only the second file uploads, the network panel shows one write, and the
+      card ends on the second plan → AC-16, AC-18
+      _This is the sequence that proves the guard is an attempt id rather than a
+      busy flag. With a flag the second pick would set it back to true and the
+      first, abandoned attempt would read that as permission to carry on, so both
+      files upload and either one can win._
 
 ## Keyboard and accessibility
 

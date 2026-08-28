@@ -244,9 +244,15 @@ unreachable through it.
   and signed out. Anything that would swap or guard it breaks the held file.
 - The URL cache stores a promise per path, so a cache miss can be in flight
   rather than only resolved or absent.
-- No two writes are ever in flight from this card at once. The guard is a ref
-  claimed synchronously, not the rendered phase: two events in one tick both read
-  the phase from before the first `setPhase` and both get through.
+- No two writes are ever in flight from this card at once. The guard is an
+  attempt id held in a ref and claimed synchronously, not the rendered phase.
+  Two things force that shape. The phase is state, so two events in one tick
+  both read it from before the first `setPhase` and both get through. And an id
+  rather than a flag, because every await has to answer "is THIS attempt still
+  current", which a flag cannot: pick a file, sign out while it decodes, pick
+  another, and a flag would be back to true, letting the abandoned first attempt
+  read it as its own and upload alongside the second. An abandoned attempt's id
+  is spent and can never be handed back.
 - Nothing minted for one person outlives their session. Signing out empties the
   cache and resets the card.
 
