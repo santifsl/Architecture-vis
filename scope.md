@@ -73,7 +73,7 @@ cheap decision to make now.
 | #   | Feature                                              | Phase      | Status      |
 | --- | ----------------------------------------------------- | ---------- | ----------- |
 | 1   | Connecting to Puter                                  | Foundation | done        |
-| 2   | Coding standards & tooling                           | Foundation | not started |
+| 2   | Coding standards & tooling                           | Foundation | in-progress |
 | 3   | Data model                                           | Foundation | done        |
 | 4   | Design & look                                        | Foundation | not started |
 | 5   | Upload & host a floor plan                           | Slice 1    | not started |
@@ -180,20 +180,59 @@ registry (the one candidate was reviewed and declined; it teaches the CDN global
 this project rejects). The installed package's own source and generated types are
 the only accurate reference.
 
-### 2. Coding standards & tooling
+### 2. Coding standards & tooling · in-progress
 
 Write down the real conventions for this project once it actually exists,
 then install linting, formatting, and a pre-commit hook that actually
 enforces them. See `docs/coding-standards.md` for the long version, already
 written ahead of the tooling it describes.
 
-- [ ] Decide the approach
-- [ ] Install lint, format, and whatever else is needed, and write it up in
-      `docs/coding-standards.md`
-- [ ] From spec 0001: an ESLint `no-restricted-imports` rule allowing
-      `@heyputer/puter.js` only in the platform access module. Feature 1's AC-11
-      rests on a grep until this exists, and the rule is what stops a stray SDK
-      import quietly reintroducing an unbidden login popup.
+**Spec: [0003](docs/specs/0003-lint-format-and-commit-hooks/index.md).** The
+conventions were already written; nothing enforced them, so every rule in that
+document's Enforced section was held by care rather than by a tool. Decided:
+install exactly what the document names, ESLint with typescript-eslint's
+`recommendedTypeChecked` plus the four rules it names by hand, `react-hooks`,
+`react-refresh` and `jsx-a11y`, Prettier owning all formatting with the Tailwind
+class-order plugin pointed at the real `app/app.css`, and Husky plus
+`lint-staged` running both over staged files then typechecking the whole
+project. One migration pass, the existing tree brought to zero violations rather
+than carrying a warning baseline, because at twenty-six files the baseline
+machinery costs more than the cleanup it defers. Feature 1's AC-11 moves onto a
+`no-restricted-imports` rule paired with a `no-restricted-syntax` selector for
+the dynamic `import()` form, and `scripts/check-sdk-import.mjs` is deleted rather
+than kept alongside it. No CI: `npm run verify` and the hook are the enforcement.
+
+- [x] Decide the approach
+- [x] Write the spec
+- [ ] Build it: `/develop` feature 2, tasks 1 to 9 of the spec's build plan
+  - [ ] Prettier with `prettier-plugin-tailwindcss` pointed at `app/app.css`,
+        `.prettierignore`, the `format` and `format:check` scripts, and one
+        reformat of the tree committed on its own so it never mixes with a
+        behaviour change, satisfies AC-2, AC-9, AC-10
+  - [ ] ESLint on the type-aware project service with `recommendedTypeChecked`,
+        the four named rules, the three plugins, and `eslint-config-prettier`
+        last, then the tree brought to zero at `--max-warnings 0`. Expect the
+        `no-unsafe-*` family to fire in `app/platform/puter.ts`, where the SDK's
+        own declarations type `whoami`, `whoamiCache_` and `on` as `any`; the fix
+        there is a narrow typed accessor at that boundary, not a file-wide
+        disable, satisfies AC-1, AC-10
+  - [ ] The SDK import rule in both forms, proven against a planted static
+        import, a planted re-export and a planted dynamic `import()`, and only
+        then `scripts/check-sdk-import.mjs` and the `check:imports` and `check`
+        scripts deleted, satisfies AC-3, AC-4
+  - [ ] `npm run verify` chaining typecheck, lint, format check and a real
+        build, then Husky and `lint-staged` with `"prepare": "husky"`, proven
+        against an auto-fixable violation, a non-fixable one, and a type error
+        in an unstaged file, satisfies AC-5, AC-6, AC-7, AC-8
+  - [ ] `docs/coding-standards.md` corrected and completed: `app/app.css` not
+        `app/globals.css`, the real `app/auth`, `app/platform`, `app/projects`
+        layout not `features/`, the SDK import rule and the `jsx-a11y` rules
+        added to Enforced, and no more future-tense CI. Then feature 1's last
+        box below gets ticked, satisfies AC-11, AC-4
+- [ ] Verify it: the manual walkthrough in
+      [verify.md](docs/specs/0003-lint-format-and-commit-hooks/verify.md).
+      Real commands and real commits on a scratch branch, same as every other
+      feature here; `CLAUDE.md` rules out a test runner
 
 ### 3. Data model · done
 
@@ -422,3 +461,7 @@ Kept here so the plan stays honest about what's deliberately left out.
   existing project.
 - Privacy policy and terms pages.
 - Analytics or session-replay tooling. Nobody's asked for this yet.
+- Continuous integration. Deferred from spec 0003: the pre-commit hook and
+  `npm run verify` are the enforcement, which means it is all local and a
+  `--no-verify` commit bypasses it silently. Worth revisiting when more than one
+  person commits here, or at the first bypass that reaches `main`.
