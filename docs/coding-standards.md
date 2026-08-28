@@ -110,6 +110,14 @@ handler on a non-interactive element. It cannot see contrast, whether focus is
 genuinely visible, or whether a screen can actually be operated from the
 keyboard, so those three stay under Judgment below and stay a person's job.
 
+**Never break an inline code span across a line in Markdown.** Prettier formats
+the `.md` files here too, and a span written as `` `npm run `` then a newline
+then `` check` `` makes it oscillate: it rewrites the file and still reports it
+unformatted, so `format:check` fails forever and the cause is not obvious from
+the message. It also renders the span with a stray space in the middle, which is
+how a file path in a spec quietly becomes wrong. Rewrap the sentence so each
+span sits on one line. This cost three rounds during feature 2 alone.
+
 **Build output is excluded, not formatted.** `build/` is the build output (and
 `.react-router/` holds generated route types). Both are gitignored, and both
 belong in `.prettierignore` and ESLint's ignore list. Linting output nobody
