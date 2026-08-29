@@ -117,7 +117,7 @@ _Store A: the owner's own `puter.kv`, scoped per user per app._
 | `id`            | `string`                                 | yes, primary key | time sortable: a base36 millisecond timestamp, a `-`, then 8 random base36 characters drawn from `crypto.getRandomValues`. Sorts by creation time on its own, and two devices publishing in the same millisecond do not collide |
 | `name`          | `string`                                 | yes              | 1 to 80 characters after trimming                                                                                                                                                                                               |
 | `owner`         | `string`                                 | yes              | Puter username, denormalized so a snapshot needs no second lookup                                                                                                                                                               |
-| `floorPlan`     | `{ path: string, url: string }`          | yes              | the `puter.fs` path and the owner readable URL from feature 5                                                                                                                                                                   |
+| `floorPlan`     | `{ path: string }` ¹                     | yes              | the `puter.fs` path and the owner readable URL from feature 5                                                                                                                                                                   |
 | `models`        | `readonly ModelId[]`                     | yes              | what was requested, at least one, `ModelId` is `"claude" \| "gemini"`                                                                                                                                                           |
 | `renders`       | `Readonly<Record<ModelId, RenderState>>` | yes              | one entry per requested model, no entry for a model not requested                                                                                                                                                               |
 | `visibility`    | `"private" \| "public"`                  | yes              | defaults to `private`                                                                                                                                                                                                           |
@@ -219,7 +219,7 @@ when the reader is signed out, which is what makes them genuinely anonymous.
 | -------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | create project       | `id`                                            | generated client side, base36 `Date.now()` plus a random suffix                                                                                 |
 | create project       | `owner`                                         | the resolved user from spec 0001's root loader, never typed or posted                                                                           |
-| create project       | `floorPlan.path` / `.url`                       | the `puter.fs` write result from feature 5                                                                                                      |
+| create project       | `floorPlan.path` ¹                              | the `puter.fs` write result from feature 5                                                                                                      |
 | render               | `renders[model].url` / `.path`                  | the worker's render result from feature 6                                                                                                       |
 | render               | `renders[model].errorCode`                      | mapped from the provider failure to a short internal code inside the worker, so no provider text can reach a screen                             |
 | publish              | `FeedEntry.author`                              | the caller's username from `user.puter` inside the worker, never the request body                                                               |
@@ -512,3 +512,16 @@ fork, and this project decides those with `/architect`, not in passing. **Featur
       narrows the window but does not close it. With no compare-and-swap in the
       SDK, the buildable answer is probably serializing writes per project in
       the client, but that is feature 6's decision to make and take.
+
+---
+
+¹ **Superseded by [0005](../0005-upload-and-host-a-floor-plan/index.md), 2026-08-28.**
+`FloorPlan` carried a `url` alongside its `path` when this spec was written. That
+was wrong about the platform: `puter.fs.write` returns no URL, and the only
+anonymous URL the SDK offers, `getReadURL`, expires. A stored URL would have gone
+stale on a timer, so spec 0005 drops the field and mints a short lived view URL on
+demand instead. Two places enforced the old shape and both change: the type in
+`app/projects/record.ts`, and `parseFloorPlan` in `app/projects/invariants.ts`,
+which required `url` at runtime. `PublicAssets.floorPlanUrl` is a different field
+and is untouched: it is the hosted copy the worker writes at publish, and this
+spec is still right about it.

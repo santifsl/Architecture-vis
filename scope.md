@@ -76,7 +76,7 @@ cheap decision to make now.
 | 2   | Coding standards & tooling                     | Foundation | done        |
 | 3   | Data model                                     | Foundation | done        |
 | 4   | Design & look                                  | Foundation | done        |
-| 5   | Upload & host a floor plan                     | Slice 1    | not started |
+| 5   | Upload & host a floor plan                     | Slice 1    | in-progress |
 | 6   | Create a project & generate the 3D render      | Slice 1    | not started |
 | 7   | App shell & project gallery                    | Slice 2    | not started |
 | 8   | Side-by-side comparison view                   | Slice 3    | not started |
@@ -504,19 +504,95 @@ test runner and browser automation, so verification is the manual walkthrough.
 
 ## Slice 1: Core render loop
 
-### 5. Upload & host a floor plan
+### 5. Upload & host a floor plan · in-progress
 
 A user uploads a 2D floor plan image. It's written to permanent storage
-through `puter.fs`, which returns a real public URL, that URL is what
-everything downstream (the worker, the KV record, the comparison view)
-actually points at, never a local blob URL that dies when the tab closes.
+through `puter.fs`, and what everything downstream (the worker, the KV record,
+the comparison view) points at is the **file path**, never a local blob URL
+that dies when the tab closes.
+
+The original wording here said `puter.fs` returns a real public URL. Writing
+the spec disproved that against the installed SDK: `write` returns no URL at
+all, and the only anonymous URL on offer, `getReadURL`, expires, by default in
+a day. A permanent anonymous URL comes from `puter.hosting`, which spec 0002
+already assigned to feature 9's publish step. So the path is the permanent
+identifier, and a short-lived view URL is minted on demand whenever a screen
+needs to show the image.
 
 The upload card's layout is governed by feature 4's structural reference for
 the home screen: icon, heading, file-type note, drop zone, hairline border,
 no grid-pattern background.
 
-- [ ] Decide the approach
-- [ ] Build it
+**Spec: [0005](docs/specs/0005-upload-and-host-a-floor-plan/index.md).** Decided:
+store the path, mint one-hour read URLs on demand and cache the in-flight promise
+per path. Feature 5 writes nothing to `puter.kv`; it hands back a `FloorPlan` and
+stops, and feature 6 creates the project. Available space is checked with
+`fs.space()` before every write, because a quota refusal makes Puter show its own
+usage dialog that no app can suppress. The uploading state is spec 0004's busy
+hairline driven by real progress. A cross check caught two things worth carrying
+here: `parseFloorPlan` in `app/projects/invariants.ts` requires the `url` field at
+runtime, so dropping it without changing the parser would make every project
+unreadable rather than fail to compile; and Replace must validate the new file
+before deleting the old one, or a cancelled picker destroys the plan you had.
+
+- [x] Decide the approach
+- [x] Build it: `/develop` feature 5, the eight tasks of spec 0005's build plan
+  - [x] Drop `url` from `FloorPlan` in both places that enforce it, the type in
+        `app/projects/record.ts` and `parseFloorPlan` in
+        `app/projects/invariants.ts`, and record the change in spec 0002. No data
+        migration: feature 6 is unbuilt so no record exists yet, satisfies AC-3
+  - [x] The pure layer in `app/upload/plan.ts`: allowed types and size, the
+        validation decision, the MIME-to-extension map, the filename sanitiser
+        and its awkward cases, and the path builder. No I/O, so it is checkable
+        by hand, satisfies AC-2, AC-5
+  - [x] The storage module over `withPuter`: the `fs.space()` pre-check, `write`
+        with progress and abort, an idempotent delete, and `readPlanUrl` over a
+        promise cache that goes stale at 50 minutes and purges on delete, plus
+        the plain-sentence failure vocabulary, satisfies AC-1, AC-4, AC-6, AC-7,
+        AC-10, AC-13
+  - [x] The `usePlanUpload` hook and its state machine: the held file across
+        sign-in, one `pick` shared by first upload and Replace, busy states inert
+        to a second pick, and abort on unmount, satisfies AC-11, AC-16, AC-17
+  - [x] The upload card on the home route, to feature 4's structural reference
+        and spec 0004's tokens, including the determinate progress hairline, the
+        preview from a minted URL, and the keyboard and accessibility pass. Not
+        wrapped in `RequireUser`, which would unmount it and discard the held
+        file, satisfies AC-8, AC-9, AC-12, AC-14, AC-15
+        **Code**: `app/upload/` (`plan.ts` the pure rules, `failures.ts` the sentences,
+        `store.ts` the Puter calls and the URL cache, `usePlanUpload.ts` the state
+        machine, `PlanUploadCard.tsx` the card), the card's classes in `app/app.css`,
+        the hero in `app/routes/home.tsx`, and the `FloorPlan` correction in
+        `app/projects/record.ts` and `app/projects/invariants.ts`.
+
+One correction the build made to the spec. AC-17 said to cancel an in-flight
+upload through `write`'s `abort` option. That option is a _notification_ fired
+after a cancellation completes, typed `(operationId: string) => void`, so it
+reports a cancellation and cannot cause one. The real handle is `init`, which is
+handed the `XMLHttpRequest` whose `abort` the SDK overrides. TypeScript caught
+it; had the types been looser it would have compiled and silently never
+cancelled anything. AC-17 now names the right mechanism.
+
+- [ ] Verify it: `/check verify` feature 5, the walkthrough in
+      [verify.md](docs/specs/0005-upload-and-host-a-floor-plan/verify.md). Two
+      steps need a nearly full Puter drive and may have to be waived. The step
+      most worth doing properly is cancelling the picker during Replace, since
+      that is the one that used to destroy the existing plan
+      _Partly walked 2026-08-28, 15 of 50 steps run and passing, 35 left. The
+      eight command and code-shape steps ran, and the seven highest-stakes
+      runtime steps were walked by hand: the cancelled picker during Replace
+      (the destructive one this box called out), the decode-check refusal, the
+      abort on unmount, and the four signed-out held-file steps. All passed.
+      Staying in-progress rather than closing, because three unrun steps are the
+      ones feature 6 builds directly on: the shape of the stored path, the
+      preview loading from a minted `token-read` URL rather than a `blob:` one,
+      and a first upload on a fresh account, which is where
+      `createMissingParents` bites. The other 32 are a fair waive. One step
+      cannot be walked as written: the `.tiff` Replace case, because the file
+      input's `accept` attribute filters `.tiff` out of the picker before
+      validation ever runs._
+
+No `/test` box, same as features 1, 3 and 4: `CLAUDE.md` rules out a test runner
+and browser automation, so verification is the manual walkthrough.
 
 ### 6. Create a project & generate the 3D render
 
