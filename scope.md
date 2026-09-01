@@ -1,7 +1,7 @@
 # Scope: Roomify
 
-Upload a 2D floor plan, pick Claude, Gemini, or both, and get back a
-photorealistic 3D render of the space. Every upload and render gets permanent
+Upload a 2D floor plan, press one button, and get back a top-down 3D render
+of the space whose walls follow your drawing. Every upload and render gets permanent
 hosting with a real public URL, every project persists in a personal gallery,
 and a project can be made public to sit in a shared community feed. Over
 time that feed becomes the place anyone can browse to see what the tool
@@ -29,9 +29,9 @@ modules with generated `./+types/*` types), running as a **static SPA**
 
 No traditional backend: Puter is the entire server-side surface, auth,
 permanent file storage, a key-value database, serverless workers, and hosted
-AI models, all called from the client through the Puter.js SDK. Claude and
-Gemini are both wired in as render options, called through the same worker
-rather than two separate integrations.
+AI models, all called from the client through the Puter.js SDK. Gemini is the
+only render model, called through a Puter worker rather than from the browser.
+Claude was a render option until spec 0007 dropped it.
 
 ## Deployment
 
@@ -77,7 +77,7 @@ cheap decision to make now.
 | 3   | Data model                                     | Foundation | done        |
 | 4   | Design & look                                  | Foundation | done        |
 | 5   | Upload & host a floor plan                     | Slice 1    | in-progress |
-| 6   | Create a project & generate the 3D render      | Slice 1    | not started |
+| 6   | Create a project & generate the 3D render      | Slice 1    | in-progress |
 | 7   | App shell & project gallery                    | Slice 2    | not started |
 | 8   | Side-by-side comparison view                   | Slice 3    | not started |
 | 9   | Public/private visibility & the community feed | Slice 4    | not started |
@@ -404,8 +404,9 @@ decoration that doesn't fit the palette's restraint:
   actual public community feed (feature 9); a personal gallery showing your
   own private projects should never imply they're already shared. The meta
   line under each card shows something specific to Roomify instead of a
-  generic clock-and-author line: which model rendered it (Claude, Gemini, or
-  both), or a small before/after thumbnail pair.
+  generic clock-and-author line: a small before/after thumbnail pair. Naming
+  the model was the other half of this idea and spec 0007 removed the point of
+  it, there being one model now.
 
 This section governs feature 5 (Upload) and feature 7 (App shell & gallery)
 the way the sketches governed LLM Arena's arena screen, leaderboard, and
@@ -594,7 +595,13 @@ cancelled anything. AC-17 now names the right mechanism.
 No `/test` box, same as features 1, 3 and 4: `CLAUDE.md` rules out a test runner
 and browser automation, so verification is the manual walkthrough.
 
-### 6. Create a project & generate the 3D render
+### 6. Create a project & generate the 3D render · in-progress
+
+**Revised on 2026-08-31, read the revision below before this section.** Claude is
+gone, the render is one direct call instead of two stages, and the busy state is
+the blurred floor plan. Everything from here to that revision describes what was
+actually built first and is kept because it explains why the code looks the way it
+does, not because it is still the plan.
 
 The heart of the product. A project is created once a floor plan is hosted,
 and generation kicks off against whichever model(s) were selected, Claude,
@@ -606,8 +613,335 @@ other. The project's KV record tracks a status per model (pending, complete,
 failed) so the gallery can show real progress rather than a single spinner
 that hides which one is actually done.
 
-- [ ] Decide the approach
-- [ ] Build it
+The wording above assumed both models paint an image. **They don't**, and
+writing the spec is what proved it: Puter reaches image generation only through
+`puter.ai.txt2img`, an image-model call, and Claude is reachable only through
+`puter.ai.chat`. Claude has no image output at all. So a render is two stages,
+the selected model reads the plan and writes a scene prompt, then one shared
+image model paints that prompt with the plan as its input image. What's compared
+is how Claude and Gemini each _read_ a floor plan, both painted with the same
+brush so neither is handicapped. That's the honest version of the two-model
+promise, and it's the same correction habit feature 5 used on `puter.fs`.
+
+**Spec: [0006](docs/specs/0006-create-a-project-and-render/index.md).** Decided:
+both models write the scene, `gpt-image-1-mini` at medium and 16:9 paints both,
+inside a **stateless** worker that takes a path and returns a path. The client
+alone writes the record, keeping spec 0002's single-writer rule and every
+invariant behind one door. One request per model, awaited in parallel with a
+120-second timeout each, rather than a polling job: nothing guarantees a
+serverless worker keeps running after it responds, so polling would buy a loop
+and a second source of truth and still leave the stuck case. The record gains one
+field, `prompt` on `RenderState`, which is what makes two different renders
+explicable rather than mysterious; no migration, because feature 6 writes the
+first record that ever exists. A cross-check on a second model caught the holes
+worth naming here: a project could be created and never rendered, a render could
+start twice (strict mode, a reload, a second tab), and a timed-out attempt could
+come back late and stomp its own retry. All three are closed by three guards,
+`singleFlight`, an already-running refusal, and a `startedAt` stamp compared
+before every write.
+
+The one real unknown is load-bearing enough to be build task 1: whether a worker
+running under its own app identity may write into this app's data directory as
+the caller. It's undocumented, everything about storage hangs off it, and a
+throwaway `/probe` route answers it for one deploy. The fallback is already
+chosen if the answer is no: the worker returns the bytes and the client writes
+them, exactly as feature 5 writes a plan.
+
+- [x] Decide the approach
+- [ ] Build it: `/develop` feature 6, the eleven tasks of spec 0006's build plan,
+      ordered as a tracer bullet per CLAUDE.md, one model end to end before
+      anything is made fuller
+  - [x] Prove the write direction with a throwaway `/probe`, then build
+        `worker/roomify.js` and `scripts/deploy-worker.mjs`: the session check,
+        the absolute-path and `renders/` guard, the two model stages, and the
+        provider-failure-to-code mapping. **Proved: `/probe` answered `200 {"wrote":true}`
+        against the deployed worker on a real session, so a worker CAN write into
+        the caller's app data directory as the caller. The primary design holds, the
+        bytes-back fallback was not needed, and the route has been deleted and the
+        worker redeployed without it. Recorded in spec 0006's `rationale.md`.** The deploy script also had to route around
+        a real SDK bug: `workers.create` with no app named auto-provisions a
+        sandbox app and then reads `owner.uuid` off it, a field the `read` and
+        `create` driver methods it uses never return, so every deploy crashed
+        before sending anything. It now names a `roomify` app explicitly, which
+        takes the string branch and reads only `uid`. The other two failures on the way
+        to a first deploy were not SDK bugs but a wrong idea about Puter's
+        namespaces, recorded here because the wrong idea is the tempting one: **app
+        names and worker names are both global across all of Puter**, not per
+        account. A worker is served at `https://<worker-name>.puter.work`, so its
+        name is a subdomain, and `roomify` was already held by a stranger in both
+        namespaces. What made this hard to see is that `apps.get(name)` goes through
+        the `read` driver, which resolves a name across all of Puter and returns no
+        `owner` field, so it answered with a real uid for an app this account does
+        not own. `apps.list()` is the only call that means "yours": it is the
+        `select` driver with `predicate: ['user-can-edit']`, and it correctly never
+        listed `roomify`. Trusting `get` as an ownership test got the deploy as far
+        as the worker driver, which refused with `Actor cannot mint a token for
+another app`. Both names are now project-prefixed,
+        `architecture-vis-roomify`, `apps.checkName` confirmed both free, and
+        `ensureApp` treats only the listing as proof of ownership and explains the
+        conflict rather than retrying it. Deployed and live at
+        `https://architecture-vis-roomify.puter.work`; a POST to `/probe` and
+        `/render` without a session answers `401 {"errorCode":"signedOut"}`, so both
+        routes are really there. The worker also corrects the spec on
+        how the plan reaches a model: `ai.chat` has no `puter_path`, it takes a
+        URL, a `File`, or a data URI, and `gpt-image-*`'s `input_image` wants
+        base64 too, so the worker reads the plan's bytes once as the caller and
+        the same data URI feeds both stages. Path in, path out is unchanged. Both `VISION_MODELS` ids are pinned
+        and confirmed, `google:google/gemini-2.5-pro` and
+        `anthropic:anthropic/claude-opus-4-5`, per spec 0006's Model parity
+        rule: same capability tier (Google Pro against Anthropic Opus, never
+        Sonnet), both native provider rather than a router, both non-preview,
+        nearest generation rather than newest,
+        satisfies AC-3, AC-9, AC-11, AC-12, AC-15
+  - [x] The record change and the shared plumbing: `prompt` onto `RenderState` in
+        **both** `record.ts` and `parseProject`, and the URL-minting cache moved
+        out of `app/upload/store.ts` into `app/storage/urls.ts` now two features
+        need it, satisfies AC-4, AC-5, AC-7
+  - [x] `app/render/`: the pure layer (out paths, name derivation, the ten-minute
+        stale rule, the failure sentences) and `store.ts`, the worker call with
+        its `AbortController` timeout and a parser that narrows the response
+        instead of casting it, satisfies AC-1, AC-2, AC-9, AC-10, AC-13
+  - [x] The thin thread: `/project/:id`, its loader, `RequireUser`, and
+        `useProjectRenders` starting every `pending` render on mount **with all
+        three start guards in place from the first version**, one model proven
+        end to end, satisfies AC-1, AC-4, AC-7, AC-14, AC-17, AC-18
+  - [x] Both models in parallel, Retry on a failed or stale card, then the picker
+        and Generate on the upload card, and the `frontend-design` pass over all
+        of it, satisfies AC-2, AC-6, AC-8, AC-16
+        **Code**: `worker/roomify.js` and `scripts/deploy-worker.mjs` (the server
+        side), `app/render/` (`rules.ts` the pure rules, `failures.ts` the
+        sentences, `store.ts` the worker call, `useProjectRenders.ts` the state
+        machine and the three start guards, `useGenerate.ts` the picker,
+        `RenderPlate.tsx` and `ProjectSheet.tsx` the page), `app/routes/project.tsx`,
+        `app/storage/` (`urls.ts` the shared URL cache, `useStoredUrl.ts` its
+        React half), `app/ui/Notice.tsx`, the `prompt` field and the `url`
+        correction in `app/projects/record.ts` and `app/projects/invariants.ts`,
+        the two new concurrency primitives in `app/auth/singleFlight.ts`, and the
+        page's classes in `app/app.css`.
+
+Four corrections the build made, all written into spec 0006's new _Corrections
+made during the build_ section rather than only into the code. The two worth
+knowing without opening it: `checkProject` demanded a `url` on every `complete`
+render, inherited from spec 0002, which would have refused **every** render this
+feature produces as `invalid` on the very write that finished it, so `url` is now
+the hosted public copy feature 9 writes and `complete` requires only a `path`.
+And spec 0002's open item about two renders finishing at once, which it
+explicitly handed to feature 6, is now answered: every write for one project goes
+through a per-project serial queue, so two completions cannot interleave and lose
+one model's render. That was AC-2 quietly broken at the record level.
+
+The design pass settled the project page as a drawing sheet rather than a feed of
+cards: a title block, the floor plan as a small **key** (it is what you refer back
+to, not what you came to look at), then one plate per model. Each plate carries
+the scene note the model actually wrote, in the code role, clamped to four lines
+and expandable. That note is the page's signature element and it is what makes the
+two-model promise honest: the models are compared on how they **read** the plan,
+because one shared image model painted both, and the page says so in one line
+under the plates rather than letting anyone conclude Claude drew a picture.
+
+- [ ] Verify it: `/check verify` feature 6, the walkthrough in
+      [verify.md](docs/specs/0006-create-a-project-and-render/verify.md). Two
+      steps are worth doing properly whatever else gets waived: the second tab on
+      a generating project, and the late answer from a timed-out attempt landing
+      after a retry. Both were found by cross-check rather than by design, which
+      is exactly why they need a real hand check
+
+#### Revision, 2026-08-31: one model, one call, a new busy state
+
+Three changes decided after the build above shipped, designed together in
+**spec [0007](docs/specs/0007-one-model-and-the-top-down-render/index.md)**,
+which supersedes parts of 0006 (AC-2, AC-3, AC-5, AC-6, AC-7, the two-stage
+render, the Model parity rule, the `PAINTER` constant) and 0002's `ModelId`.
+Everything else in both specs still stands.
+
+**Claude is dropped. Gemini is the only model.** The picker goes with it, so the
+upload card ends at one Generate button. `ModelId` becomes a union of one and
+`SCHEMA_VERSION` goes to 2, which makes every project record written so far
+unreadable, accepted on the understanding that only this machine has ever created
+one. The per-model map shape (`models`, `renders`, `renderUrls`) is deliberately
+kept rather than collapsed: `invariants.ts` is the file this project has already
+been caught by twice, spec 0005 on `FloorPlan.url` and spec 0006 on `checkProject`
+demanding a `url`, and rewriting three invariant functions in the same commit that
+changes the schema doubles the exposure to exactly that failure for a benefit
+that is aesthetic. Feature 9 also gets to build against the `FeedEntry` shape it
+was designed for.
+
+**The two-stage render is gone.** It existed so two models could be compared on
+how they _read_ a plan, and with one model there is nothing to compare. So does
+`prompt` on `RenderState` and the scene note on the page, which were the evidence
+for that comparison. One direct call now: `puter.ai.txt2img` against
+`google:google/gemini-2.5-flash-image` with the plan as `input_image` and the
+tutorial's top-down instruction pinned verbatim. That id was picked by 0006's own
+rule (native `google:` prefix, non-preview, nearest generation) applied to the
+image model list rather than the chat list, which matters: the chat list carries
+no `google:`-prefixed image model at all, only `infron:` and `openrouter:` routed
+ones the parity rule excludes. Square output replaces 16:9, and prose turns out to
+be the wrong channel for geometry anyway, a paragraph cannot say where a wall is.
+
+**The busy state becomes the plan itself.** While a render works, the plate goes
+full sheet width and holds your own floor plan blurred behind a bone scrim
+carrying `Generating your 3D render`, and the small key is hidden for exactly that
+period so the drawing is never on screen twice. Feature 4's six states are
+extended, not replaced: the clay hairline still sweeps under the blur, so the app
+keeps one busy signal shared by buttons, the boot rule and the plate, and there is
+still no spinner. Contrast is a property of the scrim rather than of whatever
+somebody uploaded, computed at 8.13:1 worst case, and it becomes a token
+(`--color-scrim-ground`) that `check-contrast.mjs` measures on every `npm run
+verify` rather than a number in a comment.
+
+**Feature 8 is unaffected**, contrary to the assumption that started this
+revision. It compares the plan against the render, not two models against each
+other, so it survives intact and the square top-down output actually makes the
+slider easier to build.
+
+- [x] Decide the approach
+- [x] Build it: `/develop` feature 6 revision, the seven tasks of spec 0007's
+      build plan. Order matters here in a way it usually doesn't: the client must
+      stop requiring a `prompt` before the worker stops sending one, or every
+      render in between fails while writing its image anyway
+  - [x] Record, invariants and the response parser in one commit: schema 2,
+        `MODEL_IDS` to `["gemini"]`, `prompt` out of `RenderState`,
+        `parseRenderState`, `RenderProduct` and `parseRenderResponse` together,
+        satisfies AC-1, AC-4, AC-12. `parseRenderResponse` now ignores an extra
+        key rather than refusing one, which is what makes the phase 1 window
+        safe: it is reading answers from the OLD worker until the deploy lands
+  - [x] The worker: one `txt2img` call on the pinned model and prompt,
+        `VISION_MODELS` renamed to `RENDER_MODELS`, then deploy and make one real
+        render, which settles whether `ratio` and `quality` are accepted and what
+        aspect comes back. Record the answer in `rationale.md`, satisfies AC-2,
+        AC-3. The pinned prompt round-trips verbatim, 1723 characters, checked by
+        evaluating the template literal rather than by eye. **Deployed and proven
+        by a real render: 628x628, top down, walls following the uploaded plan,
+        served from a real token-read URL.** The square is a genuine 628x628
+        rather than a crop, so `.plate-frame`'s `1 / 1` and the model agree and
+        `object-fit: cover` trims nothing. Worth being exact about what that
+        does and does not settle: the worker sends **no `ratio` and no
+        `quality`**, so the square is this model's own default, not an honoured
+        option, and whether it would honour an explicit `ratio` is still untested
+        because nothing has sent it one. Neither option is being added back:
+        there is nothing observable to gain, and passing an option this model
+        might reject turns into a `paintFailed` on every render with nothing in
+        the message saying why. Recorded in spec 0007's `rationale.md`
+  - [x] The square ratio and the stale prose it leaves: `RENDER_ASPECT_RATIO`,
+        and the two comments naming the deleted `PAINTER` that no grep catches,
+        satisfies AC-8. The constant and `.plate-frame` now name each other, so
+        the two halves of the number are findable from either side
+  - [x] The busy state: the blurred plan, the scrim, the message, the ivory
+        fallback when the URL mint fails, the `--color-scrim-ground` token, and
+        the `TEXT_ONLY_SURFACES` bucket in `check-contrast.mjs` so the contrast
+        claim is machine-checked, satisfies AC-5, AC-6, AC-7, AC-9. **The bucket
+        needed one correction the spec did not foresee, and it would have failed
+        the build as written.** Spec 0007 skipped the ring check on the scrim
+        ground because clay measures 2.64:1 there on a pairing that cannot occur,
+        and the same argument reaches further than it took it: `ink-soft` measures
+        2.61:1 and clay-as-text 2.64:1 on that ground, and neither is ever painted
+        there either. Measuring every text token would fail `npm run verify` on
+        three impossible pairings rather than one. So the bucket maps a surface to
+        the closed set of inks that actually appear on it,
+        `{ "scrim-ground": ["ink"] }`, which keeps the guarantee the token was
+        created for:
+        change `--color-ink` or the scrim's 72% and the build fails instead of a
+        person quietly failing to read the message. Measured at **8.14:1**, nine
+        pairs, all clear. Written up in spec 0007's `rationale.md` under
+        _Corrections made during the build_
+  - [x] The reshaped sheet and the picker removal: single full-width plate, key
+        only when not working, `useGenerate` and `PlanUploadCard` stripped of the
+        toggles, then the `frontend-design` pass and `npm run verify`, satisfies
+        AC-5, AC-10, AC-11. Whether the plate is working moved into `rules.ts` as
+        `plateView` plus `isWorkingView`, because the plate and the key both
+        depend on that one fact and AC-5 is precisely that they agree: written
+        twice they could drift and the page would show the plan twice or not at
+        all. The `frontend-design` pass settled one thing and deliberately nothing
+        more: the overlay line takes the sheet's existing annotation role,
+        uppercase and letterspaced, because a note stamped across a drawing while
+        the work is in progress is an annotation rather than a headline, and
+        reusing the role keeps the closed type set closed. No box, no clay on the
+        words, no second line and no percentage. Clay stays interactive-only and
+        the busy signal stays the one hairline sweep the whole app shares.
+        **Code**: `worker/roomify.js` (one `txt2img` call, `RENDER_MODEL`,
+        `RENDER_MODELS`, the pinned `RENDER_PROMPT`), `app/render/`
+        (`rules.ts` for the square ratio and the two new view helpers,
+        `RenderPlate.tsx` for `BusyPlan` and the plate, `ProjectSheet.tsx` for
+        the reshaped sheet, `store.ts` and `useProjectRenders.ts` for the
+        promptless response, `useGenerate.ts` stripped to one action),
+        `app/upload/PlanUploadCard.tsx` (`GenerateRender` replacing
+        `ModelPicker`), `app/projects/record.ts` and `invariants.ts` (schema 2,
+        one model id, no `prompt`), `app/app.css` (the three busy layers, the
+        square frame, `--color-scrim-ground`, the `.plate-note` and
+        `.model-toggle` blocks deleted) and `scripts/check-contrast.mjs`
+        (`TEXT_ONLY_SURFACES`)
+
+  - [x] Delete `visionFailed` and `visionRefused` from `failures.ts`, AFTER the
+        deploy above. Done in that order, which was the point: while the two
+        stage worker was live it could still answer `visionRefused`, and a client
+        that had already forgotten the code would have dropped it on the fallback
+        and said "the render service sent back something this app couldn't read",
+        which is both wrong and less useful than the sentence it replaced. The
+        migration ran client, then worker, then this deletion, with no window in
+        which a deployed client could meet a code it did not know
+- [ ] Verify it: `/check verify` feature 6 revision, the walkthrough in
+      [verify.md](docs/specs/0007-one-model-and-the-top-down-render/verify.md).
+      Two steps are worth doing properly whatever else gets waived: the dark
+      floor plan against the overlay text, because the 8.13:1 figure is computed
+      rather than observed, and holding the render against the original plan,
+      because whether the model actually respects the strict geometry
+      requirements is the entire premise of the change and no code review can
+      tell you
+
+Seven findings came back from the cross-check on spec 0007 and all seven are
+folded in. Two would have broken the build as written, and they're recorded in
+that spec's `rationale.md` rather than only here: adding the scrim ground to
+`SURFACES` drags the clay focus-ring check onto a pairing that can't occur and
+fails `npm run verify` at 2.64:1, and the original task order deployed the worker
+before the client stopped requiring a `prompt`, which is precisely the failure the
+migration plan warns about.
+
+No `/test` box, same as features 1, 3, 4 and 5: `CLAUDE.md` rules out a test
+runner and browser automation, so verification is the manual walkthrough.
+
+### A bug the AC-9 verify pass found: a failed mint was permanent
+
+`/debug`, 2026-08-31. Not a feature, a fix, recorded here because it changes a
+shared hook and three screens.
+
+`app/storage/urls.ts` deliberately refuses to cache a failed mint, and says why
+in its own comment: one flaky network moment must not leave an image broken for
+the rest of the session. `app/storage/useStoredUrl.ts` then did exactly that one
+layer up. Its `failed` flag was written once, to `true`, and the effect that
+could have reset it keyed on `[path]` alone, so a path that does not change,
+which is every path here, meant a single failure lasted for the life of the
+component. The two layers disagreed, and the module's decision stopped at the
+React boundary.
+
+Pre-existing, inherited verbatim from feature 5's `readPlanUrl`. The revision did
+not cause it but did widen the exposure: `BusyPlan` mints the plan path while the
+render works and swallows the failure for AC-5's ivory fallback, the failure
+evicts the cache entry, and then the floor plan key mounts and mints the same
+path a second time. That second failure is the one that stuck.
+
+The second finding is the one that decided the fix. All three failure surfaces
+showed a sentence and no way out, against `CLAUDE.md`'s standing rule that a
+failure is always a human sentence **and a retry action**. The sticky flag was
+what you get when an "always" rule is half applied, so an automatic retry would
+have closed the symptom and left the rule broken.
+
+- [x] `useStoredUrl` returns `retry` alongside `url` and `failed`. It clears both
+      and bumps an attempt counter in the effect deps, so the reset lives in an
+      event handler rather than as a synchronous `setState` in an effect body,
+      which is the thing that hook and the upload card already have comments
+      explaining they avoid
+- [x] A `Try showing it again` button beside all three failure sentences, in
+      `PlanUploadCard`, `RenderPlate` and `ProjectSheet`
+- [x] No automatic retry. A `signedOut` failure does not fix itself on a timer,
+      and a bounded auto retry would hide a real sign out behind a spinner
+- [x] `npm run verify` green: typecheck, lint, format, contrast, build
+- [x] Feature 5's `verify.md` gains a `When the mint fails` block. It had zero
+      coverage for a failed preview, which is why this went unseen
+- [x] Walk that new block by hand. It needs the network panel offline, which is
+      the one part no amount of reading the code can stand in for
+      _Walked 2026-08-31. Passed. The failure sentence and the retry button both
+      appeared, and the preview recovered on the button once back online, with no
+      page reload._
 
 ## Slice 2: App shell & gallery
 
@@ -630,6 +964,11 @@ line.
 ## Slice 3: Comparison
 
 ### 8. Side-by-side comparison view
+
+Checked against feature 6's 2026-08-31 revision and **unaffected**. This compares
+the plan against the render, not two models against each other, so dropping Claude
+takes nothing away from it. The square top-down output it now receives is easier
+to slide against a plan than the old 16:9 interior was.
 
 An interactive view, a slider or toggle, between the original floor plan and
 its AI-rendered counterpart. This is the one place besides buttons/links
@@ -681,13 +1020,18 @@ render already has a permanent public URL from feature 5's storage approach.
 
 Kept here so the plan stays honest about what's deliberately left out.
 
-- Any render style or model beyond Claude and Gemini.
+- Any render model beyond Gemini, or any render style beyond the top-down
+  geometry-matching one spec 0007 pinned.
 - Commenting, liking, or any social feature on the community feed beyond
   browsing public projects.
 - An admin or moderation page for public content.
 - A public API for the community feed.
 - Multiple floor plans per project, or re-uploading a corrected plan into an
   existing project.
+- Regenerating a render that already succeeded. The state machine permits it
+  (`complete` → `pending`, spec 0002) and spec 0006 deliberately left it out, so
+  this is one transition away whenever it's wanted. It belongs with the project
+  page once feature 7 exists, not bolted onto the first render loop.
 - Privacy policy and terms pages.
 - Analytics or session-replay tooling. Nobody's asked for this yet.
 - Dark mode. Declined in spec 0004 rather than left as an unexamined gap. The

@@ -2,6 +2,14 @@
 
 **Date**: 2026-08-27
 **Status**: Accepted for the owner half, feature 3, which is built and verified.
+
+**Corrected 2026-08-31 by [0007](../0007-one-model-and-the-top-down-render/index.md).**
+`ModelId` is `"gemini"` alone, and `SCHEMA_VERSION` is `2`. `RenderState` no
+longer carries the `prompt` field spec 0006 added. The record's per-model shape,
+`models`, `renders`, `PublicAssets.renderUrls` and `FeedEntry.renderUrls`, is
+deliberately unchanged and still keyed by `ModelId`, now a union of one. This is
+the third correction to this spec, after 0005 on `FloorPlan.url` and 0006 on
+`checkProject` requiring a `url`.
 The public half, feature 9, has six open design problems found in review; see
 _Open problems raised in review_ under Follow-up. It is not accepted yet.
 
@@ -132,10 +140,11 @@ _Store A: the owner's own `puter.kv`, scoped per user per app._
 | ------------ | -------------------------------------------------- | ----------------------------------------------- |
 | `status`     | `"pending" \| "running" \| "complete" \| "failed"` | drives the per model progress in the gallery    |
 | `path`       | `string \| null`                                   | `puter.fs` path, set on `complete`              |
-| `url`        | `string \| null`                                   | owner readable URL, set on `complete`           |
+| `url`        | `string \| null`                                   | the hosted public copy, set at publish time ²   |
 | `errorCode`  | `string \| null`                                   | a short internal code, never a provider message |
 | `startedAt`  | `number \| null`                                   |                                                 |
 | `finishedAt` | `number \| null`                                   |                                                 |
+| `prompt`     | `string \| null`                                   | the scene prompt this model wrote ²             |
 
 `PublicAssets` (embedded, written by the client from the publish response)
 
@@ -433,13 +442,23 @@ nothing.
 
 ## Follow-up
 
-- [ ] Verify by hand, once feature 6 deploys a real worker: a `curl` to the
+- [x] Verify by hand, once feature 6 deploys a real worker: a `curl` to the
       worker with no session at all reaches a route and returns data. This is
       currently believed from `src/modules/Workers.js:127` and the docs, not
-      proven, and AC-3 rests on it.
-- [ ] Verify by hand, same moment: a worker can read a file through
-      `user.puter.fs` and write it through `me.puter.fs`. The publish image copy
-      in task 8 rests on this and it has not been proven either.
+      proven, and AC-3 rests on it. **Proven** against
+      `https://architecture-vis-roomify.puter.work`: an anonymous
+      `curl -X POST /render` with a JSON body reaches the handler and returns
+      `401 {"errorCode":"signedOut"}` from the worker's own session guard, not a
+      routing or platform error. Missing routes are clearly distinguishable: an
+      undefined path answers `404 Path not found`, and a defined path called
+      with the wrong method answers `404 No routes for given request type GET`.
+      AC-3 stands.
+- [ ] Verify by hand, with feature 9's task 8 (`POST /publish`), not feature 6:
+      a worker can read a file through `user.puter.fs` and write it through
+      `me.puter.fs`. The publish image copy in task 8 rests on this and it has
+      not been proven. Deferred by design rather than skipped: `me.puter` is the
+      worker's own app identity, `worker/roomify.js` uses only `user.puter`, and
+      so there is no code path to exercise this on until `POST /publish` exists.
 - [ ] Confirm the chunk size of 50 stays inside the 400 KB value ceiling once a
       real `FeedEntry` exists, and lower it if a real entry is larger than
       estimated.
@@ -525,3 +544,24 @@ demand instead. Two places enforced the old shape and both change: the type in
 which required `url` at runtime. `PublicAssets.floorPlanUrl` is a different field
 and is untouched: it is the hosted copy the worker writes at publish, and this
 spec is still right about it.
+
+² **Amended by [0006](../0006-create-a-project-and-render/index.md), 2026-08-28.**
+Two changes to `RenderState`, both made while building feature 6.
+
+`prompt` is new. A render is produced in two stages, the chosen model reads the
+plan and writes a scene prompt and one shared image model paints it, so the
+prompt is what makes a difference between two renders explicable rather than
+mysterious. No migration: feature 6 writes the first record that ever exists.
+Both places that enforce the shape changed together, the type in
+`app/projects/record.ts` and `parseRenderState` in `app/projects/invariants.ts`.
+
+`url` is not what this spec assumed. It was written as an owner readable URL set
+on `complete`, and `checkRenderStates` enforced that by refusing any complete
+render without one. That is the same mistake spec 0005 corrected on
+`FloorPlan.url`: an owner readable URL from `getReadURL` expires, so nothing
+durable can be stored in it. `url` is now the hosted public copy feature 9
+writes at publish time, it stays `null` for the whole of feature 6, and
+`checkRenderStates` requires only `path` on a complete render. Left as it was,
+every render feature 6 produces would have been refused as `invalid` on the
+write that finished it, and the message would have named a rule rather than the
+platform fact behind it.

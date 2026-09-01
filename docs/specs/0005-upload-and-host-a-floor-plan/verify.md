@@ -130,6 +130,28 @@ as waived and say so rather than ticking them.
       not minted again in the same session → AC-4
 - [ ] Reload the page and display the same plan: it mints once more → AC-4
 
+### When the mint fails
+
+_Added after a real bug: a failed mint used to be terminal for the life of the
+component, because the hook's `failed` flag was never reset. The cache under it
+already refused to keep a failure, so the two layers disagreed. There was no
+step here covering a failed preview at all, which is why it went unseen._
+
+- [x] Upload a plan successfully, then go fully offline in the network panel and
+      reload. The preview is replaced by "Your floor plan is saved, but it
+      can't be shown right now" **and a `Try showing it again` button**, never a
+      broken image and never a raw error
+- [x] Still offline, press `Try showing it again`. The network panel shows a
+      second `getReadURL` attempt, so the retry really re-mints rather than
+      re-rendering the same failure
+- [x] Come back online and press it once more. The preview loads, in the same
+      component instance, with no reload
+      _This is the whole point. Before the fix this button did not exist and a
+      reload was the only way back._
+- [x] Reach the same failure on the project page, where the floor plan key and a
+      finished render plate each show their own sentence. Each one recovers on
+      its own button, and recovering one does not disturb the other
+
 ## Replace
 
 - [ ] Upload a plan, then Replace it. The network panel shows the order:
