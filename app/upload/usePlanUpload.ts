@@ -27,7 +27,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthState } from "~/auth/useAuthState";
 import { useSignIn, type SignInNotice } from "~/auth/useSignIn";
 import type { FloorPlan } from "~/projects/record";
-import { forgetAllStoredUrls } from "~/storage/urls";
 import { UPLOAD_MESSAGES, type UploadFailure } from "~/upload/failures";
 import { validatePlanFile, type AllowedType } from "~/upload/plan";
 import { deletePlan, uploadPlan } from "~/upload/store";
@@ -283,15 +282,17 @@ export const usePlanUpload = (): PlanUpload => {
   const wasSignedIn = useRef(auth.status === "signedIn");
 
   /**
-   * Signing out takes the previous person's plan off the screen and their
-   * minted URLs out of memory.
+   * Signing out takes the previous person's plan off the screen.
    *
    * Without this the card keeps rendering a preview whose `src` is an anonymous
-   * read URL, one that needs no session and stays live for the rest of its hour,
-   * and the module cache keeps handing that URL to anything that asks. On a
-   * shared browser the next person to use it inherits both. Neither sign-out
-   * path reloads the page, they only revalidate the auth fact, so nothing else
-   * would clear either one.
+   * read URL, one that needs no session and stays live for the rest of its hour.
+   * Neither sign-out path reloads the page, they only revalidate the auth fact,
+   * so nothing else would clear it.
+   *
+   * Emptying the minted-URL cache is the same concern one level up and is not
+   * done here: `useForgetUrlsOnSignOut` in the root layout owns it, because this
+   * card is mounted on the home screen only and signing out from a project page
+   * has to purge the cache too.
    *
    * This covers the deliberate sign out and Puter ending the session itself,
    * because both land here as the same change in the auth fact.
@@ -311,7 +312,6 @@ export const usePlanUpload = (): PlanUpload => {
     abandon();
     hosted.current = null;
     held.current = null;
-    forgetAllStoredUrls();
     setPhase({ kind: "idle" });
     setNotice(null);
   }, [abandon, auth.status]);

@@ -16,6 +16,7 @@ import { resolveAuthState } from "~/auth/state";
 import { useAuthEvents } from "~/auth/useAuthEvents";
 import { ConfigScreen } from "~/platform/ConfigScreen";
 import { checkPuterEnv } from "~/platform/env";
+import { useForgetUrlsOnSignOut } from "~/storage/useForgetUrlsOnSignOut";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -88,11 +89,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
  *
  * The subscription is mounted here, above every page, because the layout
  * outlives them all: Puter ending a session has to be heard wherever the person
- * happens to be. Its hook order is fixed because this component is either
- * mounted whole or not at all.
+ * happens to be. The same reasoning puts the minted-URL cache's sign-out purge
+ * here: whichever screen the person was on when the session ended, this one was
+ * mounted too. Its hook order is fixed because this component is either mounted
+ * whole or not at all.
  */
 function ConfiguredApp({ auth }: { readonly auth: AuthState }) {
   useAuthEvents();
+  useForgetUrlsOnSignOut(auth);
 
   return (
     <>

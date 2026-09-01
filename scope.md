@@ -943,6 +943,42 @@ have closed the symptom and left the rule broken.
       appeared, and the preview recovered on the button once back online, with no
       page reload._
 
+### A review pass on the URL cache and the worker handler
+
+Code review, 2026-08-31. Two findings acted on, one recorded and deliberately
+left alone.
+
+**Signing out left the minted-URL cache full.** `forgetAllStoredUrls` was called
+from `usePlanUpload`, which is mounted on the home screen only. Sign out from
+`/project/:id` and nothing cleared it: a URL in that cache reads a private file
+with no authentication and stays live for the rest of its hour, so on a shared
+browser the next account to open the same path within the 50 minute cache
+lifetime would have been handed the previous account's floor plan or render. The
+purge now lives in `app/storage/useForgetUrlsOnSignOut.ts`, mounted by
+`ConfiguredApp` in `root.tsx` beside `useAuthEvents`, for the same reason that
+subscription is there: the root layout is the one component mounted wherever the
+person happens to be standing when the session ends. `usePlanUpload` keeps its
+own reset, which is about the card's preview, not the cache.
+
+**The worker's `/render` handler bound two values with `let`.** `body` and
+`planUri` were each filled in from a `catch`, which is the ordinary idiom and
+also the one thing `CLAUDE.md`'s immutability rule does not allow. They are now
+`readJsonBody` and `readPlan`, small helpers that return the value or a null /
+tagged failure, and the handler reads as a sequence of single-assignment steps.
+Behaviour is unchanged, including the 404 versus 502 split on an unreadable plan.
+
+- [x] `npm run verify` green: typecheck, lint, format, contrast, build
+
+**Not fixed, and why: the render claim is not atomic.** `commitRenderStart` reads
+the record, checks `mayStartRender`, then writes, and two tabs can both pass the
+check before either write lands, so both start a worker and one paid render is
+discarded by the `startedAt` stamp. That is real, and it is the tradeoff spec
+0006 already took with its eyes open: Puter KV offers no compare and swap, the
+store is a single writer store by spec 0002's admission, and the stated guarantee
+is that a stale write is discarded, not that two tabs coordinate. Closing it
+needs a lock with a lease and an owner, which is a design decision for
+`/architect`, not a line to change in a review.
+
 ## Slice 2: App shell & gallery
 
 ### 7. App shell & project gallery
