@@ -121,7 +121,7 @@ file.
 ## Tools
 
 Puter.js is the entire backend surface here, auth, storage, KV, and the
-worker that actually calls Claude and Gemini. Puter is a smaller, faster
+worker that actually calls Gemini. Puter is a smaller, faster
 moving platform than something like Next.js or Prisma, so its own current
 docs are the reference for `puter.auth`, `puter.fs`, `puter.kv`, and
 `puter.workers`, not general training data, which can be stale on exactly
@@ -136,9 +136,38 @@ reference for routing, loaders, actions, and rendering mode, not training
 data. This app is Framework Mode, so `references/framework-mode.md` is the
 one that applies.
 
+Alongside it, the official `react-router-framework-mode` skill from
+`remix-run/agent-skills` is installed at
+`.agents/skills/react-router-framework-mode/`, pinned in `skills-lock.json`.
+It is the deeper reference for the mode this app actually uses, one file per
+topic under `references/`: `routing.md`, `route-modules.md`,
+`data-loading.md`, `actions.md`, `navigation.md`, `pending-ui.md`,
+`error-handling.md`, `sessions.md`, `middleware.md`,
+`rendering-strategies.md`, `special-files.md`, and `type-safety.md`. Reach
+for it whenever routing, loaders, actions, forms, or `react-router.config.ts`
+are in play. Both skills are tracked in the repository, so they travel with a
+clone; the `.claude/` directory that symlinks them into Claude Code is local
+tool configuration and is not committed.
+
 The long-form coding conventions live at `docs/coding-standards.md`.
 
 ## Context files
 
-_Nested context files, if any get created for a specific part of the
-codebase, are listed here._
+Durable, area specific context lives in a nested `AGENTS.md` beside the code it
+describes, each with a sibling `CLAUDE.md` that imports it. This file stays the
+project wide one.
+
+- [app/platform/AGENTS.md](app/platform/AGENTS.md): the only module allowed to
+  import the Puter SDK, the `withPuter` gate, and the startup env check.
+- [app/auth/AGENTS.md](app/auth/AGENTS.md): the auth fact resolved at boot, and
+  the three concurrency primitives (latch, keyed latch, serial queue).
+- [app/projects/AGENTS.md](app/projects/AGENTS.md): the project record, schema 2,
+  its invariants, and the single writer rule.
+- [app/render/AGENTS.md](app/render/AGENTS.md): the render loop, the four start
+  guards, and the leased cross tab claim.
+- [app/storage/AGENTS.md](app/storage/AGENTS.md): view URLs minted on demand, the
+  promise cache, and why none of it is ever persisted.
+- [app/upload/AGENTS.md](app/upload/AGENTS.md): getting a floor plan into Puter
+  storage, and the `fs.space()` and cancellation traps.
+- [worker/AGENTS.md](worker/AGENTS.md): the serverless worker, `npm run
+deploy:worker`, and Puter's global app and worker namespaces.

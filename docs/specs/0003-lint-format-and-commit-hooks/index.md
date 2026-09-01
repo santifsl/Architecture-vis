@@ -1,7 +1,7 @@
 # 0003. Enforce the coding standards with ESLint, Prettier, and a pre commit hook
 
 **Date**: 2026-08-27
-**Status**: In Progress
+**Status**: Accepted
 
 The decision history (what was weighed, what was found in the existing code, and
 why each pick beat its runner up) lives beside this file in
