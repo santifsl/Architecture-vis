@@ -8,7 +8,6 @@ import {
 } from "react-router";
 
 import type { Route } from "./+types/root";
-import { AuthControl } from "~/auth/AuthControl";
 import { BootScreen } from "~/auth/BootScreen";
 import { SessionBanner } from "~/auth/SessionBanner";
 import type { AuthState } from "~/auth/state";
@@ -16,6 +15,7 @@ import { resolveAuthState } from "~/auth/state";
 import { useAuthEvents } from "~/auth/useAuthEvents";
 import { ConfigScreen } from "~/platform/ConfigScreen";
 import { checkPuterEnv } from "~/platform/env";
+import { Navbar } from "~/shell/Navbar";
 import { useForgetUrlsOnSignOut } from "~/storage/useForgetUrlsOnSignOut";
 import "./app.css";
 
@@ -100,10 +100,7 @@ function ConfiguredApp({ auth }: { readonly auth: AuthState }) {
 
   return (
     <>
-      <header className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-3">
-        <span className="type-heading text-ink">Roomify</span>
-        <AuthControl state={auth} />
-      </header>
+      <Navbar />
       <SessionBanner state={auth} />
       <Outlet />
     </>

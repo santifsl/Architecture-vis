@@ -1068,24 +1068,29 @@ project page beside it said "Stopped". The card goes through `renderView` and
 `verify.md` has a step aimed squarely at it.
 
 - [x] Decide the approach: spec 0008
-- [ ] Build it: `/develop` feature 7, the eight tasks of spec 0008's build plan
-  - [ ] The shell: lift the header out of `app/root.tsx` into
+- [x] Build it: `/develop` feature 7, the eight tasks of spec 0008's build plan,
+      code in `app/shell/` and `app/gallery/`
+  - [x] The shell: lift the header out of `app/root.tsx` into
         `app/shell/Navbar.tsx`, with the wordmark link and a `Projects` link
         gated on `useAuthState`, satisfies AC-1
-  - [ ] The card and its pure half: `app/gallery/rules.ts` (`cardRender`,
-        `formatProjectDate`, and `STATE_WORDS` moved out of `RenderPlate.tsx`
-        so the plate and the card cannot drift), then `ProjectCard.tsx` reusing
+  - [x] The card and its pure half: `app/gallery/rules.ts` (`cardRender`,
+        `formatProjectDate`), and `STATE_WORDS` moved out of `RenderPlate.tsx`
+        so the plate and the card cannot drift. It landed in
+        `app/render/rules.ts` rather than in the gallery, beside the
+        `RenderView` type it is keyed by: the plate imports it too, and
+        `app/render/` importing from `app/gallery/` would point the dependency
+        the wrong way. Then `ProjectCard.tsx` reusing
         `.plate-frame` and its `data-busy` treatment, plus a new `.plan-chip`
         class. The word comes from `renderView`, never the stored status,
         satisfies AC-3, AC-4, AC-5, AC-12
-  - [ ] The thread end to end: `/projects` with its `clientLoader`, the grid
+  - [x] The thread end to end: `/projects` with its `clientLoader`, the grid
         inside the existing `RequireUser`, the empty state, and the failure
         sentence with a `useRevalidator` retry. First point this is walkable,
         satisfies AC-2, AC-8, AC-9, AC-10, AC-13, AC-14
-  - [ ] Thicken it: `ProjectGrid` with the 12 cap and `Show more`, then the
+  - [x] Thicken it: `ProjectGrid` with the 12 cap and `Show more`, then the
         unreadable line including the case where everything was unreadable,
         satisfies AC-6, AC-7
-  - [ ] The home strip: its own `clientLoader` calling `listProjects`
+  - [x] The home strip: its own `clientLoader` calling `listProjects`
         unconditionally, the same grid capped at 3, and `See all`, satisfies
         AC-7, AC-11
 - [ ] Verify it: the manual walkthrough in
