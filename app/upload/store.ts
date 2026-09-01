@@ -17,55 +17,16 @@
  * rejection is handled too (AC-7).
  *
  * Nothing here stores a URL (AC-3). `getReadURL` expires, so the only durable
- * identifier is the path, and a view URL is minted on demand below.
+ * identifier is the path, and a view URL is minted on demand. That minting used
+ * to live in this file; spec 0006 moved it to `app/storage/urls.ts` once
+ * renders needed it too, because a second caller is where a copy would have
+ * started.
  */
 import { PuterGateError, withPuter } from "~/platform/puter";
 import type { FloorPlan } from "~/projects/record";
+import { forgetStoredUrl } from "~/storage/urls";
 import { fail, succeed, type UploadResult } from "~/upload/failures";
 import { planPath, type AllowedType } from "~/upload/plan";
-
-/**
- * How long a minted view URL is asked to live, and when we stop trusting it.
- *
- * The 10 minute gap between the two is the point. If the cache handed back an
- * entry right up to its expiry, a URL could be given to an `<img>` a second
- * before it died, and the failure would look like a broken image rather than an
- * expired link. Treating an entry as spent early means anything handed out has
- * real time left on it.
- */
-const URL_LIFETIME = "1h";
-const CACHE_LIFETIME_MS = 50 * 60 * 1000;
-
-/**
- * Minted URLs, keyed by path, for the life of the page. Spec 0005, AC-4.
- *
- * The value is the in flight PROMISE, not the resolved string, which is the
- * whole reason this is not a plain string map. Feature 7's gallery renders many
- * plans at once, so several callers ask for the same uncached path in the same
- * tick; caching the resolved value only helps the second caller if the first
- * has already finished, so they would all miss and all mint. Caching the
- * promise means the first caller starts the work and the rest await it.
- *
- * Module scope, so it is shared across components, and never persisted: it must
- * not outlive the page, because it holds URLs that read a private file without
- * authentication.
- */
-type CacheEntry = {
-  readonly mintedAt: number;
-  readonly url: Promise<UploadResult<string>>;
-};
-
-const urlCache = new Map<string, CacheEntry>();
-
-/** Drops a path's cached URL. Called whenever the file behind it stops existing. */
-export const forgetPlanUrl = (path: string): void => {
-  urlCache.delete(path);
-};
-
-/** Empties the cache. For sign out: the next person must not inherit these URLs. */
-export const forgetAllPlanUrls = (): void => {
-  urlCache.clear();
-};
 
 /**
  * Turns anything thrown below into a failure, so no exception reaches a caller.
@@ -189,48 +150,6 @@ const isStorageRefusal = (error: unknown): boolean => {
 };
 
 /**
- * A URL that displays a stored plan. Spec 0005, AC-4.
- *
- * Short lived on purpose: it reads a private file with no authentication, so an
- * hour is long enough for a browsing session and short enough that a URL copied
- * out of devtools stops working quickly.
- *
- * A failed mint is not cached. Caching it would mean one flaky network moment
- * left an image permanently broken for the rest of the session.
- */
-export const readPlanUrl = async (
-  path: string,
-): Promise<UploadResult<string>> => {
-  const held = urlCache.get(path);
-  if (held !== undefined && Date.now() - held.mintedAt < CACHE_LIFETIME_MS) {
-    return held.url;
-  }
-
-  const minting = (async (): Promise<UploadResult<string>> => {
-    try {
-      const url = await withPuter((sdk) =>
-        sdk.fs.getReadURL(path, URL_LIFETIME),
-      );
-      return succeed(url);
-    } catch (error: unknown) {
-      return toFailure(error);
-    }
-  })();
-
-  urlCache.set(path, { mintedAt: Date.now(), url: minting });
-
-  const result = await minting;
-  // Only evict our own entry. A plan deleted mid mint purges the cache, and a
-  // later caller can have minted a fresh URL into the same key by the time this
-  // one fails; deleting unconditionally would throw that good entry away and
-  // send everyone after it back to the network.
-  if (!result.ok && urlCache.get(path)?.url === minting) {
-    urlCache.delete(path);
-  }
-  return result;
-};
-
-/**
  * Removes a stored plan. Spec 0005, AC-10.
  *
  * A path that is already gone counts as success, because the caller's goal is
@@ -240,7 +159,7 @@ export const readPlanUrl = async (
  * one case where nothing is wrong.
  */
 export const deletePlan = async (path: string): Promise<UploadResult<void>> => {
-  forgetPlanUrl(path);
+  forgetStoredUrl(path);
 
   try {
     await withPuter((sdk) => sdk.fs.delete(path));

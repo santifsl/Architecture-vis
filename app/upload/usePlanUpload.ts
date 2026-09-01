@@ -27,9 +27,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthState } from "~/auth/useAuthState";
 import { useSignIn, type SignInNotice } from "~/auth/useSignIn";
 import type { FloorPlan } from "~/projects/record";
+import { forgetAllStoredUrls } from "~/storage/urls";
 import { UPLOAD_MESSAGES, type UploadFailure } from "~/upload/failures";
 import { validatePlanFile, type AllowedType } from "~/upload/plan";
-import { deletePlan, forgetAllPlanUrls, uploadPlan } from "~/upload/store";
+import { deletePlan, uploadPlan } from "~/upload/store";
 
 /** A plan that is stored and ready for feature 6. */
 export type HostedPlan = {
@@ -310,7 +311,7 @@ export const usePlanUpload = (): PlanUpload => {
     abandon();
     hosted.current = null;
     held.current = null;
-    forgetAllPlanUrls();
+    forgetAllStoredUrls();
     setPhase({ kind: "idle" });
     setNotice(null);
   }, [abandon, auth.status]);
