@@ -20,27 +20,27 @@ runtime steps meaningless.
 
 ## Commands and code shape
 
-- [ ] `npm run verify` passes clean: typecheck, lint, format, contrast, build.
-- [ ] `grep -rn "updateProject\|createProject\|putProject" app/gallery/ app/shell/`
+- [x] `npm run verify` passes clean: typecheck, lint, format, contrast, build.
+- [x] `grep -rn "updateProject\|createProject\|putProject" app/gallery/ app/shell/`
       returns nothing. The gallery is read only and this is the cheapest proof,
       **AC-14**.
-- [ ] `grep -rn "claim\|useGenerate\|startRender" app/gallery/ app/shell/` returns
+- [x] `grep -rn "claim\|useGenerate\|startRender" app/gallery/ app/shell/` returns
       nothing. The gallery never drives a render, **AC-4**.
-- [ ] `grep -rn "STATE_WORDS" app/` shows exactly one definition, imported by
+- [x] `grep -rn "STATE_WORDS" app/` shows exactly one definition, imported by
       both the card and `RenderPlate.tsx`. Two definitions means the plate and
       the card can drift on a word, **AC-4**.
-- [ ] `grep -rn "\.status" app/gallery/` returns nothing that feeds a state
+- [x] `grep -rn "\.status" app/gallery/` returns nothing that feeds a state
       word. The card must go through `renderView`. Reading the stored status is
       the defect this spec was corrected for: `stalled` is not in
       `RENDER_STATUSES`, so a card doing that shows `Working` forever on an
       abandoned render, **AC-4**.
-- [ ] `grep -rn "resolveAuthState" app/routes/home.tsx` returns nothing. The
+- [x] `grep -rn "resolveAuthState" app/routes/home.tsx` returns nothing. The
       home loader calls `listProjects` unconditionally and lets the `signedOut`
       failure be the marker, **AC-11**.
-- [ ] `grep -rn "getReadURL\|readStoredUrl" app/gallery/` returns nothing: the
+- [x] `grep -rn "getReadURL\|readStoredUrl" app/gallery/` returns nothing: the
       card mints only through `useStoredUrl`, so the cache and the sign out
       purge still apply, **AC-6**.
-- [ ] No `clientLoader` in `app/routes/projects.tsx` or `app/routes/home.tsx`
+- [x] No `clientLoader` in `app/routes/projects.tsx` or `app/routes/home.tsx`
       throws. Both return the store result as data, **AC-9**.
 
 ## The navbar
@@ -67,11 +67,23 @@ runtime steps meaningless.
       staying and doing nothing, **AC-6**.
 - [ ] A finished card shows the render as its square image, the name, the date,
       and a small floor plan thumbnail on the meta line, **AC-3**.
-- [ ] The card square holds its shape before any image arrives, and is the same
+- [x] The card square holds its shape before any image arrives, and is the same
       1 to 1 frame the project page uses. Nothing on the grid shifts as images
-      land, **AC-3**, **AC-4**.
+      land, **AC-3**, **AC-4**. Throttle the network and confirm a **finished**
+      card fills that wait the way every other wait in the app is filled: the
+      plan blurred under the scrim reading `Loading`, never a blank ivory
+      square. An empty frame on a card that has a picture to show reads as a
+      project with no render, which is what `/check` caught here.
 - [ ] Click anywhere on a card, including the thumbnail and the date. It opens
       that project, **AC-5**.
+- [ ] Change your browser's language or your machine's timezone, reload, and
+      confirm the dates rewrite themselves in that locale, and that a project
+      created late at night can move a day. The date is the viewer's own, read
+      from the browser: nothing about a locale or a timezone is stored on a
+      project, **AC-3**.
+- [ ] With a project that has one finished render and one that is not, confirm
+      the card shows the finished one. A card is a picture of the project, so
+      something to show beats a state word, **AC-3**.
 - [ ] Tab through the grid. Each card takes focus exactly **once**. Two stops on
       one card means something else in there is interactive, **AC-5**.
 
@@ -88,7 +100,7 @@ runtime steps meaningless.
       steal or break the claim, **AC-4**.
 - [ ] The failed or stalled project shows `Didn't finish` or `Stopped` rather
       than a broken image, **AC-4**.
-- [ ] **The stale render check.** Hand edit a project in `puter.kv` so its render
+- [x] **The stale render check.** Hand edit a project in `puter.kv` so its render
       is `running` with a `startedAt` more than ten minutes ago. Its card must
       read `Stopped`, not `Working`, and must agree with what `/project/:id`
       shows for the same project. This is the single most important step on this

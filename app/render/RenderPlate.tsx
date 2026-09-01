@@ -14,29 +14,18 @@
 import type { ModelId } from "~/projects/record";
 import type { RenderState } from "~/projects/record";
 import { renderMessage, type RenderFailure } from "~/render/failures";
-import { isWorkingView, plateView, renderView } from "~/render/rules";
+import {
+  isWorkingView,
+  plateView,
+  renderView,
+  STATE_WORDS,
+} from "~/render/rules";
 import { useStoredUrl } from "~/storage/useStoredUrl";
 
 /** What each model is called on screen. Not the worker's model id, which nobody needs to read. */
 const MODEL_NAMES: Readonly<Record<ModelId, string>> = {
   gemini: "Gemini",
 };
-
-/**
- * The state word in the label row.
- *
- * "Working" rather than "generating" while it runs, for no cleverer reason than
- * that it is the honest word: something is happening and it is not finished. It
- * used to be justified by the model reading the plan first, and that stage is
- * gone, but the word it produced was right on its own terms.
- */
-const STATE_WORDS = {
-  pending: "Queued",
-  running: "Working",
-  complete: "Done",
-  failed: "Didn't finish",
-  stalled: "Stopped",
-} as const;
 
 /** The line the busy overlay carries. Spec 0007, AC-5, in as many words. */
 const WORKING_MESSAGE = "Generating your 3D render";
@@ -68,33 +57,68 @@ function PlateImage({
 }
 
 /**
+ * One line stamped across the frame. Spec 0007's scrim, made reusable by spec
+ * 0008.
+ *
+ * The scrim is what makes the words legible, so legibility is a property of this
+ * layer rather than of whatever somebody happened to upload. Three surfaces use
+ * it now: the plate while a render works, a gallery card carrying its state
+ * word, and a card whose image could not be minted.
+ */
+export function PlateNote({
+  text,
+  decorative = false,
+}: {
+  readonly text: string;
+  /**
+   * Set when something else on the same surface already announces this fact. The
+   * plate's label row carries a `role="status"`, and two live regions saying the
+   * same thing at the same moment is noise rather than redundancy. A gallery card
+   * has no such row, so there the note is the announcement.
+   */
+  readonly decorative?: boolean;
+}) {
+  return (
+    <div className="plate-veil">
+      <p
+        className="plate-message type-meta"
+        aria-hidden={decorative || undefined}
+      >
+        {text}
+      </p>
+    </div>
+  );
+}
+
+/**
  * The wait, made of the person's own drawing. Spec 0007, AC-5 to AC-7.
  *
- * Their floor plan, blurred, under a scrim carrying one line, so the wait looks
- * like something happening to their file rather than like an empty rectangle.
- * The plan is decorative here and carries `alt=""`: it is the same drawing the
- * key shows, and the words are what carry the meaning.
- *
- * The message is `aria-hidden`, because the label row already announces
- * `Working` through a `role="status"`. Two live regions saying the same thing at
- * the same moment is noise rather than redundancy.
+ * Their floor plan, blurred, under the scrim, so the wait looks like something
+ * happening to their file rather than like an empty rectangle. The plan is
+ * decorative here and carries `alt=""`: it is the same drawing the key shows,
+ * and the words are what carry the meaning.
  *
  * The scrim and the words do not wait for the image. A URL that has not been
  * minted yet, or a mint that failed, leaves the frame's own ivory behind them
  * and changes nothing else, so the busy state can never be held up by a picture
  * that is only there to be looked at.
  */
-function BusyPlan({ planPath }: { readonly planPath: string }) {
+export function BusyPlan({
+  planPath,
+  note = WORKING_MESSAGE,
+  decorative = true,
+}: {
+  readonly planPath: string;
+  /** What the scrim says. A card passes its state word, which fits the smaller frame. */
+  readonly note?: string;
+  readonly decorative?: boolean;
+}) {
   const { url } = useStoredUrl(planPath);
 
   return (
     <>
       {url !== null && <img className="plate-plan" src={url} alt="" />}
-      <div className="plate-veil">
-        <p className="plate-message type-meta" aria-hidden="true">
-          {WORKING_MESSAGE}
-        </p>
-      </div>
+      <PlateNote text={note} decorative={decorative} />
     </>
   );
 }

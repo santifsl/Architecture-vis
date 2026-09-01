@@ -638,3 +638,78 @@ body {
     width: 100%;
   }
 }
+
+/*
+ * The app shell and the gallery. Spec 0008.
+ *
+ * Nothing new is invented here. The card is the plate from the project sheet at
+ * a smaller size, so it reuses .plate-frame, .plate-veil and .plate-message
+ * whole, and the only additions are the two things a gallery has that a single
+ * sheet does not: a navigation link, and the plan reduced to a key-sized chip.
+ */
+
+/*
+ * A link in the navbar. The same hover as .btn-quiet, because it is the same
+ * kind of thing: text you can operate, which takes the accent only when you
+ * reach for it. Focus is the app-wide ring and is not restated.
+ */
+.nav-link {
+  text-decoration: none;
+  text-underline-offset: 0.25em;
+  transition: color var(--duration-quick) var(--ease-standard);
+}
+
+.nav-link:hover {
+  color: var(--color-clay);
+  text-decoration: underline;
+}
+
+/*
+ * A card. The link IS the card, per AC-5, so the whole thing is one target and
+ * there is nothing inside it to aim at separately.
+ *
+ * Hovering moves the frame's hairline to the accent, the same treatment the
+ * upload card takes while a file is over it: clay marks the thing you are about
+ * to operate, and the picture itself is left alone.
+ */
+.gallery-card {
+  display: block;
+  text-decoration: none;
+}
+
+.gallery-card .plate-frame {
+  transition: border-color var(--duration-quick) var(--ease-standard);
+}
+
+.gallery-card:hover .plate-frame {
+  border-color: var(--color-clay);
+}
+
+.gallery-card:hover .gallery-card-name {
+  color: var(--color-clay);
+}
+
+/*
+ * The plan on the meta line. A fixed square that crops, rather than the key's
+ * height cap: a row of cards has to keep one baseline, and a tall portrait plan
+ * beside a wide landscape one would otherwise set two different line heights in
+ * the same grid. .plan-key stays as it is, sized for the project sheet where
+ * the drawing is worth looking at.
+ */
+.plan-chip {
+  display: block;
+  flex: none;
+  height: 1.5rem;
+  width: 1.5rem;
+  object-fit: cover;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius);
+  background-color: var(--color-ivory);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-link,
+  .gallery-card .plate-frame {
+    transition: none;
+  }
+}

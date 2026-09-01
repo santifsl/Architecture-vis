@@ -156,6 +156,30 @@ export const mayStartRender = (
 export type RenderView =
   "pending" | "running" | "complete" | "failed" | "stalled";
 
+/**
+ * The word a screen puts on a render state. Spec 0008, AC-4.
+ *
+ * It lives here, beside `RenderView` itself, because two surfaces now read it:
+ * the plate on the project page and the card in the gallery. Written out twice
+ * the two would eventually disagree, and a card saying `Working` beside a page
+ * saying `Stopped` is exactly the defect the card is most likely to have.
+ *
+ * "Working" rather than "generating" while it runs, for no cleverer reason than
+ * that it is the honest word: something is happening and it is not finished. It
+ * used to be justified by the model reading the plan first, and that stage is
+ * gone, but the word it produced was right on its own terms.
+ *
+ * Keyed by `RenderView` and not by the stored status, so `stalled` has a word at
+ * all. A screen reading `renders[model].status` could not say `Stopped`.
+ */
+export const STATE_WORDS: Readonly<Record<RenderView, string>> = {
+  pending: "Queued",
+  running: "Working",
+  complete: "Done",
+  failed: "Didn't finish",
+  stalled: "Stopped",
+};
+
 export const renderView = (
   render: RenderState,
   now: number = Date.now(),
