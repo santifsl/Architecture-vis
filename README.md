@@ -1,7 +1,7 @@
 # Roomify
 
-Upload a 2D floor plan, pick Claude, Gemini, or both, and get back a
-photorealistic 3D render of the space.
+Upload a 2D floor plan, press one button, and get back a top-down 3D render
+of the space whose walls follow your drawing. Gemini is the only render model.
 
 Read [`scope.md`](./scope.md) first — it's the living plan and tracks what's
 actually built. [`docs/coding-standards.md`](./docs/coding-standards.md) has the
@@ -13,7 +13,7 @@ React 19 · React Router v8 (framework mode, **SPA** — `ssr: false`) · Vite �
 TypeScript · TailwindCSS v4 · Puter.js as the entire backend.
 
 There is no server of ours. Puter.js is a client-only SDK and handles auth,
-file storage, the KV database, and the workers that call Claude and Gemini,
+file storage, the KV database, and the worker that calls Gemini,
 all from the browser. See scope.md's Deployment section for why.
 
 ## Getting started

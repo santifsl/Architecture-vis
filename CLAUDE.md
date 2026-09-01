@@ -2,8 +2,10 @@
 
 ## What this is
 
-Upload a 2D floor plan, pick Claude, Gemini, or both, and get back a
-photorealistic 3D render of the space. Every upload and every render gets
+Upload a 2D floor plan, press one button, and get back a top-down 3D render
+of the space whose walls follow your drawing. Gemini is the only render
+model; Claude was an option until spec 0007 dropped it, and it is not coming
+back. Every upload and every render gets
 permanent hosting with a real public URL, every project persists in a
 personal gallery, and a project can be made public to sit in a shared
 community feed alongside everyone else's. Read `scope.md` before building
@@ -64,9 +66,9 @@ a long templated one every time.
   startup, don't let it fail silently the first time a render is requested.
 - An accessibility baseline on every screen: real contrast, visible focus,
   full keyboard operation.
-- Claude and Gemini are called through the same worker interface, and one
-  model failing never takes the other down. If a project requests both, each
-  render its own result, its own status, and its own failure, independently.
+- Gemini is reached only through the worker interface, never from the browser.
+  A render carries its own result, its own status, and its own failure, so one
+  render failing never takes a project or another render down with it.
 - Never show a raw exception or a provider error to the user. A plain, human
   sentence and a retry action, always.
 - Shared values, spacing, color, repeated UI patterns, live in `globals.css`

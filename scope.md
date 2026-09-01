@@ -31,7 +31,8 @@ No traditional backend: Puter is the entire server-side surface, auth,
 permanent file storage, a key-value database, serverless workers, and hosted
 AI models, all called from the client through the Puter.js SDK. Gemini is the
 only render model, called through a Puter worker rather than from the browser.
-Claude was a render option until spec 0007 dropped it.
+Claude was a render option until spec 0007 dropped it, and it is not
+coming back.
 
 ## Deployment
 
