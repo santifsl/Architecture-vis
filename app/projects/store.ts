@@ -262,12 +262,13 @@ export type ProjectChanges = Partial<
  * they were.
  *
  * `renders` merges per model rather than replacing the map. Its type is a
- * partial record, so `{ renders: { claude } }` is a legal thing to write, and a
- * caller reporting one model's progress should not have to resend the other
+ * partial record, so `{ renders: { gemini } }` is a legal thing to write, and a
+ * caller reporting one model's progress should not have to resend any other
  * model's state to keep it. Replacing wholesale would drop the untouched model,
  * which `checkProject` would then refuse as a missing render: a confusing
- * refusal for a change that was never wrong. AC-2 wants one model's progress to
- * leave the other alone, and merging is what makes that true here.
+ * refusal for a change that was never wrong. One model's progress leaving the
+ * others alone is what merging makes true here, and it stays right whether the
+ * map holds one entry or several.
  *
  * This is not safe against two writers at once, and nothing in the store makes
  * it so. It does not need to be: this store is scoped to one person and one

@@ -18,7 +18,7 @@ const required = ["VITE_PUTER_WORKER_URL"] as const;
 export type RequiredVariable = (typeof required)[number];
 
 export type PuterEnv = {
-  /** The deployed Puter worker that calls Claude and Gemini. Public, not a credential. */
+  /** The deployed Puter worker that calls the render model. Public, not a credential. */
   readonly workerUrl: string;
 };
 

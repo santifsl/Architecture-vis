@@ -71,6 +71,15 @@ const isNullableString = (value: unknown): value is string | null =>
  * Structural narrowing: is this the right shape?
  */
 
+/**
+ * Spec 0007 removed `prompt`, and this is the half that enforces the shape at
+ * runtime. A field added to the type but not to this function, or left here
+ * after leaving the type, does not fail to compile:
+ * it makes `parseProject` return `null` for every stored record, so every
+ * project reads as unreadable and the gallery is simply empty. Spec 0005 was
+ * caught by exactly this on `FloorPlan.url`. The type and this parser change
+ * together, or the change is not done.
+ */
 const parseRenderState = (value: unknown): RenderState | null => {
   if (!isRecordValue(value)) return null;
 
@@ -275,17 +284,25 @@ const checkRendersMatchModels = (project: Project): readonly Violation[] => {
 };
 
 /**
- * A complete render carries the two things that make it complete.
+ * A complete render carries the thing that makes it complete: a stored image.
  *
  * Without this a render can read as finished while holding no image, which is
  * the state the gallery and the publish path would both then have to guess at.
+ *
+ * It used to demand a `url` as well, and spec 0006 corrected that. `url` is the
+ * public hosted copy feature 9 writes at publish time, so requiring it on every
+ * complete render would make every render feature 6 produces illegal to store,
+ * and the symptom would be an `invalid` refusal on the write that finishes a
+ * render rather than anything naming the real rule. The path is what proves an
+ * image exists; the URL proves something about publishing, which is checked by
+ * `checkPublicAssets` where it belongs.
  */
 const checkRenderStates = (project: Project): readonly Violation[] =>
   MODEL_IDS.flatMap((model) => {
     const render = project.renders[model];
     if (render === undefined) return [];
     if (render.status !== "complete") return [];
-    return render.path === null || render.url === null
+    return render.path === null
       ? [
           {
             rule: "renders.complete",
