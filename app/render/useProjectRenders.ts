@@ -7,9 +7,7 @@
  * enforced in `app/projects/` behind one door, and this hook goes through that
  * door like everything else.
  *
- * Three guards keep AC-18 true, and all three are here from the first version
- * rather than added after something went wrong. No one of them covers every
- * cause on its own:
+ * Four guards keep AC-18 true. No one of them covers every cause on its own:
  *
  *   1. A latch per `${projectId}:${model}` collapses a double effect in
  *      development, and any two starts in the same tab, into one worker call.
@@ -21,10 +19,17 @@
  *      in the client, and the thing that makes a late answer from a timed-out
  *      attempt harmless: a retry stamps a new `startedAt`, so the old attempt's
  *      write finds a value that is not its own and drops it.
+ *   4. A leased claim in `app/render/claim.ts`, taken on `puter.kv.incr`, which
+ *      is atomic on the server. This is the only one that reaches past this
+ *      tab, and it is the one that stops two tabs both paying for the same
+ *      image.
  *
- * Two tabs are handled honestly rather than perfectly, same as the store's own
- * admission: the guarantee is that a stale write is discarded, not that two
- * tabs coordinate.
+ * Guard 4 is later than the other three. The first version shipped with 2 as
+ * the cross-tab answer and said so honestly: read, check, write is not atomic,
+ * and two tabs that both read `pending` both passed it. Guard 3 then discarded
+ * one of the two results, which is correct and still costs a generation. The
+ * guarantee now is that two tabs coordinate, and guard 3 stays as the backstop
+ * for a late answer from an attempt whose lease ran out.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -39,7 +44,8 @@ import {
 } from "~/projects/store";
 import type { ModelId, Project, RenderState } from "~/projects/record";
 import type { RenderFailure } from "~/render/failures";
-import { mayStartRender, renderOutPath } from "~/render/rules";
+import { claimRender, releaseRender } from "~/render/claim";
+import { isStaleRender, mayStartRender, renderOutPath } from "~/render/rules";
 import { readAbsolutePath, requestRender } from "~/render/store";
 
 /**
@@ -159,46 +165,63 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
     async (current: Project, model: ModelId) => {
       const started = Date.now();
 
-      const marked = await commitRenderStart(current, model, started);
-      if (marked.kind === "refused") return;
-      if (marked.kind === "blocked") {
-        note(model, marked.failure);
-        return;
+      // Guard 4, and the only one of the four that reaches past this tab. A
+      // render the record already gave up on is taken over rather than waited
+      // out: that is the case the person is pressing Retry to get past.
+      const held = current.renders[model];
+      const stalled = held !== undefined && isStaleRender(held, started);
+      const claim = await claimRender(current.id, model, stalled);
+      if (claim === "held") return;
+
+      // Every exit from here on gives the claim back, so the next attempt does
+      // not have to sit out the rest of a ten minute lease.
+      try {
+        const marked = await commitRenderStart(current, model, started);
+        if (marked.kind === "refused") return;
+        if (marked.kind === "blocked") {
+          note(model, marked.failure);
+          return;
+        }
+        note(model, null);
+        absorb(marked.project);
+
+        const resolved = await resolveAbsolutePlan(absolutePlan, current);
+        if (!resolved.ok) {
+          absorb(await finish(current, model, started, resolved.failure));
+          return;
+        }
+
+        const out = renderOutPath(resolved.value, current.id, model);
+        if (out === null) {
+          absorb(await finish(current, model, started, "planUnreadable"));
+          return;
+        }
+
+        const outcome = await requestRender({
+          plan: resolved.value,
+          out,
+          model,
+        });
+
+        if (!outcome.ok) {
+          absorb(await finish(current, model, started, outcome.failure));
+          return;
+        }
+
+        absorb(
+          await commitRender(current, model, started, {
+            status: "complete",
+            path: outcome.value.path,
+            errorCode: null,
+            finishedAt: Date.now(),
+          }),
+        );
+      } finally {
+        // Not conditional on the component still being mounted, for the same
+        // reason the writes above are not: a claim left behind by someone who
+        // navigated away would block the next attempt for the whole lease.
+        await releaseRender(current.id, model);
       }
-      note(model, null);
-      absorb(marked.project);
-
-      const resolved = await resolveAbsolutePlan(absolutePlan, current);
-      if (!resolved.ok) {
-        absorb(await finish(current, model, started, resolved.failure));
-        return;
-      }
-
-      const out = renderOutPath(resolved.value, current.id, model);
-      if (out === null) {
-        absorb(await finish(current, model, started, "planUnreadable"));
-        return;
-      }
-
-      const outcome = await requestRender({
-        plan: resolved.value,
-        out,
-        model,
-      });
-
-      if (!outcome.ok) {
-        absorb(await finish(current, model, started, outcome.failure));
-        return;
-      }
-
-      absorb(
-        await commitRender(current, model, started, {
-          status: "complete",
-          path: outcome.value.path,
-          errorCode: null,
-          finishedAt: Date.now(),
-        }),
-      );
     },
     [absorb, note],
   );

@@ -969,15 +969,46 @@ Behaviour is unchanged, including the 404 versus 502 split on an unreadable plan
 
 - [x] `npm run verify` green: typecheck, lint, format, contrast, build
 
-**Not fixed, and why: the render claim is not atomic.** `commitRenderStart` reads
-the record, checks `mayStartRender`, then writes, and two tabs can both pass the
-check before either write lands, so both start a worker and one paid render is
-discarded by the `startedAt` stamp. That is real, and it is the tradeoff spec
-0006 already took with its eyes open: Puter KV offers no compare and swap, the
-store is a single writer store by spec 0002's admission, and the stated guarantee
-is that a stale write is discarded, not that two tabs coordinate. Closing it
-needs a lock with a lease and an owner, which is a design decision for
-`/architect`, not a line to change in a review.
+**The render claim was not atomic, and now is.** `commitRenderStart` reads the
+record, checks `mayStartRender`, then writes, so two tabs could both pass the
+check before either write landed, both call the worker, and one paid render be
+discarded by the `startedAt` stamp.
+
+This was first declined on the grounds that Puter KV has no compare and swap.
+That was wrong, and it came from taking spec 0006's own wording rather than
+reading the SDK, which is the mistake `CLAUDE.md` names Puter specifically to
+avoid. `puter.kv` ships `incr`, which increments on the server and returns the
+new value, so exactly one caller can ever be handed `1` for a key that does not
+exist yet. That is a claim with no read in front of it.
+
+`app/render/claim.ts` is guard 4, and the only one of the four that reaches past
+one tab:
+
+- [x] The winner is whoever `incr` hands `1` for `render-claim:<id>:<model>`.
+      Everyone else stands down silently, exactly as guard 2's refusal already
+      did
+- [x] A lease, not a lock. `kv.expire` at `STALE_AFTER_MS`, the same window
+      after which the record itself stops believing a `running` render, so the
+      two agree instead of one blocking what the other allows. A tab that dies
+      mid render frees the model rather than wedging it
+- [x] The loser refreshes the lease too. `incr` and `expire` are two calls, and
+      a tab dying between them would otherwise leave a key with no expiry that
+      blocks that model forever. One extra call makes that impossible, and a
+      loser cannot hold the lock open because losers only arrive on a mount or
+      a retry, never on a timer
+- [x] A stale `running` render is taken over, not waited out: its key is deleted
+      first, because that is the case Retry exists to get past
+- [x] Released in a `finally`, so a failure or a navigation gives the render
+      back immediately instead of making Retry sit out the lease
+- [x] A claim that cannot be reached degrades to the old three guards rather
+      than refusing to render. A KV hiccup that left someone unable to render at
+      all would be worse than the duplicate it prevents, and a real outage still
+      surfaces one step later when `commitRenderStart` cannot write
+- [x] Guard 3 stays. It is still the backstop for a late answer from an attempt
+      whose lease ran out
+- [x] `npm run verify` green: typecheck, lint, format, contrast, build
+- [ ] Walk it by hand: two tabs on the same pending project, and a Retry on a
+      stalled render. Nothing here can be checked by reading
 
 ## Slice 2: App shell & gallery
 

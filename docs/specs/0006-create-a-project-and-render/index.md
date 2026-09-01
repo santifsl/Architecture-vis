@@ -250,7 +250,7 @@ same file. Nothing here forecloses that.
   between the write and the navigation resolves itself on the next visit rather
   than stranding a paid for plan (AC-17). This is also why the ten minute stale
   rule is scoped to `running`: `pending` needs no rule, it just runs.
-- **At most one attempt per model at a time** (AC-18), held three ways, because
+- **At most one attempt per model at a time** (AC-18), held four ways, because
   no one of them covers all the causes:
   1. `singleFlight` from `app/auth/singleFlight.ts`, keyed
      `${projectId}:${model}`, collapses a double effect in development and any
@@ -264,10 +264,23 @@ same file. Nothing here forecloses that.
      write finds a value that is not its own and drops it.
 - A client timeout aborts its own request through `AbortController` as well as
   giving up on it. The worker may keep working regardless, which is exactly why
-  the stamp above exists rather than the abort being trusted to end things.
-- Two tabs are handled honestly, not perfectly. The store is a single writer
-  store by spec 0002's own admission, so the guarantee here is that a stale
-  write is discarded, not that two tabs coordinate.
+  the stamp above exists rather than the abort being trusted to end things. 4. A leased claim on `puter.kv.incr`, in `app/render/claim.ts`. `incr` is
+  atomic on the server and returns the new value, so exactly one caller is
+  ever handed `1` for a key that does not exist yet, and that caller owns the
+  render. The key carries a `kv.expire` lease of `STALE_AFTER_MS`, so a tab
+  that dies mid render frees the model instead of wedging it, and the lease
+  and the record's own staleness rule expire together. Released in a
+  `finally` so a retry never waits out a lease nobody is using. Added after
+  the first version shipped, in the review below.
+- Two tabs now coordinate. This paragraph used to say the opposite, that a stale
+  write is discarded but two tabs do not coordinate, on the mistaken basis that
+  Puter KV offers no compare and swap; it ships `incr`, which is one. Guard 3
+  stays as the backstop for a late answer from an attempt whose lease ran out,
+  which is what it was always for.
+- A claim that cannot be reached is not a render that cannot start. Guard 4
+  degrades to the other three rather than refusing, because a KV hiccup blocking
+  every render would be worse than the duplicate it prevents, and a real outage
+  still surfaces one step later when `commitRenderStart` cannot write.
 - The worker writes no key, no record, and no file outside `out`. It is a pure
   function of its request as far as this app's state is concerned.
 - `SCHEMA_VERSION` stays `1`. Adding `prompt` before any record exists is not a
@@ -494,8 +507,10 @@ action at a time" reasoning it was built on, and handed the decision here. It is
 taken: every write for one project goes through a per-project serial queue
 (`createSerialQueue` in `app/auth/singleFlight.ts`), so two completions cannot
 interleave their read, modify, write and lose one model's render. That is AC-2 at
-the record level. It serialises one tab, not two; two tabs are still handled by
-the `startedAt` stamp, which discards a stale write rather than preventing it.
+the record level. It serialises one tab, not two; two tabs are handled by the
+leased claim in `app/render/claim.ts` (guard 4, added in review), with the
+`startedAt` stamp still discarding a stale write from an attempt whose lease ran
+out.
 
 **The worker is deployed under a named app, because the SDK's sandbox path is
 broken.** `workers.create(name, path)` with no third argument auto-provisions a
