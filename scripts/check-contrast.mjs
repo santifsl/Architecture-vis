@@ -45,6 +45,40 @@ const SURFACES = ["bone", "ivory"];
  */
 const DECORATIVE = ["hairline"];
 
+/**
+ * A surface that carries text and can never carry a control, mapped to the
+ * closed set of inks that actually appear on it. Spec 0007, AC-6.
+ *
+ * `scrim-ground` is the only member: the precomputed worst case ground behind
+ * the render plate's busy message, bone at 72% over a solid black floor plan.
+ * The overlay it describes holds one paragraph and nothing else, so it differs
+ * from a real surface in two ways and both are load bearing.
+ *
+ * No focus ring can appear on it, because there is nothing focusable there.
+ * Measuring clay as a ring against it would fail at 2.64:1 on a pairing that
+ * cannot occur, and a check that fails for an impossible reason teaches people
+ * to loosen the minimum.
+ *
+ * The same argument applies to text, which is the part spec 0007 did not carry
+ * far enough and the arithmetic settled during the build: `ink-soft` measures
+ * 2.61:1 on this ground and clay 2.64:1, and neither is ever painted on it.
+ * Measuring EVERY text token here would fail the build on two more pairings
+ * that cannot occur. So this bucket names its inks rather than taking all of
+ * them, and it names them by hand precisely so the naming is the claim: `ink`
+ * is listed because `.plate-message` sets `--color-ink`, and if the overlay ever
+ * says anything in a second colour, that colour has to be added here before it
+ * is measured, or it is not covered.
+ *
+ * The guarantee spec 0007 wanted is intact: change `--color-ink`, or change
+ * `.plate-veil`'s 72% and with it this token, and `npm run verify` fails rather
+ * than a person quietly failing to read the message. If the overlay ever gains a
+ * focusable control, move the token into SURFACES and recompute; do not keep the
+ * exemption.
+ */
+const TEXT_ONLY_SURFACES = {
+  "scrim-ground": ["ink"],
+};
+
 /** WCAG 2.2: 4.5:1 for body text, 3:1 for a non-text boundary such as a ring. */
 const TEXT_MINIMUM = 4.5;
 const RING_MINIMUM = 3;
@@ -93,7 +127,10 @@ const demand = (tokens, name) => {
  */
 const textTokens = (tokens) =>
   [...tokens.keys()].filter(
-    (name) => !SURFACES.includes(name) && !DECORATIVE.includes(name),
+    (name) =>
+      !SURFACES.includes(name) &&
+      !DECORATIVE.includes(name) &&
+      !(name in TEXT_ONLY_SURFACES),
   );
 
 /**
@@ -101,15 +138,19 @@ const textTokens = (tokens) =>
  * shrink what gets measured.
  */
 const checkClassification = (tokens) => {
-  const missing = [...SURFACES, ...DECORATIVE].filter(
-    (name) => !tokens.has(name),
-  );
+  const named = [
+    ...SURFACES,
+    ...DECORATIVE,
+    ...Object.keys(TEXT_ONLY_SURFACES),
+    ...Object.values(TEXT_ONLY_SURFACES).flat(),
+  ];
+  const missing = named.filter((name) => !tokens.has(name));
   if (missing.length > 0)
     throw new Error(
       `${CSS} no longer declares ${missing
         .map((name) => `--color-${name}`)
         .join(", ")}. ` +
-        `Update SURFACES or DECORATIVE in this file to match the palette.`,
+        `Update SURFACES, DECORATIVE or TEXT_ONLY_SURFACES in this file to match the palette.`,
     );
 };
 
@@ -118,18 +159,29 @@ const pairs = (tokens) => {
   checkClassification(tokens);
   const text = textTokens(tokens);
 
-  return SURFACES.flatMap((surface) => [
-    ...text.map((name) => ({
-      what: `--color-${name} as text on --color-${surface}`,
-      measured: ratio(demand(tokens, name), demand(tokens, surface)),
-      minimum: TEXT_MINIMUM,
-    })),
-    {
-      what: `--color-clay as a focus ring on --color-${surface}`,
-      measured: ratio(demand(tokens, "clay"), demand(tokens, surface)),
-      minimum: RING_MINIMUM,
-    },
-  ]);
+  return [
+    ...SURFACES.flatMap((surface) => [
+      ...text.map((name) => ({
+        what: `--color-${name} as text on --color-${surface}`,
+        measured: ratio(demand(tokens, name), demand(tokens, surface)),
+        minimum: TEXT_MINIMUM,
+      })),
+      {
+        what: `--color-clay as a focus ring on --color-${surface}`,
+        measured: ratio(demand(tokens, "clay"), demand(tokens, surface)),
+        minimum: RING_MINIMUM,
+      },
+    ]),
+    // Only the inks each of these surfaces actually carries, and no ring: see
+    // TEXT_ONLY_SURFACES above for why both narrowings are deliberate.
+    ...Object.entries(TEXT_ONLY_SURFACES).flatMap(([surface, inks]) =>
+      inks.map((name) => ({
+        what: `--color-${name} as text on --color-${surface}`,
+        measured: ratio(demand(tokens, name), demand(tokens, surface)),
+        minimum: TEXT_MINIMUM,
+      })),
+    ),
+  ];
 };
 
 const main = async () => {
@@ -156,7 +208,8 @@ const main = async () => {
     });
     console.error(
       "\nFix the palette in app/app.css. Every text token has to clear 4.5:1 against\nboth bone and ivory, so no component has to know which surface it is on.\n" +
-        "If the token above is decorative and never carries text, add it to\nDECORATIVE in this file, with the reason, rather than loosening the minimum.",
+        "If the token above is decorative and never carries text, add it to\nDECORATIVE in this file, with the reason, rather than loosening the minimum.\n" +
+        "If it is a surface that carries text but can never carry a control, add it\nto TEXT_ONLY_SURFACES with the inks it actually carries.",
     );
     process.exitCode = 1;
     return;

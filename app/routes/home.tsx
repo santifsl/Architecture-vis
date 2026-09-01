@@ -31,8 +31,8 @@ export default function Home() {
       </h1>
 
       <p className="mt-4 max-w-prose type-body text-ink-soft">
-        Upload a 2D floor plan and get a photorealistic 3D render back, from
-        Claude, Gemini, or both side by side.
+        Upload a 2D floor plan and get a photorealistic 3D render back, seen
+        from straight above with your walls where you drew them.
       </p>
 
       <div className="mt-12">

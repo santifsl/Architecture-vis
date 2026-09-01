@@ -12,12 +12,18 @@
  * are the same control rather than two implementations that can drift. Drag and
  * drop is layered on top and is never the only way in.
  */
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import type { CSSProperties, DragEvent } from "react";
 
+import { useGenerate } from "~/render/useGenerate";
+import { useStoredUrl } from "~/storage/useStoredUrl";
+import { Notice } from "~/ui/Notice";
 import { ALLOWED_TYPES } from "~/upload/plan";
-import { readPlanUrl } from "~/upload/store";
-import { usePlanUpload, type UploadPhase } from "~/upload/usePlanUpload";
+import {
+  usePlanUpload,
+  type HostedPlan,
+  type UploadPhase,
+} from "~/upload/usePlanUpload";
 
 const ACCEPT = ALLOWED_TYPES.join(",");
 
@@ -62,28 +68,18 @@ function PlanPreview({
   readonly path: string;
   readonly filename: string;
 }) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let current = true;
-
-    void readPlanUrl(path).then((result) => {
-      if (!current) return;
-      if (result.ok) setUrl(result.value);
-      else setFailed(true);
-    });
-
-    return () => {
-      current = false;
-    };
-  }, [path]);
+  const { url, failed, retry } = useStoredUrl(path);
 
   if (failed) {
     return (
-      <p className="mt-4 type-body text-ink">
-        Your floor plan is saved, but it can&rsquo;t be shown right now.
-      </p>
+      <div className="mt-4">
+        <p className="type-body text-ink">
+          Your floor plan is saved, but it can&rsquo;t be shown right now.
+        </p>
+        <button type="button" className="btn-quiet mt-1" onClick={retry}>
+          Try showing it again
+        </button>
+      </div>
     );
   }
 
@@ -128,6 +124,42 @@ function PhaseBody({ phase }: { readonly phase: UploadPhase }) {
   }
 
   return null;
+}
+
+/**
+ * Generate. Spec 0007, AC-11.
+ *
+ * Only shown once a plan is actually hosted. Before that there is nothing to
+ * render and the button would be offering to do something it cannot yet do,
+ * which is how a screen ends up with controls that do not do anything.
+ *
+ * One control and no choices. There used to be a model picker here, and with one
+ * model it would be a group of one checkbox that cannot be unticked: a question
+ * whose answer is already known, which is worse than no question.
+ */
+function GenerateRender({ plan }: { readonly plan: HostedPlan }) {
+  const { start, busy, notice } = useGenerate(plan);
+
+  return (
+    <div className="mt-8 w-full">
+      {/*
+       * Busy rather than disabled, so the button keeps focus while the project
+       * is being created. `aria-disabled` does not block a click, which is why
+       * `useGenerate` returns early while busy rather than relying on this.
+       */}
+      <button
+        type="button"
+        className="btn-accent"
+        aria-busy={busy}
+        aria-disabled={busy}
+        onClick={start}
+      >
+        {busy ? "Starting" : "Generate the render"}
+      </button>
+
+      {notice !== null && <Notice>{notice}</Notice>}
+    </div>
+  );
 }
 
 export function PlanUploadCard() {
@@ -211,23 +243,17 @@ export function PlanUploadCard() {
             }}
           />
         </label>
+
+        {/*
+         * Generate appears only once a plan is hosted, so the first screen stays
+         * the one thing feature 4's structural reference fixed: icon, heading,
+         * file-type note, drop zone. Everything about generating arrives when
+         * there is something to generate from.
+         */}
+        {phase.kind === "hosted" && <GenerateRender plan={phase} />}
       </div>
 
-      {notice !== null && (
-        <p className="notice" role="status">
-          <svg
-            className="notice-mark"
-            viewBox="0 0 16 16"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <circle cx="8" cy="8" r="6.5" />
-            <path d="M8 4.75v4" />
-            <path d="M8 11.1v.4" />
-          </svg>
-          {notice}
-        </p>
-      )}
+      {notice !== null && <Notice>{notice}</Notice>}
     </section>
   );
 }
