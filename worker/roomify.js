@@ -285,6 +285,37 @@ const isMissingFile = (error) => {
 };
 
 /**
+ * The request body, or null when it is not JSON at all.
+ *
+ * A helper rather than a `let` filled in from a `catch`, so the handler binds
+ * every value it reads once and never reassigns one. A body that IS the literal
+ * `null` is not told apart from unparseable, and does not need to be: neither
+ * carries a plan, so both leave by the same 400.
+ */
+const readJsonBody = async (request) => {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * The plan as a data URI, or the status its failure deserves.
+ *
+ * The status is decided here, next to the error that explains it, so the
+ * handler stays a sequence of single-assignment steps: a file that is simply
+ * not there is a 404 the client can act on, anything else is a 502.
+ */
+const readPlan = async (puter, plan) => {
+  try {
+    return { ok: true, uri: await readPlanAsDataUri(puter, plan) };
+  } catch (error) {
+    return { ok: false, status: isMissingFile(error) ? 404 : 502 };
+  }
+};
+
+/**
  * POST /render. The whole feature, in one request.
  *
  * One request per render, awaited by the client: nothing guarantees a
@@ -297,12 +328,8 @@ router.post("/render", async ({ request, user }) => {
   // anything with and nothing is attempted.
   if (!user || !user.puter) return refuse("signedOut", 401);
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return refuse("badRequest", 400);
-  }
+  const body = await readJsonBody(request);
+  if (body === null) return refuse("badRequest", 400);
 
   const plan = body?.plan;
   const out = body?.out;
@@ -318,15 +345,11 @@ router.post("/render", async ({ request, user }) => {
   // it here rather than after the expensive part.
   if (!checkPaths(plan, out)) return refuse("badRequest", 403);
 
-  let planUri;
-  try {
-    planUri = await readPlanAsDataUri(user.puter, plan);
-  } catch (error) {
-    return refuse("planUnreadable", isMissingFile(error) ? 404 : 502);
-  }
+  const read = await readPlan(user.puter, plan);
+  if (!read.ok) return refuse("planUnreadable", read.status);
 
   try {
-    await paintPlan(user.puter, model, planUri, plan, out);
+    await paintPlan(user.puter, model, read.uri, plan, out);
   } catch (error) {
     const kind = describeFailure(error);
     if (kind === "outOfAllowance") return refuse("outOfAllowance", 507);
