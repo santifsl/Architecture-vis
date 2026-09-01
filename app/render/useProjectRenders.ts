@@ -220,8 +220,8 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
         // reason the writes above are not: a claim left behind by someone who
         // navigated away would block the next attempt for the whole lease. It
         // is conditional on the claim still being this attempt's to give back,
-        // which `releaseRender` decides from when it was taken.
-        await releaseRender(current.id, model, claim.at);
+        // which `releaseRender` decides from the claim itself.
+        await releaseRender(current.id, model, claim);
       }
     },
     [absorb, note],

@@ -59,13 +59,25 @@ const LEASE_MARGIN_MS = 60 * 1000;
 const LEASE_SECONDS = Math.round((STALE_AFTER_MS - LEASE_MARGIN_MS) / 1000);
 
 /**
- * `held` means someone else owns the render and this attempt stands down.
+ * What an attempt is standing on. Three states, not two, and the third is the
+ * one that is easy to leave out.
  *
- * `won` carries the moment the claim was taken, because releasing it later
- * needs to know how old it is. See `releaseRender`.
+ * `held`: someone else owns the render, so this attempt stands down.
+ *
+ * `won`: this attempt owns it. Carries the moment the claim was taken, because
+ * releasing it later needs to know how old it is. See `releaseRender`.
+ *
+ * `unguarded`: the claim could not be taken at all, because KV could not be
+ * reached. The render still goes ahead, on the three in-tab guards alone, which
+ * is where this feature stood before the lock existed. What it must never do is
+ * RELEASE: it holds no key, so a delete from here would be removing whatever
+ * another tab legitimately owns. Reporting this as `won` was a real bug, and
+ * the same "a delete that cannot name its owner" shape fixed twice already.
  */
 export type Claim =
-  { readonly kind: "held" } | { readonly kind: "won"; readonly at: number };
+  | { readonly kind: "held" }
+  | { readonly kind: "won"; readonly at: number }
+  | { readonly kind: "unguarded" };
 
 /**
  * Puts a lease on the key, so it can never outlive the render it stands for.
@@ -122,8 +134,12 @@ export const claimRender = async (
     return holders === 1 ? { kind: "won", at: Date.now() } : { kind: "held" };
   } catch {
     // Signed out, offline, or KV refusing: fall back to the three in-tab
-    // guards, which is exactly where this feature stood before the lock.
-    return { kind: "won", at: Date.now() };
+    // guards, which is exactly where this feature stood before the lock. Note
+    // that a failed LEASE does not land here; `lease` swallows its own errors,
+    // and rightly so, because the `incr` above did succeed and this attempt
+    // does own the key. Owning a key with no expiry is the one case where
+    // releasing it matters most.
+    return { kind: "unguarded" };
   }
 };
 
@@ -156,6 +172,11 @@ const SAFE_TO_RELEASE_MS = LEASE_SECONDS * 1000 - LEASE_MARGIN_MS;
  * is comfortably younger than its lease cannot have one, and its delete can
  * only be removing itself.
  *
+ * Both halves of that ownership question are decided here rather than at the
+ * call site, so there is one place to read and one place to get it wrong: an
+ * attempt that never held a claim releases nothing, and neither does one whose
+ * claim has aged out.
+ *
  * An attempt too old to release safely simply lets the key expire. That costs
  * nothing real: the client gives up on a render after `RENDER_TIMEOUT_MS`, two
  * minutes, so every attempt that finishes at all finishes far inside the
@@ -164,9 +185,10 @@ const SAFE_TO_RELEASE_MS = LEASE_SECONDS * 1000 - LEASE_MARGIN_MS;
 export const releaseRender = async (
   projectId: string,
   model: ModelId,
-  claimedAt: number,
+  claim: Claim,
 ): Promise<void> => {
-  if (Date.now() - claimedAt >= SAFE_TO_RELEASE_MS) return;
+  if (claim.kind !== "won") return;
+  if (Date.now() - claim.at >= SAFE_TO_RELEASE_MS) return;
 
   try {
     await withPuter((sdk) => sdk.kv.del(claimKey(projectId, model)));

@@ -291,7 +291,9 @@ same file. Nothing here forecloses that.
 - A claim that cannot be reached is not a render that cannot start. Guard 4
   degrades to the other three rather than refusing, because a KV hiccup blocking
   every render would be worse than the duplicate it prevents, and a real outage
-  still surfaces one step later when `commitRenderStart` cannot write.
+  still surfaces one step later when `commitRenderStart` cannot write. A
+  degraded attempt is `unguarded` rather than a won claim, and releases nothing:
+  it holds no key, so any delete it made would be removing another tab's.
 - The worker writes no key, no record, and no file outside `out`. It is a pure
   function of its request as far as this app's state is concerned.
 - `SCHEMA_VERSION` stays `1`. Adding `prompt` before any record exists is not a

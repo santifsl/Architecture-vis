@@ -1019,7 +1019,12 @@ one tab:
 - [x] A claim that cannot be reached degrades to the old three guards rather
       than refusing to render. A KV hiccup that left someone unable to render at
       all would be worse than the duplicate it prevents, and a real outage still
-      surfaces one step later when `commitRenderStart` cannot write
+      surfaces one step later when `commitRenderStart` cannot write. That
+      degraded attempt is its own state, `unguarded`, not a `won` claim: review
+      caught it reporting `won`, which meant an attempt holding no key at all
+      went on to delete whatever key it found, taking out a live claim another
+      tab legitimately owned. Owning nothing and releasing nothing are now the
+      same thing
 - [x] Guard 3 stays. It is still the backstop for a late answer from an attempt
       whose lease ran out
 - [x] `npm run verify` green: typecheck, lint, format, contrast, build
