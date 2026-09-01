@@ -58,8 +58,14 @@ const claimKey = (projectId: string, model: ModelId): string =>
 const LEASE_MARGIN_MS = 60 * 1000;
 const LEASE_SECONDS = Math.round((STALE_AFTER_MS - LEASE_MARGIN_MS) / 1000);
 
-/** `won`: this attempt owns the render. `held`: someone else does. */
-export type ClaimOutcome = "won" | "held";
+/**
+ * `held` means someone else owns the render and this attempt stands down.
+ *
+ * `won` carries the moment the claim was taken, because releasing it later
+ * needs to know how old it is. See `releaseRender`.
+ */
+export type Claim =
+  { readonly kind: "held" } | { readonly kind: "won"; readonly at: number };
 
 /**
  * Puts a lease on the key, so it can never outlive the render it stands for.
@@ -104,7 +110,7 @@ const lease = async (key: string): Promise<void> => {
 export const claimRender = async (
   projectId: string,
   model: ModelId,
-): Promise<ClaimOutcome> => {
+): Promise<Claim> => {
   const key = claimKey(projectId, model);
 
   try {
@@ -113,26 +119,55 @@ export const claimRender = async (
     // expire; a loser sets one so a key that somehow has no expiry cannot stay
     // that way, which is the only route to a permanently stuck model.
     await lease(key);
-    return holders === 1 ? "won" : "held";
+    return holders === 1 ? { kind: "won", at: Date.now() } : { kind: "held" };
   } catch {
     // Signed out, offline, or KV refusing: fall back to the three in-tab
     // guards, which is exactly where this feature stood before the lock.
-    return "won";
+    return { kind: "won", at: Date.now() };
   }
 };
+
+/**
+ * How long a claim stays safe to delete.
+ *
+ * A minute short of the lease, so the answer is never close. Deleting is a
+ * round trip of its own, and a claim judged safe a moment before it expired
+ * could otherwise land its delete a moment after.
+ */
+const SAFE_TO_RELEASE_MS = LEASE_SECONDS * 1000 - LEASE_MARGIN_MS;
 
 /**
  * Gives the render back, the moment this attempt stops being responsible for
  * it: it finished, it failed, or it never really started.
  *
  * Deleting rather than waiting for the lease is what makes Retry immediate. A
- * failed render that had to sit out the rest of a ten minute lease before it
+ * failed render that had to sit out the rest of a nine minute lease before it
  * could be tried again would read as a broken button.
+ *
+ * The `claimedAt` check is what stops the delete from being the same mistake
+ * the takeover path already made once. The key holds a count, not an owner, so
+ * a delete cannot ask whether it is deleting its OWN claim. An attempt that
+ * outlives its lease is no longer the owner: the key it took has expired, a
+ * second tab may have claimed the render since, and deleting then would throw
+ * away that live claim and let a third tab start yet another paid render.
+ *
+ * Elapsed time answers it without a round trip, and answers it exactly. A
+ * successor cannot exist until this claim's lease has run out, so a claim that
+ * is comfortably younger than its lease cannot have one, and its delete can
+ * only be removing itself.
+ *
+ * An attempt too old to release safely simply lets the key expire. That costs
+ * nothing real: the client gives up on a render after `RENDER_TIMEOUT_MS`, two
+ * minutes, so every attempt that finishes at all finishes far inside the
+ * window. The ones that do not are precisely the ones that must not delete.
  */
 export const releaseRender = async (
   projectId: string,
   model: ModelId,
+  claimedAt: number,
 ): Promise<void> => {
+  if (Date.now() - claimedAt >= SAFE_TO_RELEASE_MS) return;
+
   try {
     await withPuter((sdk) => sdk.kv.del(claimKey(projectId, model)));
   } catch {

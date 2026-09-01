@@ -1008,6 +1008,14 @@ one tab:
       simpler and correct
 - [x] Released in a `finally`, so a failure or a navigation gives the render
       back immediately instead of making Retry sit out the lease
+- [x] A release only deletes a claim young enough to still be its own. Review
+      caught this: the key holds a count, not an owner, so an attempt that
+      outlived its lease was deleting whatever claim happened to be there, which
+      could be a successor's live one, freeing the render for a third paid
+      generation. Elapsed time settles it with no extra round trip, because a
+      successor cannot exist until the lease has run out. An attempt too old to
+      release safely lets the key expire instead, which costs nothing: the
+      client gives up on a render after two minutes, far inside the window
 - [x] A claim that cannot be reached degrades to the old three guards rather
       than refusing to render. A KV hiccup that left someone unable to render at
       all would be worse than the duplicate it prevents, and a real outage still

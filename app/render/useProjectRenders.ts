@@ -170,7 +170,7 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
       // its claim ran out before the record called it stale, so taking one over
       // is an ordinary claim on a key that is no longer there.
       const claim = await claimRender(current.id, model);
-      if (claim === "held") return;
+      if (claim.kind === "held") return;
 
       // Every exit from here on gives the claim back, so the next attempt does
       // not have to sit out the rest of a ten minute lease.
@@ -218,8 +218,10 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
       } finally {
         // Not conditional on the component still being mounted, for the same
         // reason the writes above are not: a claim left behind by someone who
-        // navigated away would block the next attempt for the whole lease.
-        await releaseRender(current.id, model);
+        // navigated away would block the next attempt for the whole lease. It
+        // is conditional on the claim still being this attempt's to give back,
+        // which `releaseRender` decides from when it was taken.
+        await releaseRender(current.id, model, claim.at);
       }
     },
     [absorb, note],

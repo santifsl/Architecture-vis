@@ -274,7 +274,12 @@ same file. Nothing here forecloses that.
      refused by a lock nobody owns. The same ordering is what lets the claim be
      a single atomic `incr` with no delete in front of it, which a takeover
      would otherwise need and could not do safely. Released in a `finally`, so
-     a retry never waits out a lease nobody is using.
+     a retry never waits out a lease nobody is using, but only while the claim
+     is young enough to still be this attempt's own: the key holds a count, not
+     an owner, so an attempt that outlived its lease would otherwise delete
+     whatever claim it found, including a successor's live one. Elapsed time
+     decides that without a round trip, since a successor cannot exist until
+     the lease has run out.
 - A client timeout aborts its own request through `AbortController` as well as
   giving up on it. The worker may keep working regardless, which is exactly why
   the stamp above exists rather than the abort being trusted to end things.
