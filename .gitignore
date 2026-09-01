@@ -26,6 +26,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Claude Code's local tool configuration. The skill content itself lives in
+# .agents/skills/ and is committed; .claude/ only symlinks it into this machine.
+.claude/
+
 # Editors
 .idea/
 *.swp
