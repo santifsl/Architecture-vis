@@ -79,7 +79,7 @@ cheap decision to make now.
 | 4   | Design & look                                  | Foundation | done        |
 | 5   | Upload & host a floor plan                     | Slice 1    | in-progress |
 | 6   | Create a project & generate the 3D render      | Slice 1    | in-progress |
-| 7   | App shell & project gallery                    | Slice 2    | not started |
+| 7   | App shell & project gallery                    | Slice 2    | in-progress |
 | 8   | Side-by-side comparison view                   | Slice 3    | not started |
 | 9   | Public/private visibility & the community feed | Slice 4    | not started |
 | 10  | Export                                         | Slice 4    | not started |
@@ -1034,21 +1034,67 @@ one tab:
 
 ## Slice 2: App shell & gallery
 
-### 7. App shell & project gallery
+### 7. App shell & project gallery · in-progress
 
 The frame everything else sits inside: a navbar, and a personal gallery of a
-signed-in user's own past projects, each card showing its floor plan
-thumbnail, its render (or its in-progress state) and which model(s) it used.
-This is what makes the tool feel like a real workspace across visits, not
-just a single one-off generation.
+signed-in user's own past projects, each card showing its render (or its
+in-progress state), its floor plan thumbnail, its name and its date. This is
+what makes the tool feel like a real workspace across visits, not just a
+single one-off generation. Naming the model on a card was the other half of
+that meta line and spec 0007 removed the point of it, there being one model.
 
 The navbar and the card grid are governed by feature 4's structural
 reference for the home screen: no pill badge, no per-card "Community" badge,
-and a meta line naming the model(s) rather than a generic clock-and-author
-line.
+and a before/after thumbnail pair rather than a generic clock-and-author line.
 
-- [ ] Decide the approach
-- [ ] Build it
+**Spec: [0008](docs/specs/0008-app-shell-and-project-gallery/index.md).** Decided:
+a **read-only** gallery over the `listProjects` spec 0002 already built, on two
+surfaces sharing one `ProjectCard`, a strip of 3 on home and the full grid at
+`/projects`. Client-side paging renders 12 cards at a time, which matters
+because the scarce resource is not rows but the expiring view URLs each card
+mints for a private file. Cards do **not** update while a render runs and never
+start one: `app/render/` stays the only place a render is claimed, which is
+worth a navigation given the four consecutive fixes that cross-tab claim needed.
+Delete, rename and search were each considered and deliberately left out. The
+feature adds no persisted state at all, the first since feature 1 with no write
+path.
+
+The cross-check on this spec caught a real defect in its first draft, recorded
+here because it is the kind that survives every other check: the card's state
+word was sourced to `renders[model].status`, but `stalled` is not a stored
+status. It is derived by `isStaleRender` inside `renderView`, so a card reading
+the stored field would show "Working" forever on an abandoned render while the
+project page beside it said "Stopped". The card goes through `renderView` and
+`verify.md` has a step aimed squarely at it.
+
+- [x] Decide the approach: spec 0008
+- [ ] Build it: `/develop` feature 7, the eight tasks of spec 0008's build plan
+  - [ ] The shell: lift the header out of `app/root.tsx` into
+        `app/shell/Navbar.tsx`, with the wordmark link and a `Projects` link
+        gated on `useAuthState`, satisfies AC-1
+  - [ ] The card and its pure half: `app/gallery/rules.ts` (`cardRender`,
+        `formatProjectDate`, and `STATE_WORDS` moved out of `RenderPlate.tsx`
+        so the plate and the card cannot drift), then `ProjectCard.tsx` reusing
+        `.plate-frame` and its `data-busy` treatment, plus a new `.plan-chip`
+        class. The word comes from `renderView`, never the stored status,
+        satisfies AC-3, AC-4, AC-5, AC-12
+  - [ ] The thread end to end: `/projects` with its `clientLoader`, the grid
+        inside the existing `RequireUser`, the empty state, and the failure
+        sentence with a `useRevalidator` retry. First point this is walkable,
+        satisfies AC-2, AC-8, AC-9, AC-10, AC-13, AC-14
+  - [ ] Thicken it: `ProjectGrid` with the 12 cap and `Show more`, then the
+        unreadable line including the case where everything was unreadable,
+        satisfies AC-6, AC-7
+  - [ ] The home strip: its own `clientLoader` calling `listProjects`
+        unconditionally, the same grid capped at 3, and `See all`, satisfies
+        AC-7, AC-11
+- [ ] Verify it: the manual walkthrough in
+      [verify.md](docs/specs/0008-app-shell-and-project-gallery/verify.md). The
+      stale-render step is the one worth an independent pass: a card reading the
+      stored status passes every other step on that page.
+
+No `/test` box, same as features 1, 3, 4, 5 and 6: `CLAUDE.md` rules out a test
+runner and browser automation, so verification is the manual walkthrough.
 
 ## Slice 3: Comparison
 
@@ -1121,6 +1167,11 @@ Kept here so the plan stays honest about what's deliberately left out.
   (`complete` → `pending`, spec 0002) and spec 0006 deliberately left it out, so
   this is one transition away whenever it's wanted. It belongs with the project
   page once feature 7 exists, not bolted onto the first render loop.
+- Deleting or renaming a project, and searching or filtering the gallery. All
+  three were weighed for feature 7 and left out to keep it read-only. Rename is
+  the cheapest, `updateProject` already takes it. Delete is the one with a real
+  open question: whether the hosted floor plan and render files in Puter storage
+  go with the record or are left orphaned. That is its own decision, from spec 0008.
 - Privacy policy and terms pages.
 - Analytics or session-replay tooling. Nobody's asked for this yet.
 - Dark mode. Declined in spec 0004 rather than left as an unexamined gap. The
