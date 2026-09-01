@@ -9,7 +9,7 @@ every runtime step below look fine while being wrong.
 
 ## Before you start
 
-- [ ] `npm run dev` boots to the home screen rather than `ConfigScreen`.
+- [x] `npm run dev` boots to the home screen rather than `ConfigScreen`.
 - [ ] You are signed in and have **four** projects to hand: one with a complete
       render, one mid render, one failed or stalled, and one whose floor plan is
       clearly **portrait** rather than square. The portrait one is the only way to
@@ -17,38 +17,38 @@ every runtime step below look fine while being wrong.
 
 ## Commands and code shape
 
-- [ ] `npm run verify` passes clean: typecheck, lint, format, contrast, build.
-- [ ] `grep -rn "defaultValue" app/` returns nothing. The v4 prop is
+- [x] `npm run verify` passes clean: typecheck, lint, format, contrast, build.
+- [x] `grep -rn "defaultValue" app/` returns nothing. The v4 prop is
       `defaultPosition`; `defaultValue` would be silently ignored and the divider
       would sit wherever the library defaults, which happens to also be 50, so
       this cannot be caught by looking at the screen, **AC-12**.
-- [ ] `grep -rn "ReactCompareSliderImage\|styleFitContainer" app/` returns
+- [x] `grep -rn "ReactCompareSliderImage\|styleFitContainer" app/` returns
       nothing. Both bake in inline styles that the contained plan cannot override,
       **AC-12**, **AC-3**.
-- [ ] `grep -rn "updateProject\|createProject\|putProject\|claim\|startRender\|useGenerate" app/compare/`
+- [x] `grep -rn "updateProject\|createProject\|putProject\|claim\|startRender\|useGenerate" app/compare/`
       returns nothing. The comparison is read only and never touches the render
       loop, **AC-11**.
-- [ ] `grep -rn "style={{" app/compare/` returns nothing, and
+- [x] `grep -rn "style={{" app/compare/` returns nothing, and
       `grep -rn "#\|rgb(\|rounded-\|text-sm\|text-lg" app/compare/` finds no raw
       value in any `className`. Every value lives in `app/app.css`, **AC-7**.
-- [ ] `grep -rn "transition" app/compare/` shows no `transition` prop passed to
+- [x] `grep -rn "transition" app/compare/` shows no `transition` prop passed to
       `ReactCompareSlider`, **AC-9**.
-- [ ] `grep -rn "keyboardIncrement" app/` returns nothing. The 5% default is
+- [x] `grep -rn "keyboardIncrement" app/` returns nothing. The 5% default is
       inherited, not restated, **AC-8**.
-- [ ] `planPlacement` is in `app/render/rules.ts` beside `isWorkingView`, not in
+- [x] `planPlacement` is in `app/render/rules.ts` beside `isWorkingView`, not in
       `app/compare/`, takes `readonly RenderView[]`, and returns one of `"busy"`,
       `"comparison"` or `"key"`. Read it against the table in the spec's State
       transitions section. It is pure, and this is the only practical way to
       check the two model case without manufacturing a two model project,
       **AC-1**, **AC-5**.
-- [ ] `ProjectSheet` has **one** sheet wide plan decision, not two. The old
+- [x] `ProjectSheet` has **one** sheet wide plan decision, not two. The old
       `working` boolean is gone rather than sitting beside the new function; two
       of them is exactly how a blurred plan and a large plan end up on screen
       together, **AC-5**.
-- [ ] The comparison's mount gate reads `=== "complete" && render.path !== null`.
+- [x] The comparison's mount gate reads `=== "complete" && render.path !== null`.
       `complete` alone does not narrow `RenderState.path`, which is why
       `RenderPlate` already writes both halves, **AC-1**.
-- [ ] `grep -rn "lazy\|IntersectionObserver\|loading=\"lazy\"" app/compare/`
+- [x] `grep -rn "lazy\|IntersectionObserver\|loading=\"lazy\"" app/compare/`
       returns nothing. The single mint in AC-4 holds only while the comparison
       mounts in the same React commit as the plate, **AC-4**.
 
@@ -86,7 +86,7 @@ every runtime step below look fine while being wrong.
       **AC-1**, **AC-5**.
 - [ ] Back on the complete project, the small plan key is **not** on screen. The
       plan appears exactly once, inside the comparison, **AC-5**.
-- [ ] The two model case, by hand rather than in a browser: read `planPlacement`
+- [x] The two model case, by hand rather than in a browser: read `planPlacement`
       against a views array of `["running", "complete"]`. It must return `"busy"`,
       meaning the blurred plan only and **no** comparison anywhere on the sheet.
       Returning `"comparison"`, or deciding the three places separately, puts a
@@ -135,6 +135,6 @@ every runtime step below look fine while being wrong.
 
 ## The record
 
-- [ ] `npm run build` output noted: record what `react-compare-slider` adds to
+- [x] `npm run build` output noted: record what `react-compare-slider` adds to
       the bundle, per the spec's Follow-up. It is the first runtime dependency
       here that is not React or the router.
