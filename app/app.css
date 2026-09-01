@@ -36,6 +36,23 @@
   --color-clay: #a94d19;
 
   /*
+   * The worst case ground behind the render plate's busy message, precomputed.
+   *
+   * Not a colour anything is painted with. It is what bone at 72% composites to
+   * over the darkest thing anybody could upload, a solid black floor plan, and
+   * it is a token rather than a comment so that check-contrast.mjs measures
+   * every text token against it on every run. Spec 0007 chose the 72% by
+   * computing this: --color-ink on it clears 8.13:1, so the message's legibility
+   * is a property of the scrim and never of somebody's drawing.
+   *
+   * This value and .plate-veil's 72% are two halves of one fact. Change one and
+   * the other is wrong, which is why each names the other. It is listed in
+   * TEXT_ONLY_SURFACES rather than SURFACES, because no interactive element can
+   * ever sit on it and so the focus ring minimum does not apply.
+   */
+  --color-scrim-ground: #b4b2b0;
+
+  /*
    * Form. The gallery look is tight and unrounded, decided once.
    *
    * The focus ring's width and offset are tokens rather than literals for the
@@ -487,5 +504,137 @@ body {
   .plan-card,
   .plan-progress-bar {
     transition: none;
+  }
+}
+
+/*
+ * The project page. Spec 0006.
+ *
+ * The page is composed as a drawing sheet rather than a feed of cards: a title
+ * block, a small key, and one plate per model. That is the subject's own
+ * vernacular, and it settles the hierarchy question by itself. The floor plan
+ * is the KEY, so it is deliberately small: it is what you refer back to, not
+ * what you came to look at. The renders are the plates.
+ */
+
+/*
+ * The key. Small on purpose, and capped in height rather than width so a tall
+ * portrait plan and a wide landscape one both stay the same weight on the page.
+ */
+.plan-key {
+  display: block;
+  max-height: 11rem;
+  width: auto;
+  max-width: 100%;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius);
+}
+
+/*
+ * One plate: the image, its label row, and the note underneath.
+ *
+ * No border and no panel. A bordered box around each plate would put two frames
+ * inside one sheet, the same mistake the upload card avoided, so the frame
+ * belongs to the image and the rest of the plate hangs off it.
+ */
+.plate-frame {
+  position: relative;
+  /*
+   * Reserved before the image exists, so a slow mint or a finishing render never
+   * shifts the rest of the page underneath someone reading it (AC-8). Square is
+   * the frame's own choice, written down as RENDER_ASPECT_RATIO in
+   * app/render/rules.ts: the worker passes no ratio at all, so a render of any
+   * shape is cropped to fit here rather than resizing the page.
+   */
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius);
+  background-color: var(--color-ivory);
+}
+
+.plate-image {
+  display: block;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+/*
+ * The busy state, in three layers inside the frame. Spec 0007, AC-5 to AC-7.
+ *
+ * While a render works, the frame holds the person's OWN floor plan, blurred,
+ * under a pale scrim carrying one line. The wait then looks like something
+ * happening to their drawing rather than like an empty rectangle, and the small
+ * key is hidden for exactly this period so the plan is never on screen twice.
+ */
+
+/*
+ * Layer 1: their plan, blurred.
+ *
+ * Scaled past its own edges because a blur samples beyond the element and would
+ * otherwise draw a pale border of nothing just inside the frame. Decorative: it
+ * repeats the key, and the words carry the meaning.
+ */
+.plate-plan {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  filter: blur(1.25rem);
+  transform: scale(1.12);
+}
+
+/*
+ * Layer 2: the scrim. This is what makes the words legible, which is the whole
+ * reason it is here: legibility becomes a property of this layer instead of a
+ * property of whatever somebody happened to upload. 72% bone, and the ground
+ * that composites to on the worst possible plan is --color-scrim-ground, which
+ * check-contrast.mjs measures on every run.
+ */
+.plate-veil {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background-color: color-mix(in srgb, var(--color-bone) 72%, transparent);
+}
+
+/*
+ * Layer 3: the words, set in the annotation role the rest of the sheet already
+ * uses for its key and its state words. A note stamped across a drawing while
+ * the work is in progress is an annotation, not a headline, so it borrows the
+ * sheet's own voice rather than introducing a size. No border, no panel, and no
+ * clay: clay belongs to things you can operate, and there is nothing to operate
+ * here.
+ */
+.plate-message {
+  color: var(--color-ink);
+  text-align: center;
+}
+
+/*
+ * Layer 4: a plate that is working. The same signal as .boot-rule and the busy
+ * button, at plate scale: a clay hairline sweeping along the bottom edge of the
+ * frame, on top of everything above. Never a spinner, and never a second colour.
+ */
+.plate-frame[data-busy="true"]::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: var(--border-hairline);
+  width: 40%;
+  background-color: var(--color-clay);
+  opacity: 0.55;
+  animation: boot-sweep 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plate-frame[data-busy="true"]::after {
+    animation: none;
+    width: 100%;
   }
 }

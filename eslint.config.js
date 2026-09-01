@@ -184,6 +184,23 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
 
+  /*
+   * The Puter worker, spec 0006. It is deployed as a single source file to
+   * Puter's own runtime, so it is plain JavaScript with no build step and no
+   * import of anything in `app/`. `router` is injected by that runtime, and the
+   * rest of what it uses is the standard web platform.
+   *
+   * The design-system rules deliberately do not reach here: there is no markup
+   * in a worker and nothing for them to say. The SDK rule does not either,
+   * because a worker never imports the SDK, it is handed `user.puter`.
+   */
+  {
+    files: ["worker/**/*.js"],
+    languageOptions: {
+      globals: { ...globals.worker, ...globals.browser, router: "readonly" },
+    },
+  },
+
   // React rules apply where React actually is.
   {
     files: ["app/**/*.{ts,tsx}"],
@@ -272,6 +289,18 @@ export default tseslint.config(
       "no-restricted-imports": "off",
       "no-restricted-syntax": ["error", ...DESIGN_SYSTEM_RULES],
     },
+  },
+
+  /*
+   * The deploy script, spec 0006. The SDK rule above exists so that no screen in
+   * `app/` can trigger Puter's sign-in popup behind someone's back. This script
+   * has no screen, and it imports the Node entry point, which takes a token
+   * rather than reading one out of a browser. Scoped to the one file, same as
+   * the `app/platform/puter.ts` override above.
+   */
+  {
+    files: ["scripts/deploy-worker.mjs"],
+    rules: { "no-restricted-imports": "off" },
   },
 
   // Last, so nothing above argues with Prettier.

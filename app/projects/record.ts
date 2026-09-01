@@ -15,21 +15,41 @@
  * decided here instead of inventing a second one.
  */
 
-/** Bumped only when the stored shape changes, so a later change is detectable rather than guessed. */
-export const SCHEMA_VERSION = 1;
+/**
+ * Bumped only when the stored shape changes, so a later change is detectable
+ * rather than guessed.
+ *
+ * Version 2 is spec 0007: `prompt` left `RenderState` when the reading stage
+ * did, so every record written at version 1 carries a field this build no
+ * longer understands and is refused on read by `parseProject`. That is the
+ * intended outcome, not a regression: a version 1 project simply stops
+ * appearing rather than being half read.
+ */
+export const SCHEMA_VERSION = 2;
 export type SchemaVersion = typeof SCHEMA_VERSION;
 
-/** The two models a project can request. Spec 0002, `ModelId`. */
-export const MODEL_IDS = ["claude", "gemini"] as const;
+/**
+ * The models a project can request. Spec 0002's `ModelId`, as spec 0007 left
+ * it: a union of one.
+ *
+ * The map shape around it, `models` plus `renders` plus `renderUrls`, is
+ * deliberately kept rather than collapsed into single fields. Rewriting three
+ * invariant functions in the same change that bumps the schema doubles the
+ * exposure to the exact defect this file has already been caught by twice, for
+ * a benefit that is only tidiness, and feature 9 gets to build against the
+ * `FeedEntry` shape it was designed for. It is also the seam a second model
+ * comes back through.
+ */
+export const MODEL_IDS = ["gemini"] as const;
 export type ModelId = (typeof MODEL_IDS)[number];
 
 export const isModelId = (value: unknown): value is ModelId =>
   MODEL_IDS.some((id) => id === value);
 
 /**
- * The statuses one model's render moves through. AC-2: each requested model
- * carries its own `RenderState`, so one model failing cannot touch the other's
- * status, URL, or error code.
+ * The statuses one model's render moves through. Each requested model carries
+ * its own `RenderState`, which is what keeps the per-model machinery honest for
+ * whatever comes back through the seam above.
  */
 export const RENDER_STATUSES = [
   "pending",
@@ -71,7 +91,18 @@ export type RenderState = {
   readonly status: RenderStatus;
   /** The `puter.fs` path, set when the status reaches `complete`. */
   readonly path: string | null;
-  /** The owner-readable URL, set when the status reaches `complete`. */
+  /**
+   * The public, non-expiring URL of the hosted copy, written at publish time.
+   * Null for the whole of feature 6 and until feature 9 publishes the project.
+   *
+   * Spec 0006 corrected spec 0002 here, the same correction spec 0005 made to
+   * `FloorPlan`: a render is identified by its path, and a URL that displays it
+   * is minted on demand and never stored. This field is the OTHER kind of URL,
+   * the hosted copy that does not expire, which is why it survives when
+   * `FloorPlan.url` did not. `checkProject` no longer requires it on a complete
+   * render, because requiring it would make every render this feature produces
+   * illegal to store.
+   */
   readonly url: string | null;
   /** A short internal code. Never a provider message, per the project's rule that nothing raw reaches a screen. */
   readonly errorCode: string | null;
@@ -106,7 +137,7 @@ export type Visibility = "private" | "public";
  *
  * `renderUrls` holds one entry per model that had a complete render at the
  * moment of publishing, which is why it is partial: publishing a project whose
- * Gemini render is still running produces a Claude URL and no Gemini one.
+ * render is still running produces an entry for no model at all.
  */
 export type PublicAssets = {
   readonly floorPlanUrl: string;

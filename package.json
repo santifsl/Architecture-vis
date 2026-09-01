@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "react-router build",
+    "deploy:worker": "node scripts/deploy-worker.mjs",
     "dev": "react-router dev",
     "typecheck": "react-router typegen && tsc",
     "format": "prettier --write .",
