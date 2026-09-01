@@ -45,7 +45,7 @@ import {
 import type { ModelId, Project, RenderState } from "~/projects/record";
 import type { RenderFailure } from "~/render/failures";
 import { claimRender, releaseRender } from "~/render/claim";
-import { isStaleRender, mayStartRender, renderOutPath } from "~/render/rules";
+import { mayStartRender, renderOutPath } from "~/render/rules";
 import { readAbsolutePath, requestRender } from "~/render/store";
 
 /**
@@ -166,11 +166,10 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
       const started = Date.now();
 
       // Guard 4, and the only one of the four that reaches past this tab. A
-      // render the record already gave up on is taken over rather than waited
-      // out: that is the case the person is pressing Retry to get past.
-      const held = current.renders[model];
-      const stalled = held !== undefined && isStaleRender(held, started);
-      const claim = await claimRender(current.id, model, stalled);
+      // render the record has already given up on needs nothing special here:
+      // its claim ran out before the record called it stale, so taking one over
+      // is an ordinary claim on a key that is no longer there.
+      const claim = await claimRender(current.id, model);
       if (claim === "held") return;
 
       // Every exit from here on gives the claim back, so the next attempt does

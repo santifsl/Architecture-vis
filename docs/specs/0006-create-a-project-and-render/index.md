@@ -262,16 +262,22 @@ same file. Nothing here forecloses that.
      the client, and the thing that makes a late answer from a timed out attempt
      harmless: retry stamps a new `startedAt`, so the old attempt's `complete`
      write finds a value that is not its own and drops it.
+  4. A leased claim on `puter.kv.incr`, in `app/render/claim.ts`, added after
+     the first version shipped (see the review note in the scope). `incr` is
+     atomic on the server and returns the new value, so exactly one caller is
+     ever handed `1` for a key that does not exist yet, and that caller owns
+     the render. It is the only one of the four that reaches past a single tab.
+     The key carries a `kv.expire` lease, so a tab that dies mid render frees
+     the model instead of wedging it. That lease is set a minute shorter than
+     `STALE_AFTER_MS` on purpose: a claim must run out BEFORE the record stops
+     believing the render, or someone pressing Retry on a stalled card would be
+     refused by a lock nobody owns. The same ordering is what lets the claim be
+     a single atomic `incr` with no delete in front of it, which a takeover
+     would otherwise need and could not do safely. Released in a `finally`, so
+     a retry never waits out a lease nobody is using.
 - A client timeout aborts its own request through `AbortController` as well as
   giving up on it. The worker may keep working regardless, which is exactly why
-  the stamp above exists rather than the abort being trusted to end things. 4. A leased claim on `puter.kv.incr`, in `app/render/claim.ts`. `incr` is
-  atomic on the server and returns the new value, so exactly one caller is
-  ever handed `1` for a key that does not exist yet, and that caller owns the
-  render. The key carries a `kv.expire` lease of `STALE_AFTER_MS`, so a tab
-  that dies mid render frees the model instead of wedging it, and the lease
-  and the record's own staleness rule expire together. Released in a
-  `finally` so a retry never waits out a lease nobody is using. Added after
-  the first version shipped, in the review below.
+  the stamp above exists rather than the abort being trusted to end things.
 - Two tabs now coordinate. This paragraph used to say the opposite, that a stale
   write is discarded but two tabs do not coordinate, on the mistaken basis that
   Puter KV offers no compare and swap; it ships `incr`, which is one. Guard 3

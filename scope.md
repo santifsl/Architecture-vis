@@ -996,8 +996,16 @@ one tab:
       blocks that model forever. One extra call makes that impossible, and a
       loser cannot hold the lock open because losers only arrive on a mount or
       a retry, never on a timer
-- [x] A stale `running` render is taken over, not waited out: its key is deleted
-      first, because that is the case Retry exists to get past
+- [x] A stale `running` render needs no special path. The lease is set a minute
+      shorter than `STALE_AFTER_MS`, so a claim always runs out before the
+      record stops believing the render it stands for, and taking one over is an
+      ordinary claim on a key that is already gone
+- [x] Review caught the first version of that. It deleted the key before
+      claiming, which is two calls and not atomic: two tabs retrying the same
+      stalled render could interleave and both be handed `1`, and one tab's
+      delete could throw away a live claim the other had just taken, so they
+      stomped each other instead of merely duplicating. Deleting nothing is both
+      simpler and correct
 - [x] Released in a `finally`, so a failure or a navigation gives the render
       back immediately instead of making Retry sit out the lease
 - [x] A claim that cannot be reached degrades to the old three guards rather

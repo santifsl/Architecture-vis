@@ -39,8 +39,24 @@ import { STALE_AFTER_MS } from "~/render/rules";
 const claimKey = (projectId: string, model: ModelId): string =>
   `render-claim:${projectId}:${model}`;
 
-/** The lease, in the seconds `kv.expire` takes. */
-const LEASE_SECONDS = Math.round(STALE_AFTER_MS / 1000);
+/**
+ * How long before the lease runs out, in the seconds `kv.expire` takes.
+ *
+ * Deliberately SHORTER than `STALE_AFTER_MS`, and that gap is the load bearing
+ * part. The claim is taken just before the record's `startedAt` is written, so
+ * an equal lease would expire fractionally AFTER the record gave up on the
+ * render, leaving a window where a person presses Retry on a card that says it
+ * has stalled and a lock nobody owns any more silently refuses it. A minute of
+ * margin dwarfs the round trip that causes the skew, and turns the ordering
+ * into a guarantee: by the time the record calls a render stale, its claim is
+ * already gone.
+ *
+ * The gap costs nothing. Between the lease running out and the record going
+ * stale, guard 2 is what refuses a second start, exactly as it does for the
+ * whole of a live render.
+ */
+const LEASE_MARGIN_MS = 60 * 1000;
+const LEASE_SECONDS = Math.round((STALE_AFTER_MS - LEASE_MARGIN_MS) / 1000);
 
 /** `won`: this attempt owns the render. `held`: someone else does. */
 export type ClaimOutcome = "won" | "held";
@@ -70,30 +86,34 @@ const lease = async (key: string): Promise<void> => {
 /**
  * Asks for the right to render one model, once.
  *
- * `takeOver` is for a `running` render the record already considers stale.
- * Nothing is waiting on that work any more, so its lease is broken rather than
- * waited out. Without it a retry of a stalled render would be refused by a lock
- * belonging to a tab that closed, which is the one case the person is actively
- * asking to get past.
+ * One `incr` and nothing else, which is what makes this safe. An earlier
+ * version deleted the key first when the record considered a render stale, to
+ * break a lease left behind by a tab that closed. That was wrong twice over:
+ * two tabs retrying the same stalled render could interleave their delete and
+ * their increment and both be handed `1`, and worse, one tab's delete could
+ * throw away a live claim the other had just taken, so instead of one duplicate
+ * render they stomped each other.
+ *
+ * Nothing is needed in its place, because a stale render's claim is ALREADY
+ * gone: `LEASE_SECONDS` is set so the lease always runs out before the record
+ * stops believing the render. Taking over a stalled render is therefore an
+ * ordinary claim on a key that does not exist, which is precisely the case
+ * `incr` decides atomically. The one case a delete was really covering, a key
+ * with no expiry at all, is covered by the loser refreshing the lease below.
  */
 export const claimRender = async (
   projectId: string,
   model: ModelId,
-  takeOver: boolean,
 ): Promise<ClaimOutcome> => {
   const key = claimKey(projectId, model);
 
   try {
-    if (takeOver) await withPuter((sdk) => sdk.kv.del(key));
-
     const holders = await withPuter((sdk) => sdk.kv.incr(key));
-    if (holders === 1) {
-      await lease(key);
-      return "won";
-    }
-
+    // The lease is set either way. The winner needs one so its own claim can
+    // expire; a loser sets one so a key that somehow has no expiry cannot stay
+    // that way, which is the only route to a permanently stuck model.
     await lease(key);
-    return "held";
+    return holders === 1 ? "won" : "held";
   } catch {
     // Signed out, offline, or KV refusing: fall back to the three in-tab
     // guards, which is exactly where this feature stood before the lock.
