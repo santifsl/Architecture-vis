@@ -80,7 +80,7 @@ cheap decision to make now.
 | 5   | Upload & host a floor plan                     | Slice 1    | in-progress |
 | 6   | Create a project & generate the 3D render      | Slice 1    | in-progress |
 | 7   | App shell & project gallery                    | Slice 2    | in-progress |
-| 8   | Side-by-side comparison view                   | Slice 3    | not started |
+| 8   | Side-by-side comparison view                   | Slice 3    | in-progress |
 | 9   | Public/private visibility & the community feed | Slice 4    | not started |
 | 10  | Export                                         | Slice 4    | not started |
 
@@ -1103,7 +1103,7 @@ runner and browser automation, so verification is the manual walkthrough.
 
 ## Slice 3: Comparison
 
-### 8. Side-by-side comparison view
+### 8. Side-by-side comparison view · in-progress
 
 Checked against feature 6's 2026-08-31 revision and **unaffected**. This compares
 the plan against the render, not two models against each other, so dropping Claude
@@ -1116,8 +1116,92 @@ that the accent color is allowed to appear on, since the slider itself is an
 interactive element, the images on either side never get their own tinted
 frame or border, they carry the visual distinction on their own.
 
-- [ ] Decide the approach
-- [ ] Build it
+**Spec: [0009](docs/specs/0009-side-by-side-comparison-view/index.md).** Decided:
+the render plate stays exactly as built, and a **separate comparison section**
+sits directly beneath it once a render is complete, holding
+`react-compare-slider` v4 at the halfway point. The render is therefore on the
+sheet twice, against the rule `ProjectSheet` holds for the plan. That was chosen
+knowingly, after the objection that would have made it expensive was ruled out:
+the promise cache in `app/storage/urls.ts` shares one mint per path, so the
+second copy costs one image decode and zero Puter calls. What is bought with the
+page height is a comparison that announces itself rather than one discovered by
+noticing a hairline. No writes, no worker calls, no schema change, the third
+feature running with no persisted state. Code goes in a new `app/compare/`.
+
+Three things the cross-check caught that no amount of reading the code would
+have, because they live in a dependency. The library's handle root sets
+`outline: 0` **inline** and takes no `className` from us, so the app-wide focus
+ring can never reach it; the indicator moves onto our own grip through
+`[data-rcs="handle-root"]:focus-visible .compare-grip`, the first exception to
+spec 0004's one-ring rule and a forced one. The first draft's "the plan is on
+screen exactly once" was false for two models, one running and one complete
+showing a blurred plan and a large plan together, so the three places are now
+decided together by one `planPlacement` rather than each testing its own
+condition. And the tutorial's `defaultValue={50}` is the v2/v3 prop name; v4
+calls it `defaultPosition` and would have ignored the old one silently, landing
+on the same 50 by coincidence.
+
+- [x] Decide the approach: spec 0009
+- [x] Build it: `/develop` feature 8, the eight tasks of spec 0009's build plan.
+      Code in `app/compare/` (`RenderComparison.tsx`, `CompareHandle.tsx`,
+      `rules.ts`), plus `planPlacement` in `app/render/rules.ts`, the rewired
+      `app/render/ProjectSheet.tsx`, and the comparison block at the end of
+      `app/app.css`
+  - [x] The thread: `app/compare/RenderComparison.tsx` on library defaults,
+        mounted from `ProjectSheet`'s existing `models.map` under its own plate,
+        gated on `complete` **and** a non-null `render.path`. Walk it in a
+        browser before styling anything, satisfies AC-1, AC-2, AC-4, AC-12
+  - [x] The frame and the two fits in `app/app.css`: `.plate-frame` on the slider
+        root, the render covering and the plan contained on ivory so no wall is
+        ever cropped out of the drawing being judged, satisfies AC-3, AC-13
+  - [x] The handle and the labels: our own node passed to `handle`, never the
+        library's circle, plus the heading and the label row in the plate's own
+        idiom. `frontend-design` must actually fire before this one, satisfies
+        AC-6, AC-7
+  - [x] The one-plan rule: `planPlacement` in `app/render/rules.ts` beside
+        `isWorkingView`, replacing `ProjectSheet`'s `working` boolean rather than
+        joining it, plus the both-URLs-or-nothing guard, satisfies AC-5, AC-10,
+        AC-11
+  - [x] Keyboard, focus and motion: the grip indicator, and no `transition`
+        prop. Do not spend time on an outline rule that cannot win, satisfies
+        AC-8, AC-9
+
+- [ ] Verify it: the manual walkthrough in
+      [verify.md](docs/specs/0009-side-by-side-comparison-view/verify.md). Two
+      steps are worth an independent pass and neither is visual: reading
+      `planPlacement` against `["running", "complete"]` by hand, since one model
+      means the two-plan bug cannot be walked, and counting the view-URL mints in
+      the network panel, since a second mint per path is invisible on screen.
+
+No `/test` box, same as every feature here: `CLAUDE.md` rules out a test runner
+and browser automation, so verification is the manual walkthrough.
+
+Two things the build settled that the spec could only guess at.
+
+The grip is the architectural dimension tick, an oblique stroke at 45 degrees,
+drawn twice, in `.plan-mark`'s own weight. That is where `frontend-design`
+landed after ruling out the two obvious answers: a circle is the library's
+default and the thing spec 0009 explicitly refused, and a pair of flat drag
+ridges is a widget from another product. A dimension tick is how a drawing
+terminates a measurement, so the mark that says "take hold of me" is the same
+mark that says "this is a measurement between two pictures". Both the divider
+and the ticks carry bone clearance either side of the clay, which is not
+decoration: a bare one pixel clay hairline sitting on top of an arbitrary render
+is not reliably visible, and the casing is what makes it a line on a sheet in
+every render rather than in most of them.
+
+AC-3 and AC-10 pull against each other and the build had to resolve it. AC-3
+wants the square reserved from the first paint so a slow mint never shifts the
+page; AC-10 says a comparison with a missing URL is not rendered at all. Read
+literally together, a mint that has simply not landed yet would hide the section
+and then grow the page by a full square when it arrives, which is the shift AC-3
+forbids. So the section and its `.plate-frame` mount as soon as the sheet hands
+the plan over, and only the slider inside waits for both URLs; a _failed_ mint
+still takes the whole section away, which is the case AC-10 is actually about.
+
+`react-compare-slider` costs about 9 kB raw and 3 kB gzipped, measured by
+building `project-main` with and without the import: 16.09 kB / 5.88 kB gzipped
+against 6.13 kB / 2.52 kB. That closes the spec's third follow-up.
 
 ## Slice 4: Sharing & export
 

@@ -211,3 +211,32 @@ export const plateView = (
  */
 export const isWorkingView = (view: RenderView): boolean =>
   view === "pending" || view === "running";
+
+/**
+ * The one place the floor plan is allowed to be. Spec 0009, AC-5.
+ *
+ * Where the drawing appears is one decision about the whole sheet, not three
+ * components each testing their own condition. It replaces the sheet's previous
+ * `working` boolean rather than sitting beside it, for exactly the reason
+ * `isWorkingView` exists: two facts that must agree are one fact.
+ *
+ * The order matters and is not arbitrary. With two models, one working and one
+ * complete, three independent checks would put the blurred plan behind the busy
+ * plate AND the sharp plan inside a comparison on screen at the same time. Busy
+ * wins, because that plate has already taken the drawing to make the wait out
+ * of, and a comparison next to a render that is still being redone would be
+ * comparing against something about to be replaced.
+ *
+ *   any view working   -> "busy"        the plate holds the blurred plan,
+ *                                       and NO comparison renders anywhere
+ *   else any complete  -> "comparison"  the comparison holds the plan
+ *   else               -> "key"         failed or stalled only, so the small
+ *                                       key is the only place left
+ */
+export type PlanPlacement = "busy" | "comparison" | "key";
+
+export const planPlacement = (views: readonly RenderView[]): PlanPlacement => {
+  if (views.some(isWorkingView)) return "busy";
+  if (views.includes("complete")) return "comparison";
+  return "key";
+};

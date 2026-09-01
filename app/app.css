@@ -713,3 +713,117 @@ body {
     transition: none;
   }
 }
+
+/*
+ * The before-and-after comparison. Spec 0009.
+ *
+ * A second square beneath the plate, holding the floor plan and the render with
+ * a divider through them. It reuses `.plate-frame` whole rather than declaring a
+ * shape of its own, so the two squares on the sheet are one decision: change
+ * RENDER_ASPECT_RATIO and both follow.
+ *
+ * `react-compare-slider` styles its root, its two item wrappers and its handle
+ * root with inline styles. The root still takes our className, because the
+ * library spreads our props after its own style object, so `.plate-frame` lands
+ * there cleanly. The handle root does NOT, which is what the focus rule at the
+ * bottom of this block is working around.
+ */
+
+/*
+ * The two pictures, fitted differently on purpose.
+ *
+ * The render covers, exactly as it does in the plate above, so the same picture
+ * is the same shape in both places. The plan is CONTAINED, on the frame's own
+ * ivory, because a floor plan is the thing being judged: crop a wall out of the
+ * drawing and the comparison is answering a question about a picture nobody
+ * uploaded.
+ */
+.compare-image {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.compare-plan {
+  object-fit: contain;
+  background-color: var(--color-ivory);
+}
+
+.compare-render {
+  object-fit: cover;
+}
+
+/*
+ * The divider: a clay hairline with bone clearance either side.
+ *
+ * The clearance is load bearing, not decoration. This line sits on top of
+ * whatever render came back, and a bare 1px clay line vanishes against a dark or
+ * busy image. Cased in bone it stays a line drawn on a sheet in every render.
+ *
+ * `pointer-events` is left alone, so the whole handle stays inert and a press on
+ * the divider falls through to the frame, which is what moves it. This is the
+ * one place clay appears outside a button or a link, and it earns it: you
+ * operate it.
+ */
+.compare-divider {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: calc(var(--border-hairline) * 3);
+  border-left: var(--border-hairline) solid var(--color-bone);
+  border-right: var(--border-hairline) solid var(--color-bone);
+  background-color: var(--color-clay);
+}
+
+/*
+ * The grip: the oblique tick a drawing terminates a dimension with, twice.
+ *
+ * Not a circle and not chevrons. Two ticks read as a drawing mark and as a pair
+ * of grip ridges at once, which is exactly what this element is. The stroke
+ * weight is `.plan-mark`'s and `.notice-mark`'s, so it belongs to the same hand
+ * as the rest of the marks in the app.
+ *
+ * `overflow: visible` because the ticks are wider than the hairline they sit on
+ * and would otherwise be clipped to it. The casing is a second copy of each tick
+ * drawn underneath in bone, the same clearance the divider carries.
+ */
+.compare-grip {
+  flex: none;
+  height: 1.5rem;
+  width: 0.75rem;
+  overflow: visible;
+  fill: none;
+  stroke: var(--color-clay);
+  stroke-width: 1.25;
+  stroke-linecap: round;
+}
+
+.compare-grip-casing {
+  stroke: var(--color-bone);
+  stroke-width: 3.5;
+}
+
+/*
+ * State 4 of 6, focus visible, and the one exception to spec 0004's single
+ * treatment. The exception is forced, not chosen.
+ *
+ * `ReactCompareSlider` renders the focusable element itself, sets `outline: 0`
+ * on it inline and unconditionally, and passes it nothing but children, so
+ * neither a className nor a style of ours can reach it and no stylesheet rule
+ * can win without `!important`. On top of that it is the full width and height
+ * of the frame, so a ring on it would outline the entire square rather than mark
+ * the divider. `data-rcs` is the only selector that reaches it.
+ *
+ * So the indicator moves onto our own grip, built from the same two tokens as
+ * the app-wide ring, which is what keeps it reading as one system. Do not spend
+ * an afternoon trying to move it back; spec 0009, AC-8, records why it cannot go
+ * there.
+ */
+[data-rcs="handle-root"]:focus-visible .compare-grip {
+  outline: var(--ring-width) solid var(--color-clay);
+  outline-offset: var(--ring-offset);
+  border-radius: var(--radius);
+  background-color: var(--color-bone);
+}
