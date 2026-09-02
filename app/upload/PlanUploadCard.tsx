@@ -35,7 +35,21 @@ const ACCEPT = ALLOWED_TYPES.join(",");
  * on the internet uses. The heading carries the instruction, so the icon is
  * free to say what the thing is instead of what the control does.
  */
+/*
+ * The mark, inside its badge. The circle is a scoped exception recorded in spec
+ * 0010: it is the one piece of clay in the app that is not something you
+ * operate, and it exists because the drop target has to read as the subject of
+ * the card rather than as a small grey drawing floating in a lot of space.
+ */
 function PlanMark() {
+  return (
+    <span className="plan-badge" aria-hidden="true">
+      <PlanGlyph />
+    </span>
+  );
+}
+
+function PlanGlyph() {
   return (
     <svg
       className="plan-mark"
@@ -210,7 +224,7 @@ export function PlanUploadCard() {
       >
         {phase.kind !== "hosted" && <PlanMark />}
 
-        <h2 id={`${inputId}-heading`} className="mt-4 type-heading text-ink">
+        <h2 id={`${inputId}-heading`} className="mt-6 type-heading text-ink">
           {phase.kind === "hosted"
             ? "Your floor plan"
             : "Drop your floor plan here"}
@@ -227,7 +241,7 @@ export function PlanUploadCard() {
          * The input is positioned rather than `display: none` so it stays in the
          * tab order and keeps its own focus ring, which a hidden input loses.
          */}
-        <label htmlFor={inputId} className="btn-accent mt-6" aria-busy={busy}>
+        <label htmlFor={inputId} className="btn-accent mt-8" aria-busy={busy}>
           {label}
           <input
             id={inputId}

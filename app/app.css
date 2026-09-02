@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Roomify's design system. Spec 0004
+ * AV's design system. Spec 0004
  * (docs/specs/0004-design-system-tokens-and-states/index.md).
  *
  * The palette is decided in scope.md, feature 4: near-monochrome bone and ivory,
@@ -16,6 +16,21 @@
     "Inter", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /*
+   * The display face. Spec 0010.
+   *
+   * Chakra Petch is squared where Inter is humanist, which is the whole reason
+   * it is here: the subject is architectural drawing, and a drawn sheet is set
+   * in a face with straight sides. It carries every role except running prose
+   * and code, so a heading, a button and a date visibly belong to one product.
+   *
+   * Inter leads the fallback stack rather than a generic sans, because it is
+   * already loaded by the same request: if the Chakra Petch faces never arrive,
+   * the app falls back to the face it was set in before this change rather than
+   * to whatever the machine happens to have.
+   */
+  --font-display: "Chakra Petch", "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /*
    * Surfaces and ink. Every colour used as text clears 4.5:1 against BOTH bone
@@ -73,31 +88,50 @@
   --ease-standard: ease;
 
   /*
-   * The six type roles. Deliberately NOT the --text-* namespace: Tailwind v4
+   * The seven type roles. Deliberately NOT the --text-* namespace: Tailwind v4
    * turns any --text-<name> key into a text-<name> utility automatically, which
    * would give every role a second, unblocked name and quietly reopen the closed
    * set. These are plain custom properties, so the only way to reach a role is
    * its type-* utility below.
+   *
+   * Spec 0010 added the family axis and retuned tracking and weight for the new
+   * face. No size moved, and neither did the ladder: Chakra Petch's squared
+   * counters close up under the negative tracking Inter wanted, so the display,
+   * title and heading roles are eased back toward zero, and the two roles
+   * carrying a page take the heavier of the two weights that ship.
    */
-  --type-display-size: 2.5rem;
+  --type-display-size: 3.6rem;
   --type-display-leading: 1.05;
-  --type-display-tracking: -0.03em;
-  --type-display-weight: 500;
+  --type-display-tracking: -0.01em;
+  --type-display-weight: 600;
 
   --type-title-size: 1.5rem;
   --type-title-leading: 1.15;
-  --type-title-tracking: -0.02em;
-  --type-title-weight: 500;
+  --type-title-tracking: -0.005em;
+  --type-title-weight: 600;
 
   --type-heading-size: 1rem;
   --type-heading-leading: 1.4;
-  --type-heading-tracking: -0.01em;
+  --type-heading-tracking: 0;
   --type-heading-weight: 500;
 
   --type-body-size: 0.875rem;
   --type-body-leading: 1.55;
   --type-body-tracking: 0;
   --type-body-weight: 400;
+
+  /*
+   * The control role. Spec 0010.
+   *
+   * The body role's size and line height exactly, so no control changed size
+   * when the face did, but its own weight and tracking: a squared face at
+   * control size wants a hair of positive tracking rather than the body role's
+   * zero, and 600 here would put every button in competition with the headline.
+   */
+  --type-label-size: 0.875rem;
+  --type-label-leading: 1.55;
+  --type-label-tracking: 0.01em;
+  --type-label-weight: 500;
 
   --type-meta-size: 0.75rem;
   --type-meta-leading: 1.4;
@@ -113,8 +147,15 @@
 /*
  * One utility per role, so a role is a single name rather than a stack of
  * utilities a screen has to remember to repeat in the same combination.
+ *
+ * Every role states its own family, the body role included. A role that let the
+ * family inherit would be set in whichever face its container happened to
+ * carry, so a sentence of prose inside a heading block would silently move onto
+ * the display face. --font-display and --font-sans are reachable from here and
+ * from nowhere else: a screen still names a role and nothing more.
  */
 @utility type-display {
+  font-family: var(--font-display);
   font-size: var(--type-display-size);
   line-height: var(--type-display-leading);
   letter-spacing: var(--type-display-tracking);
@@ -122,6 +163,7 @@
 }
 
 @utility type-title {
+  font-family: var(--font-display);
   font-size: var(--type-title-size);
   line-height: var(--type-title-leading);
   letter-spacing: var(--type-title-tracking);
@@ -129,6 +171,7 @@
 }
 
 @utility type-heading {
+  font-family: var(--font-display);
   font-size: var(--type-heading-size);
   line-height: var(--type-heading-leading);
   letter-spacing: var(--type-heading-tracking);
@@ -136,10 +179,26 @@
 }
 
 @utility type-body {
+  font-family: var(--font-sans);
   font-size: var(--type-body-size);
   line-height: var(--type-body-leading);
   letter-spacing: var(--type-body-tracking);
   font-weight: var(--type-body-weight);
+}
+
+/*
+ * The control role. Spec 0010.
+ *
+ * What a button, a navigation link and any other operable label take. It is a
+ * role rather than a size so that the button classes below can stop restating
+ * four metrics each, and so that a screen still names one thing.
+ */
+@utility type-label {
+  font-family: var(--font-display);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-leading);
+  letter-spacing: var(--type-label-tracking);
+  font-weight: var(--type-label-weight);
 }
 
 /*
@@ -149,6 +208,7 @@
  * produced the contrast defect in the first place.
  */
 @utility type-meta {
+  font-family: var(--font-display);
   font-size: var(--type-meta-size);
   line-height: var(--type-meta-leading);
   letter-spacing: var(--type-meta-tracking);
@@ -184,19 +244,27 @@ body {
 }
 
 /*
- * The two controls. Both take their type from the body role rather than
- * restating a size, and both are position: relative so the busy sweep can be an
- * ::after on the control itself. Written as a sibling element it would need JSX
- * at every call site, which is how a state ends up applied in four places and
- * missed in the fifth.
+ * The three controls, and the navigation link. Spec 0010.
+ *
+ * All four take the control role whole rather than restating four metrics each,
+ * which is what makes the face a single decision. `.notice` used to share this
+ * selector and is split out below: a notice is a sentence of prose, not
+ * something you operate, so it keeps the body role and stays on Inter.
+ *
+ * The buttons are position: relative so the busy sweep can be an ::after on the
+ * control itself. Written as a sibling element it would need JSX at every call
+ * site, which is how a state ends up applied in four places and missed in the
+ * fifth.
  */
 .btn-accent,
+.btn-outline,
 .btn-quiet,
-.notice {
-  font-size: var(--type-body-size);
-  line-height: var(--type-body-leading);
-  letter-spacing: var(--type-body-tracking);
-  font-weight: var(--type-body-weight);
+.nav-link {
+  font-family: var(--font-display);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-leading);
+  letter-spacing: var(--type-label-tracking);
+  font-weight: var(--type-label-weight);
 }
 
 /* The call to action. Outlined rather than filled: the accent stays quiet. */
@@ -211,6 +279,32 @@ body {
   background-color: transparent;
   cursor: pointer;
   transition:
+    background-color var(--duration-quick) var(--ease-standard),
+    color var(--duration-quick) var(--ease-standard);
+}
+
+/*
+ * A real button that is not the call to action. Spec 0010.
+ *
+ * `.btn-accent`'s geometry exactly, so the two sit side by side in the navbar
+ * with no visible mismatch. It differs at rest only in which colour its border
+ * and label take: the hairline and ink, never clay, because clay marks the one
+ * thing on a screen you are being pointed at and signing out is not it. Every
+ * other state below is the accent button's, which is what keeps the accent rule
+ * intact: clay still appears only where somebody is interacting.
+ */
+.btn-outline {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border: var(--border-hairline) solid var(--color-hairline);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.9rem;
+  color: var(--color-ink);
+  background-color: transparent;
+  cursor: pointer;
+  transition:
+    border-color var(--duration-quick) var(--ease-standard),
     background-color var(--duration-quick) var(--ease-standard),
     color var(--duration-quick) var(--ease-standard);
 }
@@ -231,7 +325,9 @@ body {
  * State 2 of 6, hover. Excluded while disabled or busy: a control that cannot
  * act must not answer the pointer as though it can.
  */
-.btn-accent:hover:not([disabled], [aria-busy="true"]) {
+.btn-accent:hover:not([disabled], [aria-busy="true"]),
+.btn-outline:hover:not([disabled], [aria-busy="true"]) {
+  border-color: var(--color-clay);
   background-color: var(--color-clay);
   color: var(--color-bone);
 }
@@ -246,8 +342,10 @@ body {
  * press reads instantly rather than easing, which is what makes a quiet button
  * feel crisp under the finger.
  */
-.btn-accent:active:not([disabled], [aria-busy="true"]) {
+.btn-accent:active:not([disabled], [aria-busy="true"]),
+.btn-outline:active:not([disabled], [aria-busy="true"]) {
   transition: none;
+  border-color: var(--color-clay);
   background-color: var(--color-clay);
   color: var(--color-bone);
 }
@@ -263,6 +361,7 @@ body {
  * the control is genuinely inert rather than merely styled as inert.
  */
 .btn-accent[disabled],
+.btn-outline[disabled],
 .btn-quiet[disabled] {
   opacity: 0.55;
   cursor: default;
@@ -278,13 +377,26 @@ body {
  * does not block a click, so every busy control's handler returns early while
  * busy. useSignIn holds that guard for all three sign-in surfaces.
  */
+/*
+ * State 4 of 6, focus visible. The app-wide ring already covers every control,
+ * so the only thing added here is the border taking clay with it: an outline
+ * button whose ring appeared while its hairline stayed grey would read as two
+ * separate marks rather than one control answering.
+ */
+.btn-outline:focus-visible {
+  border-color: var(--color-clay);
+  color: var(--color-clay);
+}
+
 .btn-accent[aria-busy="true"],
+.btn-outline[aria-busy="true"],
 .btn-quiet[aria-busy="true"] {
   color: color-mix(in srgb, var(--color-clay) 55%, transparent);
   cursor: default;
 }
 
 .btn-accent[aria-busy="true"]::after,
+.btn-outline[aria-busy="true"]::after,
 .btn-quiet[aria-busy="true"]::after {
   content: "";
   position: absolute;
@@ -351,12 +463,14 @@ body {
   }
 
   .btn-accent[aria-busy="true"]::after,
+  .btn-outline[aria-busy="true"]::after,
   .btn-quiet[aria-busy="true"]::after {
     animation: none;
     width: 100%;
   }
 
   .btn-accent,
+  .btn-outline,
   .btn-quiet {
     transition: none;
   }
@@ -380,6 +494,11 @@ body {
  * could not complete, so the sentence is the loud part and the mark is not.
  */
 .notice {
+  font-family: var(--font-sans);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-leading);
+  letter-spacing: var(--type-body-tracking);
+  font-weight: var(--type-body-weight);
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
@@ -435,10 +554,27 @@ body {
   border: var(--border-hairline) solid var(--color-hairline);
   border-radius: var(--radius);
   background-color: var(--color-bone);
-  padding: 3rem 1.5rem;
+  padding: 3.5rem 2rem;
   text-align: center;
+  /*
+   * THE ONE SHADOW IN THE APP. A named exception to spec 0004's flat rule,
+   * recorded in spec 0010's `## Named exception` section, and scoped to this
+   * class alone: every other card, plate and surface stays flat, and the ESLint
+   * rule that fails `shadow-md` in a className is unchanged, so the exception
+   * cannot spread by copy and paste.
+   *
+   * It exists because this card is the one thing on the home screen a person is
+   * asked to drop a file onto, and a flat rectangle on a flat page does not read
+   * as a target. Two layers, both derived from ink rather than from a grey of
+   * their own: a tight contact shadow that seats the card on the page, and a
+   * wide soft one that lifts it. No new colour and no glow.
+   */
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent),
+    0 10px 28px -12px color-mix(in srgb, var(--color-ink) 18%, transparent);
   transition:
     border-color var(--duration-quick) var(--ease-standard),
+    box-shadow var(--duration-quick) var(--ease-standard),
     background-color var(--duration-quick) var(--ease-standard);
 }
 
@@ -451,14 +587,54 @@ body {
 .plan-card[data-dragging="true"] {
   border-color: var(--color-clay);
   background-color: var(--color-ivory);
+  /* The lift closes as the file arrives, so the card reads as accepting it. */
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-ink) 5%, transparent);
 }
 
 /*
  * The mark. A room outline with a door swing, not a cloud with an arrow.
- * Roomify's subject is architectural drawing, and the generic upload glyph says
+ * AV's subject is architectural drawing, and the generic upload glyph says
  * nothing about floor plans. Set in soft ink rather than clay: it is an
  * illustration, and clay is only ever for things you interact with.
  */
+/*
+ * The badge behind the mark. Part of the same named exception as the shadow
+ * above, and the one place in the app where clay appears on something you do not
+ * operate.
+ *
+ * A wash rather than the accent itself: clay at 10% over bone, mixed here from
+ * the palette token instead of being pasted in as a second orange, so retuning
+ * the accent retunes this with it. 10% is where ink-soft still clears 4.54:1 on
+ * the resulting ground, which is the TEXT minimum on a surface that only ever
+ * holds an icon; that is deliberate headroom rather than the bar this element
+ * has to clear.
+ */
+.plan-badge {
+  display: grid;
+  place-items: center;
+  height: 4.5rem;
+  width: 4.5rem;
+  border-radius: 50%;
+  background-color: color-mix(
+    in srgb,
+    var(--color-clay) 10%,
+    var(--color-bone)
+  );
+}
+
+/*
+ * The badge sits on bone, so on the ivory the card takes while a file is over it
+ * the wash has to be mixed against ivory instead, or the circle turns into a
+ * pale disc of the wrong tone.
+ */
+.plan-card[data-dragging="true"] .plan-badge {
+  background-color: color-mix(
+    in srgb,
+    var(--color-clay) 10%,
+    var(--color-ivory)
+  );
+}
+
 .plan-mark {
   width: 2.5rem;
   height: 2.5rem;
@@ -502,6 +678,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .plan-card,
+  .plan-badge,
   .plan-progress-bar {
     transition: none;
   }
@@ -665,6 +842,63 @@ body {
 }
 
 /*
+ * The mark. Spec 0010.
+ *
+ * A fixed box rather than a sized image: the box is what determines the
+ * navbar's left edge, so swapping the art inside it is a one file change and
+ * moves nothing else on the screen. Capped in height at the optical height of
+ * the wordmark it replaced, and capped in width so neither the mark nor the
+ * name beside it can push the navigation along. The cap has room to spare: the
+ * mark is 2.06rem at this height, the gap 0.5rem, and `AV` in the control role
+ * about 1.2rem, so a little under 4rem of the 8 is in use.
+ *
+ * `flex: none` because the navbar is a flex row and a shrinking mark is the
+ * one thing that would make the cap a lie.
+ */
+.logo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  height: 1.75rem;
+  width: auto;
+  max-width: 8rem;
+  color: var(--color-ink);
+  text-decoration: none;
+  transition: color var(--duration-quick) var(--ease-standard);
+}
+
+.logo:hover {
+  color: var(--color-clay);
+}
+
+/*
+ * The art itself, painted rather than placed.
+ *
+ * `app/shell/av-mark.png` is the drawn mark cropped to its own edges and reduced
+ * to coverage: every pixel of colour is thrown away in the build step that made
+ * it, and what is left is the shape. This element then paints that shape in
+ * `currentColor`, which is why the mark is ink from the palette rather than the
+ * near-black the drawing arrived in, and why it takes clay on hover along with
+ * the link around it instead of sitting there as a fixed picture.
+ *
+ * The aspect ratio is the cropped file's own, stated here so the box reserves
+ * the right width before the mask has loaded and the navigation beside it never
+ * shifts. `contain` is what guarantees it is never stretched: the mark fits its
+ * box on whichever axis runs out first, at the ratio it was drawn.
+ *
+ * -webkit- first for Safari, which still wants the prefix for the shorthand.
+ */
+.logo-art {
+  display: block;
+  height: 100%;
+  aspect-ratio: 553 / 469;
+  background-color: currentColor;
+  -webkit-mask: url("./shell/av-mark.png") no-repeat center / contain;
+  mask: url("./shell/av-mark.png") no-repeat center / contain;
+}
+
+/*
  * A card. The link IS the card, per AC-5, so the whole thing is one target and
  * there is nothing inside it to aim at separately.
  *
@@ -709,6 +943,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .nav-link,
+  .logo,
   .gallery-card .plate-frame {
     transition: none;
   }

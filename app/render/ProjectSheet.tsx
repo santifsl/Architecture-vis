@@ -82,12 +82,12 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
       </div>
 
       {placement === "key" && (
-        <div className="mt-8">
+        <div className="mt-12">
           <FloorPlanKey project={project} />
         </div>
       )}
 
-      <div className="mt-12 grid gap-8">
+      <div className="mt-16 grid gap-12">
         {plates.map(({ model, render, view }) => (
           <div key={model}>
             <RenderPlate
@@ -118,7 +118,7 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
         ))}
       </div>
 
-      <p className="mt-12 max-w-prose type-body text-ink-soft">
+      <p className="mt-16 max-w-prose type-body text-ink-soft">
         Gemini rendered this directly from your floor plan.
       </p>
     </main>

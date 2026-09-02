@@ -21,7 +21,7 @@ export function SignInPrompt({ what }: { readonly what: string }) {
         Sign in to see {what}
       </h1>
       <p className="mt-2 type-body text-ink-soft">
-        Roomify keeps your floor plans and renders in your own Puter account.
+        AV keeps your floor plans and renders in your own Puter account.
       </p>
       <div className="mt-6">
         <button

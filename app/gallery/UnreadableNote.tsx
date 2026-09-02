@@ -16,8 +16,8 @@ export function UnreadableNote({ count }: { readonly count: number }) {
   return (
     <p className="mt-8 max-w-prose type-meta text-ink-soft">
       {count === 1
-        ? "1 project isn't shown here. It was saved by a newer version of Roomify."
-        : `${String(count)} projects aren't shown here. They were saved by a newer version of Roomify.`}
+        ? "1 project isn't shown here. It was saved by a newer version of AV."
+        : `${String(count)} projects aren't shown here. They were saved by a newer version of AV.`}
     </p>
   );
 }

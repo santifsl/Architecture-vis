@@ -11,7 +11,7 @@ export function BootScreen() {
   return (
     <main className="flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-xs">
-        <h1 className="type-heading text-ink">Roomify</h1>
+        <h1 className="type-heading text-ink">AV</h1>
         <div className="boot-rule mt-4" role="presentation" />
         <p className="mt-3 type-body text-ink" aria-live="polite">
           Checking your session

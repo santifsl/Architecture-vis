@@ -7,9 +7,9 @@
  * allowed to import the SDK.
  */
 import { consumeSessionEnded } from "~/auth/sessionEnded";
-import { readCurrentUser, type RoomifyUser } from "~/platform/puter";
+import { readCurrentUser, type AvUser } from "~/platform/puter";
 
-export type { RoomifyUser };
+export type { AvUser };
 
 /**
  * There is deliberately no `loading` variant. `HydrateFallback` covers the boot
@@ -20,7 +20,7 @@ export type { RoomifyUser };
  */
 export type AuthState =
   | { readonly status: "signedOut"; readonly reason?: "sessionEnded" }
-  | { readonly status: "signedIn"; readonly user: RoomifyUser };
+  | { readonly status: "signedIn"; readonly user: AvUser };
 
 const signedOut: AuthState = { status: "signedOut" };
 const sessionEnded: AuthState = { status: "signedOut", reason: "sessionEnded" };
@@ -44,7 +44,7 @@ export const resolveAuthState = async (): Promise<AuthState> => {
 };
 
 export type RequireUserResult =
-  { readonly ok: true; readonly user: RoomifyUser } | { readonly ok: false };
+  { readonly ok: true; readonly user: AvUser } | { readonly ok: false };
 
 /**
  * The only question a guarded route asks. Spec 0001, AC-7.

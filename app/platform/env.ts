@@ -1,5 +1,5 @@
 /**
- * Roomify's startup configuration. Spec 0001, AC-8.
+ * AV's startup configuration. Spec 0001, AC-8.
  *
  * CLAUDE.md's standing rule: fail fast on a missing environment variable at
  * startup, never silently the first time a render is requested. This module
@@ -12,7 +12,7 @@
  * (build). Both land on the same missing answer.
  */
 
-/** Every variable Roomify requires at startup, in the order a person should fix them. */
+/** Every variable AV requires at startup, in the order a person should fix them. */
 const required = ["VITE_PUTER_WORKER_URL"] as const;
 
 export type RequiredVariable = (typeof required)[number];

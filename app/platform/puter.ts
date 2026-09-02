@@ -28,7 +28,7 @@ import puter from "@heyputer/puter.js";
  * 0002 settled that, because the worker derives an entry's author from the
  * caller's session inside the worker, where the username is what it has.
  */
-export type RoomifyUser = {
+export type AvUser = {
   readonly uuid: string;
   readonly username: string;
 };
@@ -53,13 +53,13 @@ const isNonEmptyString = (value: unknown): value is string =>
   typeof value === "string" && value.length > 0;
 
 /**
- * Narrows whatever the SDK handed back into `RoomifyUser`, or `null`.
+ * Narrows whatever the SDK handed back into `AvUser`, or `null`.
  *
  * The cached-user properties this reads are typed `any` in the package's own
  * declarations, so the value crosses into this app as `unknown` and is proven
  * here rather than asserted.
  */
-export const toRoomifyUser = (value: unknown): RoomifyUser | null => {
+export const toAvUser = (value: unknown): AvUser | null => {
   if (!isRecord(value)) return null;
   const { uuid, username } = value;
   if (!isNonEmptyString(uuid) || !isNonEmptyString(username)) return null;
@@ -90,15 +90,15 @@ const hasStoredToken = (): boolean => isNonEmptyString(puter.authToken);
  * it degrading to signed out rather than crashing. See the spec's Rationale and
  * its Follow-up item on pinning the SDK version.
  */
-export const readCurrentUser = async (): Promise<RoomifyUser | null> => {
+export const readCurrentUser = async (): Promise<AvUser | null> => {
   if (!hasStoredToken()) return null;
 
   try {
     const cached: unknown = await (puter.whoamiCache_ as unknown);
-    const fromCache = toRoomifyUser(cached);
+    const fromCache = toAvUser(cached);
     if (fromCache !== null) return fromCache;
 
-    return toRoomifyUser(puter.whoami as unknown);
+    return toAvUser(puter.whoami as unknown);
   } catch {
     return null;
   }

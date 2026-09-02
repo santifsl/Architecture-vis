@@ -149,11 +149,17 @@ export function ProjectCard({ project }: { readonly project: Project }) {
         view={view}
       />
 
-      <h3 className="gallery-card-name mt-3 type-heading text-ink">
+      {/*
+        The rhythm, spec 0010 AC-14: the name sits tight under its frame and the
+        meta line hangs further below it, so a card reads as one picture with a
+        caption rather than as three evenly spaced lines. The two gaps were the
+        other way round, which is what made a card look like a list.
+      */}
+      <h3 className="gallery-card-name mt-2 type-heading text-ink">
         {project.name}
       </h3>
 
-      <div className="mt-1 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         <PlanChip path={project.floorPlan.path} />
         <span className="type-meta text-ink-soft">
           {formatProjectDate(project.createdAt)}

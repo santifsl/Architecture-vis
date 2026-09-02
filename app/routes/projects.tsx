@@ -3,13 +3,13 @@ import { Link, useRevalidator } from "react-router";
 import type { Route } from "./+types/projects";
 import { RequireUser } from "~/auth/RequireUser";
 import { ProjectGrid } from "~/gallery/ProjectGrid";
-import { GALLERY_PAGE_SIZE } from "~/gallery/rules";
+import { GALLERY_PAGE_SIZE, projectCountLine } from "~/gallery/rules";
 import { UnreadableNote } from "~/gallery/UnreadableNote";
 import { listProjects } from "~/projects/store";
 
 export function meta() {
   return [
-    { title: "Your projects · Roomify" },
+    { title: "Your projects · AV" },
     { name: "description", content: "Your floor plans and their renders." },
   ];
 }
@@ -41,6 +41,28 @@ export async function clientLoader() {
 
 clientLoader.hydrate = true as const;
 
+/**
+ * The masthead. Spec 0010, AC-13.
+ *
+ * The heading is on every branch; the count line and the rule that closes the
+ * block are on the grid branch alone. That is deliberate: a `0 PROJECTS` line
+ * over the empty state would be a second, colder way of saying what the empty
+ * state's own sentence already says, and a count over a failed read would be a
+ * number nobody could stand behind.
+ */
+function Masthead({ count }: { readonly count: number | null }) {
+  const heading = <h1 className="type-display text-ink">Your projects</h1>;
+
+  if (count === null) return heading;
+
+  return (
+    <div className="border-b border-hairline pb-6">
+      {heading}
+      <p className="mt-2 type-meta text-ink-soft">{projectCountLine(count)}</p>
+    </div>
+  );
+}
+
 export default function Projects({ loaderData }: Route.ComponentProps) {
   const revalidator = useRevalidator();
   const retrying = revalidator.state === "loading";
@@ -49,7 +71,13 @@ export default function Projects({ loaderData }: Route.ComponentProps) {
     <RequireUser what="your projects">
       {() => (
         <main className="mx-auto max-w-6xl px-6 py-16">
-          <h1 className="type-display text-ink">Your projects</h1>
+          <Masthead
+            count={
+              loaderData.ok && loaderData.value.projects.length > 0
+                ? loaderData.value.projects.length
+                : null
+            }
+          />
 
           {!loaderData.ok ? (
             <>
@@ -83,8 +111,8 @@ export default function Projects({ loaderData }: Route.ComponentProps) {
           ) : loaderData.value.projects.length === 0 ? (
             <>
               <p className="mt-4 max-w-prose type-body text-ink-soft">
-                Nothing here yet. Upload a floor plan and Roomify will render it
-                in 3D.
+                Nothing here yet. Upload a floor plan and AV will render it in
+                3D.
               </p>
               <Link className="btn-quiet mt-1 inline-block" to="/">
                 Upload a floor plan

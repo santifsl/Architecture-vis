@@ -20,6 +20,21 @@ export const GALLERY_PAGE_SIZE = 12;
 /** How many cards the home strip shows. Spec 0008, AC-11. */
 export const HOME_STRIP_COUNT = 3;
 
+/**
+ * The gallery masthead's count line. Spec 0010, AC-13.
+ *
+ * Counts the READABLE records only, which is the whole sourcing decision here.
+ * `UnreadableNote` already states how many records could not be read, in its own
+ * sentence under the grid, and a count line that included them would give the
+ * same screen two numbers that disagree about how many projects there are.
+ *
+ * Written in sentence case. `type-meta` carries the uppercase, per spec 0004, so
+ * the text stays readable to anything announcing it aloud while the screen shows
+ * `3 PROJECTS`.
+ */
+export const projectCountLine = (count: number): string =>
+  `${String(count)} ${count === 1 ? "project" : "projects"}`;
+
 /** One model's render, with the model it belongs to, as a card needs both. */
 export type CardRender = {
   readonly model: ModelId;
