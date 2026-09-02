@@ -314,9 +314,14 @@ when the reader is signed out, which is what makes them genuinely anonymous.
   record rather than composed in the browser.
 - Worker side constant `PUBLIC_SUBDOMAIN`: the `*.puter.site` subdomain the
   worker writes public copies into. It is not a secret.
-- **Prerequisite, a person has to do this once**: create that subdomain in the
+- ~~**Prerequisite, a person has to do this once**: create that subdomain in the
   app's Puter account with `puter.hosting.create(subdomain, dirPath)` before the
-  publish path can work, and put the name in the worker's constant.
+  publish path can work, and put the name in the worker's constant.~~
+  **Superseded by [0011](../0011-publish-visibility-and-community-feed/index.md),
+  2026-09-02.** There is no manual step: the worker's own `me.puter` exposes
+  `hosting`, so it creates and owns the subdomain itself over its own app
+  relative directory. Only the constant is edited by a person. Proven by the task
+  4 hosting probe, written up in 0011's Follow-up.
 
 **Critical test scenarios** (verify by hand, per CLAUDE.md; no test runner)
 
@@ -466,12 +471,19 @@ nothing.
       undefined path answers `404 Path not found`, and a defined path called
       with the wrong method answers `404 No routes for given request type GET`.
       AC-3 stands.
-- [ ] Verify by hand, with feature 9's task 8 (`POST /publish`), not feature 6:
+- [x] Verify by hand, with feature 9's task 8 (`POST /publish`), not feature 6:
       a worker can read a file through `user.puter.fs` and write it through
       `me.puter.fs`. The publish image copy in task 8 rests on this and it has
       not been proven. Deferred by design rather than skipped: `me.puter` is the
       worker's own app identity, `worker/roomify.js` uses only `user.puter`, and
       so there is no code path to exercise this on until `POST /publish` exists.
+      **Proven on 2026-09-02**, ahead of task 8 rather than with it, by a scratch
+      `/hosting-probe/copy` route: a 46,168 byte JPEG was read through
+      `user.puter.fs`, written through `me.puter.fs`, and fetched back from the
+      public URL byte for byte, JFIF header and EXIF intact. It worked first try
+      with no grant, no copy driver and no intermediate re-encode. The full write
+      up, including the path resolution trap that came with it, is in
+      [0011's Follow-up](../0011-publish-visibility-and-community-feed/index.md#follow-up).
 - [ ] Confirm the chunk size of 50 stays inside the 400 KB value ceiling once a
       real `FeedEntry` exists, and lower it if a real entry is larger than
       estimated.

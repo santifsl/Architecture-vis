@@ -10,7 +10,7 @@ every runtime step looking fine while being wrong.
 
 ## The gate, before anything is built
 
-- [ ] Deploy a scratch route on the worker that writes a handful of
+- [x] Deploy a scratch route on the worker that writes a handful of
       `feed:entry:*` keys through `me.puter.kv.set` **out of order**, then reads
       them back a page at a time:
 
@@ -23,20 +23,20 @@ await me.puter.kv.list({
 });
 ```
 
-- [ ] `me.puter.kv` exposes `set`, `del` and `list` at all. If `me.puter` has no
+- [x] `me.puter.kv` exposes `set`, `del` and `list` at all. If `me.puter` has no
       `kv`, stop: nothing in this spec is buildable and it needs a new decision,
       not a workaround.
-- [ ] Two pages read with the returned `cursor` come back in **key order**, with
+- [x] Two pages read with the returned `cursor` come back in **key order**, with
       no key repeated and none skipped at the seam. This is what makes newest
       first true, **AC-16**.
-- [ ] Delete one key between fetching page one and page two, and see whether an
+- [x] Delete one key between fetching page one and page two, and see whether an
       entry is skipped. That answers whether the cursor is opaque (safe) or
       positional (a card can be skipped by a concurrent unpublish). Record which,
       because `AC-16` has a different meaning in each case.
-- [ ] If key order does not hold, stop and route back to `/architect`. Do not
+- [x] If key order does not hold, stop and route back to `/architect`. Do not
       improvise a sort, because a page assembled in the wrong order cannot be
       fixed by sorting it.
-- [ ] Record the result in `index.md`'s Follow-up either way.
+- [x] Record the result in `index.md`'s Follow-up either way.
 
 ## Before you start the rest
 

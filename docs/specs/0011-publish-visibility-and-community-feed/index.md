@@ -176,7 +176,11 @@ paths make cleanup derivable).
 
 **Store C, the app account's hosted directory.** Unchanged from 0002, with its
 paths now named as a hard invariant rather than a convention:
-`/<projectId>/floor-plan.<ext>` and `/<projectId>/<model>.<ext>`.
+`/<projectId>/floor-plan.<ext>` and `/<projectId>/<model>.<ext>`. **Those paths
+are relative to the app root, not to `/`**, which the task 4 probe established
+the hard way; see Follow-up. The leading slash reads as the root of the served
+subdomain, which is what a public URL sees, and it is written app relative in
+`me.puter.fs`.
 
 **Relationships**: `Project` 1 to 0..1 `FeedEntry`, only while public · `Project`
 1 to many `RenderState`, embedded, currently at most one · `FeedEntry` 1 to many
@@ -313,9 +317,18 @@ Unchanged from 0002 in every respect, with two notes this spec adds.
 
 ### Configuration required
 
-No new client environment variable. The worker side `PUBLIC_SUBDOMAIN` constant
-from 0002 is still required, and creating that subdomain once with
-`puter.hosting.create` is still a prerequisite a person has to do by hand.
+No new client environment variable, and **no manual setup step**. The worker
+side `PUBLIC_SUBDOMAIN` constant from 0002 is still required and is still the one
+thing a person edits.
+
+Both this spec and 0002 said a person had to create that subdomain once by hand
+with `puter.hosting.create` in a browser. **That is now known to be false.** The
+task 4 hosting probe, on 2026-09-02, found `hosting` on the injected `me.puter`,
+created a subdomain from inside the worker over the app's own directory, and
+fetched a worker written file from the resulting public URL with no auth. The
+worker ensures its own subdomain, so nothing here is owed to a person before
+publishing can work. The full evidence is in Follow-up, and 0002's own
+`Configuration required` is superseded on this point.
 
 ### Critical test scenarios
 
@@ -404,8 +417,17 @@ feed and loading for a signed out browser. Tasks 7 to 12 thicken it.
 
 **The thin public thread**
 
-4. Create the hosted subdomain in the app account and add the `PUBLIC_SUBDOMAIN`
-   worker constant. Prerequisite for **AC-4**.
+4. Have the worker ensure its own hosted subdomain, and add the
+   `PUBLIC_SUBDOMAIN` worker constant. **This was written as a manual
+   prerequisite and the task 4 probe proved it does not have to be one**:
+   `me.puter` exposes `hosting`, so the worker creates the subdomain over its own
+   app relative directory itself, and the identity that owns the files is the
+   identity that owns the subdomain over them. So this is code, not a checklist
+   item: on the publish path, ensure the directory exists and, if
+   `hosting.list()` does not already show `PUBLIC_SUBDOMAIN`, create it. `list()`
+   and never `get()`, because a name resolving is not a name you own, per
+   `worker/AGENTS.md`. Idempotent, so it costs one list on a path that is already
+   doing real work. Prerequisite for **AC-4**.
 5. Add `POST /publish` to the worker: re read the record through `user.puter`,
    refuse a record that does not already say `public` or has no complete render,
    copy every store C file to its derived path, **re read the record a second
@@ -545,19 +567,62 @@ warns.
 
 ## Follow-up
 
-- [ ] Task 1's platform check is a hard gate, not a warning. Record all three of
-      its results in this spec when it runs, whichever way they go: the `me.puter`
-      `kv` surface, key ordering across a cursor, and whether the cursor is opaque
-      or positional.
+- [x] Task 1's platform check ran on 2026-09-02, against scratch `/kv-probe/*`
+      routes on the deployed worker, driven by `curl`. All three facts came back
+      the way the index shape needs, so nothing here reopens.
+  - **The `kv` surface is there.** The worker's injected `me.puter.kv` exposes
+    `set`, `del` and `list`, and `list` honours `pattern`, `limit`, `cursor` and
+    `returnValues`. Nothing in this spec is blocked on a missing method.
+  - **Key order holds across a cursor boundary.** Entries were written out of
+    order, then read back a page at a time with the returned cursor. The pages
+    came back in key order with no key repeated and none skipped at the seam, so
+    inverted timestamp keys really do read newest first, **AC-16** as written.
+  - **The cursor is opaque, not positional.** A key on page one was deleted
+    between fetching page one and page two, and page two was unaffected: nothing
+    skipped, nothing shifted. So a concurrent unpublish cannot make the feed
+    drop an unrelated card, and `AC-16`'s positional fallback is not needed.
+  - The scratch routes have been removed and `worker/roomify.js` is byte for byte
+    the file it was before the probe.
 - [ ] The publish and unpublish race is bounded, not closed. If it ever shows up
       in practice, the answer is a lease around the sequence, and that is a
       decision worth its own `/architect` pass rather than an improvised fix.
 - [ ] Confirm a real `FeedEntry` fits comfortably inside the 400 KB value ceiling
       once one exists. It is one entry per key now rather than 50, so this is
       almost certainly fine, and it is still worth one look.
-- [ ] 0002's open follow up stands: prove a worker can read a file through
-      `user.puter.fs` and write it through `me.puter.fs`. Build task 5 is the
-      first code that exercises it.
+- [x] The hosting check for task 4 ran on 2026-09-02, against scratch
+      `/hosting-probe/*` routes on the deployed worker, driven by `curl`. It also
+      closes 0002's open follow up, which is now ticked there. Every fact came
+      back clean and the store C mechanism is confirmed end to end.
+  - **`me.puter` has both `hosting` and `fs`.** So the app identity can create
+    and own a subdomain itself, and task 4's "create the hosted subdomain in the
+    app account" needs no person in a browser and no second account. One identity
+    owns the directory and the subdomain over it.
+  - **The app's root is `~/AppData/<appId>`, and only relative paths reach it.**
+    Every absolute path tried failed; `.` and `""` resolve, landing at
+    `/sanfsl/AppData/app-5f7912a9-…/`. **This cost the probe its first run**: the
+    original `/hosting-probe` asked for a top level entry beside the user home
+    directories and answered `Entry not found` to both `mkdir` and `write`, with
+    `createMissingParents: true` set on both, because that flag creates parents
+    under a root it can resolve and cannot invent the filesystem root. Store C's
+    paths are therefore app relative, and `/<projectId>/floor-plan.<ext>` in the
+    data model means relative to the app root, not to `/`.
+  - **A subdomain created by `me` serves what `me` wrote, publicly and with no
+    auth.** `hosting.create` bound `av-hosting-probe` to the app relative probe
+    directory, and a plain `curl` of the file returned its exact bytes.
+  - **`hosting.list()` confirms ownership; `get()` was never called.** The probe
+    name came back in the list. Ownership is only ever read from `list`, per the
+    `apps.get` lesson in `worker/AGENTS.md`.
+  - **HeyPuter/puter#2295 does not bite this design.** That open issue reports
+    `getReadURL` failing on files under AppData, and store C lives in AppData, so
+    it was the live risk going in. Hosting serves those files regardless: the
+    public fetch is a different path from `getReadURL`, and the publish design
+    never needs the latter.
+  - **The cross identity copy works, first try.** A 46,168 byte JPEG read through
+    `user.puter.fs` and written through `me.puter.fs` came back byte for byte
+    from its public URL, JFIF header and EXIF intact. No grant, no copy driver,
+    no re-encode. This is 0002's follow up and the whole of build task 5.
+  - The scratch routes have been removed and `worker/roomify.js` is byte for byte
+    the file it was before the probe.
 - [ ] 0002's six open problem checkboxes should be ticked with a pointer here
       rather than left open, and its `Locking`, `Write order on publish`, store B
       table, and staleness row should carry an amendment footnote pointing at this

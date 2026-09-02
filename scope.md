@@ -1261,7 +1261,7 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
 
 - [x] Decide the approach: spec 0011
 - [ ] Build it: /develop feature 9
-  - [ ] Prove the platform facts, land schema 3, and move the write queue behind
+  - [x] Prove the platform facts, land schema 3, and move the write queue behind
         `app/projects/store.ts` (AC-16, AC-19, AC-20, AC-21). The platform check
         is a hard gate and blocks everything below it
     - [x] Schema 3 (spec task 2): `revision` on `Project`, `publishedRevision`
@@ -1294,11 +1294,27 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
           `me.puter.kv` exposes what the index needs, and a listed page holds
           key order across a cursor boundary. The scratch block has been
           removed from `worker/roomify.js`, which is byte for byte the file it
-          was before. The exact cursor result, opaque or positional, still owes
-          a line in spec 0011's Follow-up. Unblocks AC-16
+          was before. The cursor is **opaque**, not positional: a key deleted
+          from page one left page two unaffected, so `AC-16`'s positional
+          fallback is not needed. All three results are recorded in spec 0011's
+          Follow-up. Unblocks AC-16
   - [ ] The thin public thread: the hosted subdomain, `POST /publish`, the client
         publish action, and `GET /feed` reaching a signed out browser (AC-3,
         AC-4, AC-6 to AC-8, AC-11 to AC-13, AC-15 to AC-18, AC-22)
+    - [x] A second platform gate before spec task 4, the same scratch shape as
+          the kv probe: `/hosting-probe/*` routes in `worker/roomify.js`, now
+          removed. Every fact came back clean. `me.puter` has both `hosting` and
+          `fs`, so the app identity creates and owns the subdomain itself and no
+          person in a browser is needed. The app root is `~/AppData/<appId>` and
+          **only relative paths reach it**, which cost the probe its first run
+          and which store C's paths now have to respect. A subdomain created by
+          `me` serves what `me` wrote, publicly and with no auth, so
+          HeyPuter/puter#2295 does not bite this design. Ownership was read from
+          `hosting.list()` only, never `get()`. And the cross identity copy, a
+          46,168 byte JPEG read as the caller and written as the app, came back
+          byte for byte from its public URL first try, which closes 0002's open
+          follow up as well. Written up in 0011's Follow-up. Unblocks AC-6 to
+          AC-8, AC-11
   - [ ] Withdrawal and the single public project page (AC-5, AC-9, AC-18)
   - [ ] The owner's controls and the states: the visibility toggle and its
         confirm, the out of date state, the automatic republish, the empty feed,
