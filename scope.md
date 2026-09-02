@@ -1264,6 +1264,34 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
   - [ ] Prove the platform facts, land schema 3, and move the write queue behind
         `app/projects/store.ts` (AC-16, AC-19, AC-20, AC-21). The platform check
         is a hard gate and blocks everything below it
+    - [x] Schema 3 (spec task 2): `revision` on `Project`, `publishedRevision`
+          on `PublicAssets` and `FeedEntry`, and `parseProject` reading a stored
+          version 2 record as version 3 with `revision` of `0` and
+          `publicAssets` cleared. `feedPageKey` and `FEED_META_KEY` are deleted
+          with the chunked index they belonged to. **The spec's task 2 was
+          incomplete and the build corrected it**: `checkVisibility` demanded
+          that `publishedAt` and `publicAssets` were set exactly when a project
+          was public, which no intent first publish can ever satisfy, and which
+          would have refused the upgrade's own output on the next write. It now
+          allows the two transient states the sequence really has, public with
+          no assets yet (uncommitted) and private with assets not yet withdrawn,
+          and keeps the direction that could mislead: public implies stamped,
+          and assets imply stamped. Satisfies AC-21, part of AC-19
+    - [x] The serial queue (spec task 3): `createSerialQueue` now sits in
+          `app/projects/store.ts` around `updateProject` and `deleteProject`,
+          and is gone from `app/render/useProjectRenders.ts`. `updateProject`
+          bumps `revision` only when `name` or `renders` is among the changes.
+          **A second correction to the plan**: "delete the queue, leave guard 3
+          in place" is not possible as written, because guard 3 is a read
+          followed by a write and the render hook's queue was what held the two
+          together. `updateProject` now also accepts a function of the stored
+          record returning changes, or `null` to abandon, so the check and the
+          write happen inside one turn of the store's own queue. Guard 3 is
+          strictly more correct than it was, and there is still one door.
+          Satisfies AC-20, AC-19, part of AC-13 and AC-17
+    - [ ] Prove the platform facts (spec task 1). Scratch `/kv-probe/*` routes
+          are appended to `worker/roomify.js`, marked for deletion, and waiting
+          on a deploy and a `curl` run by hand
   - [ ] The thin public thread: the hosted subdomain, `POST /publish`, the client
         publish action, and `GET /feed` reaching a signed out browser (AC-3,
         AC-4, AC-6 to AC-8, AC-11 to AC-13, AC-15 to AC-18, AC-22)

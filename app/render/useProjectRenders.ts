@@ -18,7 +18,12 @@
  *      abandoned when the stored `startedAt` has moved on. A compare and swap
  *      in the client, and the thing that makes a late answer from a timed-out
  *      attempt harmless: a retry stamps a new `startedAt`, so the old attempt's
- *      write finds a value that is not its own and drops it.
+ *      write finds a value that is not its own and drops it. The comparison is
+ *      handed to `updateProject` as a function rather than done here, so the
+ *      read it checks and the write it decides happen in the same turn of the
+ *      store's queue with nothing able to land between them. Spec 0011 moved
+ *      that queue into `app/projects/store.ts`; this hook used to own one, and
+ *      a guarantee only the render feature had is now one every writer gets.
  *   4. A leased claim in `app/render/claim.ts`, taken on `puter.kv.incr`, which
  *      is atomic on the server. This is the only one that reaches past this
  *      tab, and it is the one that stops two tabs both paying for the same
@@ -33,15 +38,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import {
-  createKeyedSingleFlight,
-  createSerialQueue,
-} from "~/auth/singleFlight";
-import {
-  readProject,
-  updateProject,
-  type StoreFailure,
-} from "~/projects/store";
+import { createKeyedSingleFlight } from "~/auth/singleFlight";
+import { updateProject, type StoreFailure } from "~/projects/store";
 import type { ModelId, Project, RenderState } from "~/projects/record";
 import type { RenderFailure } from "~/render/failures";
 import { claimRender, releaseRender } from "~/render/claim";
@@ -57,7 +55,6 @@ import { readAbsolutePath, requestRender } from "~/render/store";
  * start the same render.
  */
 const startOne = createKeyedSingleFlight();
-const writesFor = createSerialQueue();
 
 /** What the page renders per model. Everything here is read, never guessed at. */
 export type ProjectRenders = {
@@ -93,22 +90,17 @@ const commitRender = async (
   model: ModelId,
   startedAt: number,
   change: Partial<RenderState>,
-): Promise<Project | null> =>
-  writesFor(project.id, async () => {
-    const current = await readProject(project.id);
-    if (!current.ok) return null;
-
-    const stored = current.value.renders[model];
+): Promise<Project | null> => {
+  const written = await updateProject(project.id, (current) => {
+    const stored = current.renders[model];
     // Guard 3. The attempt that wrote this `startedAt` is the only one allowed
     // to finish it. Anything else is a superseded attempt answering late, and
     // its answer is dropped rather than written over the retry that replaced it.
     if (stored === undefined || stored.startedAt !== startedAt) return null;
-
-    const written = await updateProject(project.id, {
-      renders: { [model]: { ...stored, ...change } },
-    });
-    return written.ok ? written.value : null;
+    return { renders: { [model]: { ...stored, ...change } } };
   });
+  return written.ok ? written.value : null;
+};
 
 export const useProjectRenders = (loaded: Project): ProjectRenders => {
   const [project, setProject] = useState(loaded);
@@ -280,25 +272,35 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
       if (render === undefined) return;
 
       if (render.status === "failed") {
-        void writesFor(project.id, async () => {
-          const written = await updateProject(project.id, {
-            renders: {
-              [model]: {
-                ...render,
-                status: "pending",
-                errorCode: null,
-                startedAt: null,
-                finishedAt: null,
+        void (async () => {
+          const written = await updateProject(project.id, (current) => {
+            // Read from the record rather than from this component's copy of
+            // it. A render that finished, or was retried elsewhere, between the
+            // press and this turn of the queue is not a failed render any more,
+            // and sending it back to `pending` would throw away the result.
+            const stored = current.renders[model];
+            if (stored === undefined || stored.status !== "failed") return null;
+
+            return {
+              renders: {
+                [model]: {
+                  ...stored,
+                  status: "pending",
+                  errorCode: null,
+                  startedAt: null,
+                  finishedAt: null,
+                },
               },
-            },
+            };
           });
+
           if (written.ok) {
             note(model, null);
             absorb(written.value);
-          } else {
+          } else if (written.failure !== "superseded") {
             note(model, writeFailure(written.failure));
           }
-        });
+        })();
         return;
       }
 
@@ -324,20 +326,16 @@ const commitRenderStart = async (
   project: Project,
   model: ModelId,
   startedAt: number,
-): Promise<StartResult> =>
-  writesFor(project.id, async () => {
-    const current = await readProject(project.id);
-    if (!current.ok)
-      return { kind: "blocked", failure: writeFailure(current.failure) };
-
-    const stored = current.value.renders[model];
-    if (stored === undefined) return { kind: "refused" };
+): Promise<StartResult> => {
+  const written = await updateProject(project.id, (current) => {
+    const stored = current.renders[model];
+    if (stored === undefined) return null;
     // Someone else got here first: another tab, or a start that landed while
     // this one was waiting its turn in the queue. Not a failure, and not
     // something to tell anyone about.
-    if (!mayStartRender(stored)) return { kind: "refused" };
+    if (!mayStartRender(stored)) return null;
 
-    const written = await updateProject(project.id, {
+    return {
       renders: {
         [model]: {
           ...stored,
@@ -347,11 +345,17 @@ const commitRenderStart = async (
           finishedAt: null,
         },
       },
-    });
-    return written.ok
-      ? { kind: "started", project: written.value }
-      : { kind: "blocked", failure: writeFailure(written.failure) };
+    };
   });
+
+  if (written.ok) return { kind: "started", project: written.value };
+  // `superseded` is the store's word for the check above having said no, which
+  // is a refusal rather than anything that went wrong. Every other failure is a
+  // store that could not be written, which someone does need told about.
+  return written.failure === "superseded"
+    ? { kind: "refused" }
+    : { kind: "blocked", failure: writeFailure(written.failure) };
+};
 
 /** Records a failed render, with the code that explains it. */
 const finish = (

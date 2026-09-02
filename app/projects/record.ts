@@ -24,9 +24,24 @@
  * longer understands and is refused on read by `parseProject`. That is the
  * intended outcome, not a regression: a version 1 project simply stops
  * appearing rather than being half read.
+ *
+ * Version 3 is spec 0011: `revision` on the project and `publishedRevision` on
+ * its public assets, which is what turns "the public copy is out of date" into
+ * a comparison of two integers instead of two clocks. Unlike the last bump this
+ * one is READ TOLERANTLY: a stored version 2 record is upgraded on read rather
+ * than refused, because nothing about it is unreadable, it is only missing a
+ * counter whose starting value is known. See `parseProject`.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 export type SchemaVersion = typeof SCHEMA_VERSION;
+
+/**
+ * The one older version `parseProject` still understands.
+ *
+ * Named rather than inlined so the tolerant branch is greppable, and so the day
+ * a version 4 arrives it is obvious that this is the thing to think about.
+ */
+export const UPGRADABLE_SCHEMA_VERSION = 2;
 
 /**
  * The models a project can request. Spec 0002's `ModelId`, as spec 0007 left
@@ -142,6 +157,12 @@ export type Visibility = "private" | "public";
 export type PublicAssets = {
   readonly floorPlanUrl: string;
   readonly renderUrls: Readonly<Partial<Record<ModelId, string>>>;
+  /**
+   * The project's `revision` at the moment the worker built the live public
+   * copy. Spec 0011: the owner's view is out of date exactly when this differs
+   * from `Project.revision`, which is why neither side reads a clock.
+   */
+  readonly publishedRevision: number;
 };
 
 /**
@@ -166,9 +187,29 @@ export type Project = {
   readonly models: readonly ModelId[];
   readonly renders: Readonly<Partial<Record<ModelId, RenderState>>>;
   readonly visibility: Visibility;
-  /** Epoch milliseconds. Non-null exactly while `visibility` is `public`. */
+  /**
+   * Epoch milliseconds, written once by the client at the moment it decides to
+   * publish, and never rewritten. Spec 0011: it is the feed's sort position and
+   * the date a card shows, never one side of a comparison, which is what makes
+   * the client's own clock an acceptable source for it. A republish leaves it
+   * alone, so a renamed project keeps its place in the feed.
+   *
+   * Non-null whenever the project is public. It can also outlive the project
+   * being public, for the moment between an unpublish writing `visibility` and
+   * the worker confirming, because the worker needs it to derive the key it is
+   * deleting. See `checkVisibility` in `invariants.ts`.
+   */
   readonly publishedAt: number | null;
   readonly publicAssets: PublicAssets | null;
+  /**
+   * How many CONTENT changes this project has had. Spec 0011.
+   *
+   * Content means `name` or `renders`, and nothing else: a `visibility`,
+   * `publishedAt` or `publicAssets` write must leave this alone, or committing
+   * a publish would immediately invalidate the publish it just committed.
+   * `updateProject` is the only thing that moves it, and it never goes down.
+   */
+  readonly revision: number;
   readonly createdAt: number;
   readonly updatedAt: number;
 };
@@ -192,14 +233,18 @@ export type FeedEntry = {
   readonly renderUrls: Readonly<Partial<Record<ModelId, string>>>;
   readonly floorPlanUrl: string;
   readonly publishedAt: number;
+  /** The owner's `revision` this entry was built from, so a republish can be told from a stale answer. */
+  readonly publishedRevision: number;
 };
 
 /*
  * Ids.
  *
  * A project id sorts by creation time on its own, which is what lets the
- * gallery order by id and lets a feed chunk stay in a meaningful order without
- * a second sort key. The time half is a base36 millisecond timestamp padded to
+ * gallery order by id with no second sort field. The feed does not use it: it
+ * orders by an inverted `publishedAt` instead, because the order that matters
+ * there is when something was shared, not when it was made. The time half is a
+ * base36 millisecond timestamp padded to
  * a fixed width: without the padding, the string comparison that gives the free
  * ordering would break the day the timestamp needs one more character. Nine
  * characters carries the scheme well past any horizon worth planning for.
@@ -248,10 +293,8 @@ export const newProjectId = (now: number = Date.now()): string =>
 /*
  * Keys.
  *
- * Store A holds one key shape. Store B's `feed:lock` and `feed:cleanup:<id>`
- * are deliberately absent: they are internal to the worker's publish sequence,
- * they carry logic rather than just a name, and they land with feature 9's
- * tasks 4 to 11 alongside the code that uses them.
+ * Store A holds one key shape. Store B holds two, and only one of them is named
+ * here; see `feedWhereKey` for why the other is not.
  */
 
 export const PROJECT_KEY_PREFIX = "project:";
@@ -262,27 +305,20 @@ export const projectKey = (id: string): string => `${PROJECT_KEY_PREFIX}${id}`;
 /** Store A: the prefix the personal gallery lists against. AC-1. */
 export const PROJECT_LIST_PATTERN = `${PROJECT_KEY_PREFIX}*`;
 
-const FEED_CHUNK_DIGITS = 4;
-const MAX_FEED_CHUNK = 10 ** FEED_CHUNK_DIGITS - 1;
-
 /**
- * Store B: one chunk of the feed index, zero-padded so chunks sort in order.
+ * Store B: which key holds a project's entry.
  *
- * Throws on a chunk number the padding cannot represent, because a silently
- * truncated key would read and write the wrong chunk rather than fail.
+ * The value is the entry's sort key. This pointer is the ONLY way the anonymous
+ * single project route can find an entry: that route holds a project id and no
+ * session, and `puter.kv`'s `pattern` is prefix only, so no scan can find a key
+ * whose project id sits at the end of it.
+ *
+ * Spec 0011 deleted the three keys that used to sit here. `feed:page:<nnnn>`
+ * went with the chunked index, `feed:meta` went because the cursor is the whole
+ * of `hasMore` and no screen shows a total, and `feed:lock` went because no key
+ * in store B is ever read and then written back. The entry key itself is
+ * derived inside the worker, which cannot import this file, and so is not
+ * mirrored here where it could drift out of step unnoticed.
  */
-export const feedPageKey = (chunk: number): string => {
-  if (!Number.isInteger(chunk) || chunk < 0 || chunk > MAX_FEED_CHUNK) {
-    throw new RangeError(
-      `Feed chunk must be an integer between 0 and ${MAX_FEED_CHUNK}.`,
-    );
-  }
-  return `feed:page:${String(chunk).padStart(FEED_CHUNK_DIGITS, "0")}`;
-};
-
-/** Store B: which chunk holds a project's entry, so an update needs no scan. */
 export const feedWhereKey = (projectId: string): string =>
   `feed:where:${projectId}`;
-
-/** Store B: the one read that tells the feed route where to start. */
-export const FEED_META_KEY = "feed:meta";

@@ -15,6 +15,7 @@
  * Puter is reached only through `withPuter` from `app/platform/puter.ts`, the
  * one module allowed to import the SDK.
  */
+import { createSerialQueue } from "~/auth/singleFlight";
 import { PuterGateError, withPuter } from "~/platform/puter";
 import {
   checkProject,
@@ -33,6 +34,30 @@ import {
   type Project,
 } from "~/projects/record";
 
+/**
+ * Every write to one project, run one at a time. Spec 0011, AC-20.
+ *
+ * Module scope, not per caller, because the point is that two callers who know
+ * nothing about each other still take their turn: a render finishing while a
+ * rename is in flight, two renders finishing together, a publish and an
+ * unpublish of the same project. `updateProject` is a read, modify, write
+ * against a store with no compare and swap, so two of those interleaving means
+ * the second writes from a copy read before the first landed and the first
+ * change is silently lost.
+ *
+ * This queue used to live in `app/render/useProjectRenders.ts`, which made it a
+ * guarantee the render feature had and every other feature had to remember to
+ * ask for. It is here now so the next feature that writes a project inherits it
+ * instead, which is the single writer rule actually holding rather than being
+ * documented.
+ *
+ * Honest about its limit, same as the store it protects: this serialises one
+ * tab, not two. Across tabs, the render loop's `startedAt` stamp and the
+ * publish path's `publishedRevision` compare do the same job differently, by
+ * discarding a stale write rather than preventing it.
+ */
+const writesFor = createSerialQueue();
+
 /** Why a store call did not do what was asked. Internal; the sentence is what a person sees. */
 export type StoreFailure =
   | "signedOut"
@@ -40,6 +65,7 @@ export type StoreFailure =
   | "notFound"
   | "unreadable"
   | "invalid"
+  | "superseded"
   | "stillPublic"
   | "unsafeToDelete"
   | "tooLarge";
@@ -64,6 +90,8 @@ const MESSAGES: Readonly<Record<StoreFailure, string>> = {
     "That project was saved by a newer version of AV and cannot be opened here.",
   invalid:
     "That change could not be saved because it would leave the project in an impossible state.",
+  superseded:
+    "That change was already replaced by a newer one, so it was not saved.",
   stillPublic:
     "Make this project private first, so its public copies come down with it.",
   unsafeToDelete:
@@ -166,6 +194,9 @@ export const createProject = async (
     visibility: "private",
     publishedAt: null,
     publicAssets: null,
+    // A project that has never been changed has had no content changes. Every
+    // later increment is relative to this, and nothing resets it.
+    revision: 0,
     createdAt: now,
     updatedAt: now,
   });
@@ -254,12 +285,43 @@ export type ProjectChanges = Partial<
 >;
 
 /**
- * Reads a project, applies changes to it, and writes it back.
+ * What a caller may ask for: a plain set of changes, or a function that decides
+ * them from the record as it actually stands.
+ *
+ * The function form is what keeps a compare and swap honest. A caller that
+ * needs to check something before writing (the render loop asking "is this
+ * still my attempt?", the publish path asking "is this response still the
+ * newest?") would otherwise have to read first and then call `updateProject`,
+ * which reads again, and another write can land between the two. Deciding
+ * inside the queued turn closes that gap without giving anyone a second door
+ * into the store. Returning `null` abandons the write.
+ */
+export type ProjectChangeMaker = (current: Project) => ProjectChanges | null;
+
+/**
+ * A change to `name` or `renders` is a change to what the project IS, so it
+ * moves `revision`. A change to `visibility`, `publishedAt` or `publicAssets`
+ * is a change to how it is shared, so it must not.
+ *
+ * Spec 0011 leans on this hard, and the reason is worth keeping next to the
+ * code: `publicAssets.publishedRevision` records the revision a publish was
+ * built from, and freshness is those two integers differing. If committing a
+ * publish bumped the counter, every publish would invalidate itself the instant
+ * it succeeded and every public project would read as permanently out of date.
+ */
+const isContentChange = (changes: ProjectChanges): boolean =>
+  changes.name !== undefined || changes.renders !== undefined;
+
+/**
+ * Reads a project, applies changes to it, and writes it back, one write per
+ * project at a time.
  *
  * Read-modify-write rather than a blind write, so a caller only has to say what
  * changed, and so the render state machine can be enforced: a change is checked
  * against the statuses actually stored, not against whatever the caller thought
- * they were.
+ * they were. The whole read, decide, write sequence runs inside `writesFor`, so
+ * two callers in this tab take turns rather than reading the same copy and
+ * overwriting each other (AC-20).
  *
  * `renders` merges per model rather than replacing the map. Its type is a
  * partial record, so `{ renders: { gemini } }` is a legal thing to write, and a
@@ -269,33 +331,33 @@ export type ProjectChanges = Partial<
  * refusal for a change that was never wrong. One model's progress leaving the
  * others alone is what merging makes true here, and it stays right whether the
  * map holds one entry or several.
- *
- * This is not safe against two writers at once, and nothing in the store makes
- * it so. It does not need to be: this store is scoped to one person and one
- * app, and every path that writes it is driven by that person acting. The
- * concurrency that does matter, two people publishing at the same moment, is
- * store B's problem and is answered by the worker's lock in feature 9.
  */
 export const updateProject = async (
   id: string,
-  changes: ProjectChanges,
-): Promise<StoreResult<Project>> => {
-  const current = await readProject(id);
-  if (!current.ok) return current;
+  changes: ProjectChanges | ProjectChangeMaker,
+): Promise<StoreResult<Project>> =>
+  writesFor(id, async () => {
+    const current = await readProject(id);
+    if (!current.ok) return current;
 
-  const illegal = illegalTransitions(current.value, changes.renders);
-  if (illegal.length > 0) return fail<Project>("invalid", illegal);
+    const resolved =
+      typeof changes === "function" ? changes(current.value) : changes;
+    if (resolved === null) return fail<Project>("superseded");
 
-  return putProject({
-    ...current.value,
-    ...changes,
-    ...(changes.name === undefined ? {} : { name: changes.name.trim() }),
-    ...(changes.renders === undefined
-      ? {}
-      : { renders: { ...current.value.renders, ...changes.renders } }),
-    updatedAt: Date.now(),
+    const illegal = illegalTransitions(current.value, resolved.renders);
+    if (illegal.length > 0) return fail<Project>("invalid", illegal);
+
+    return putProject({
+      ...current.value,
+      ...resolved,
+      ...(resolved.name === undefined ? {} : { name: resolved.name.trim() }),
+      ...(resolved.renders === undefined
+        ? {}
+        : { renders: { ...current.value.renders, ...resolved.renders } }),
+      revision: current.value.revision + (isContentChange(resolved) ? 1 : 0),
+      updatedAt: Date.now(),
+    });
   });
-};
 
 /**
  * Which of the proposed render statuses are not reachable from where the stored
@@ -344,35 +406,36 @@ const illegalTransitions = (
  * two refusals carry different sentences on purpose: one asks for an unpublish,
  * the other reports a record that needs looking at.
  */
-export const deleteProject = async (id: string): Promise<StoreResult<true>> => {
-  const current = await readProject(id);
+export const deleteProject = async (id: string): Promise<StoreResult<true>> =>
+  writesFor(id, async () => {
+    const current = await readProject(id);
 
-  if (!current.ok) {
-    return current.failure === "unreadable"
-      ? fail<true>("unsafeToDelete", [
-          {
-            rule: "delete.unreadable",
-            detail:
-              "The stored record does not parse, so its visibility is unknown and deleting it could strand a feed entry and its hosted copies.",
-          },
-        ])
-      : current;
-  }
+    if (!current.ok) {
+      return current.failure === "unreadable"
+        ? fail<true>("unsafeToDelete", [
+            {
+              rule: "delete.unreadable",
+              detail:
+                "The stored record does not parse, so its visibility is unknown and deleting it could strand a feed entry and its hosted copies.",
+            },
+          ])
+        : current;
+    }
 
-  if (current.value.visibility === "public") {
-    return fail<true>("stillPublic", [
-      {
-        rule: "delete.public",
-        detail:
-          "A public project has to be made private before it can be deleted, so its public copies go too.",
-      },
-    ]);
-  }
+    if (current.value.visibility === "public") {
+      return fail<true>("stillPublic", [
+        {
+          rule: "delete.public",
+          detail:
+            "A public project has to be made private before it can be deleted, so its public copies go too.",
+        },
+      ]);
+    }
 
-  try {
-    await withPuter((sdk) => sdk.kv.del(projectKey(id)));
-    return succeed(true as const);
-  } catch (error: unknown) {
-    return toFailure<true>(error);
-  }
-};
+    try {
+      await withPuter((sdk) => sdk.kv.del(projectKey(id)));
+      return succeed(true as const);
+    } catch (error: unknown) {
+      return toFailure<true>(error);
+    }
+  });
