@@ -1289,9 +1289,13 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
           write happen inside one turn of the store's own queue. Guard 3 is
           strictly more correct than it was, and there is still one door.
           Satisfies AC-20, AC-19, part of AC-13 and AC-17
-    - [ ] Prove the platform facts (spec task 1). Scratch `/kv-probe/*` routes
-          are appended to `worker/roomify.js`, marked for deletion, and waiting
-          on a deploy and a `curl` run by hand
+    - [x] Prove the platform facts (spec task 1). Scratch `/kv-probe/*` routes
+          were deployed and run by hand, and all three facts came back clean:
+          `me.puter.kv` exposes what the index needs, and a listed page holds
+          key order across a cursor boundary. The scratch block has been
+          removed from `worker/roomify.js`, which is byte for byte the file it
+          was before. The exact cursor result, opaque or positional, still owes
+          a line in spec 0011's Follow-up. Unblocks AC-16
   - [ ] The thin public thread: the hosted subdomain, `POST /publish`, the client
         publish action, and `GET /feed` reaching a signed out browser (AC-3,
         AC-4, AC-6 to AC-8, AC-11 to AC-13, AC-15 to AC-18, AC-22)
