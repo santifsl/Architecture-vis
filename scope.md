@@ -81,7 +81,7 @@ cheap decision to make now.
 | 6   | Create a project & generate the 3D render      | Slice 1    | in-progress |
 | 7   | App shell & project gallery                    | Slice 2    | in-progress |
 | 8   | Side-by-side comparison view                   | Slice 3    | in-progress |
-| 9   | Public/private visibility & the community feed | Slice 4    | not started |
+| 9   | Public/private visibility & the community feed | Slice 4    | in-progress |
 | 10  | Export                                         | Slice 4    | not started |
 | 11  | The AV mark, a display typeface & real buttons | Slice 5    | in-progress |
 
@@ -1236,7 +1236,7 @@ against 6.13 kB / 2.52 kB. That closes the spec's third follow-up.
 
 ## Slice 4: Sharing & export
 
-### 9. Public/private visibility & the community feed
+### 9. Public/private visibility & the community feed · in-progress
 
 A project owner can flip a project public or private at any time. Public
 projects show up in a global community feed anyone can browse, without
@@ -1245,22 +1245,33 @@ Only creating a project and toggling its visibility need sign-in. The
 owner's own view is identical to what anyone else sees, plus the ability to
 actually edit or regenerate.
 
-**Spec: [0002](docs/specs/0002-project-records-and-public-feed-index/index.md).**
-The approach is already decided there, alongside feature 3's record shape, since
-the two could not be settled apart: an anonymous visitor holds no credential, so
-the feed is served by the worker out of a store only the worker can write, and
-public images are copied into one app owned `*.puter.site` directory. What is
-left here is the public half of that spec's build plan, **tasks 4 to 11**, which
-the feature 3 pass deliberately left untouched because they have nothing to run
-against until a real worker is deployed: the hosted subdomain and its worker
-constant, the two anonymous `GET` routes, the fenced lock helper, `POST /publish`
-and `POST /unpublish`, the republish-on-mutation path with its "public copy is
-out of date" state, and the two public SPA routes. AC-3 to AC-10 and AC-12 are
-verified here too, for the same reason.
+**Specs: [0011](docs/specs/0011-publish-visibility-and-community-feed/index.md),
+which amends [0002](docs/specs/0002-project-records-and-public-feed-index/index.md).**
+0002 decided the three store model alongside feature 3's record shape, since the
+two could not be settled apart: an anonymous visitor holds no credential, so the
+feed is served by the worker out of a store only the worker can write, and public
+images are copied into one app owned `*.puter.site` directory. That stands. A
+review of 0002 then found six open design problems, all in this half, and 0011 is
+the pass that answers them. It replaces four things 0002 designed, the chunked
+index, the fenced lock, the publish write order, and the staleness rule, with a
+flat cursor paginated index that needs no lock, an intent first publish, and a
+revision counter that compares no clocks. 0011 also owns this feature's build
+plan; 0002's tasks 4 to 11 are superseded by it. AC-3 to AC-14 come from 0002 and
+AC-15 to AC-25 from 0011, and all of them are verified here.
 
-- [x] Decide the approach
-- [ ] Build it: tasks 4 to 11 of spec 0002's build plan
-- [ ] Verify it: AC-3 to AC-10 and AC-12, deferred here from feature 3
+- [x] Decide the approach: spec 0011
+- [ ] Build it: /develop feature 9
+  - [ ] Prove the platform facts, land schema 3, and move the write queue behind
+        `app/projects/store.ts` (AC-16, AC-19, AC-20, AC-21). The platform check
+        is a hard gate and blocks everything below it
+  - [ ] The thin public thread: the hosted subdomain, `POST /publish`, the client
+        publish action, and `GET /feed` reaching a signed out browser (AC-3,
+        AC-4, AC-6 to AC-8, AC-11 to AC-13, AC-15 to AC-18, AC-22)
+  - [ ] Withdrawal and the single public project page (AC-5, AC-9, AC-18)
+  - [ ] The owner's controls and the states: the visibility toggle and its
+        confirm, the out of date state, the automatic republish, the empty feed,
+        and the not public page (AC-10, AC-19, AC-22 to AC-25)
+- [ ] Verify it: /check verify feature 9, AC-3 to AC-25
 
 ### 10. Export
 

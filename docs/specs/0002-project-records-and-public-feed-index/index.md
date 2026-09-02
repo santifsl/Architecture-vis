@@ -10,8 +10,21 @@ longer carries the `prompt` field spec 0006 added. The record's per-model shape,
 deliberately unchanged and still keyed by `ModelId`, now a union of one. This is
 the third correction to this spec, after 0005 on `FloorPlan.url` and 0006 on
 `checkProject` requiring a `url`.
-The public half, feature 9, has six open design problems found in review; see
-_Open problems raised in review_ under Follow-up. It is not accepted yet.
+The public half, feature 9, had six open design problems found in review. It is
+not accepted yet.
+
+**Amended 2026-09-02 by [0011](../0011-publish-visibility-and-community-feed/index.md),
+which answers all six.** Four things below are superseded and 0011 is right about
+them, not this file: the chunked `feed:page:<nnnn>` index and its `feed:where`,
+`feed:meta`, `feed:lock` and `feed:cleanup` keys, replaced by one entry key plus
+a pointer key · the fenced lock in _Locking_, which cannot be built as written
+and is now not needed at all · the _Write order on publish_, replaced by an
+intent first order where the client writes `visibility` before the worker is
+called · the staleness row in _Value sourcing_, which compared two different
+clocks and is replaced by a `revision` integer. `SCHEMA_VERSION` becomes `3`.
+Build plan tasks 4 to 11 are superseded by 0011's own build plan. Everything else
+here, the record shape, the security model, and `AC-1` to `AC-14`, is unchanged
+and still governs.
 
 The decision history (context, what was weighed, the reasoning, and everything
 that was actually verified against the SDK and live hosts) lives beside this
@@ -476,11 +489,15 @@ nothing.
 
 A review of this spec found six things wrong with the publish design. All six
 sit in the public half, feature 9, which is not built, so none of them is a bug
-in shipped code today. None is answered here on purpose: each is a real design
-fork, and this project decides those with `/architect`, not in passing. **Feature
-9 does not start until these are settled.**
+in shipped code today. None was answered here on purpose: each is a real design
+fork, and this project decides those with `/architect`, not in passing.
 
-- [ ] **The fenced lock cannot be built as written.** _Locking_ above has a
+**All six are settled by [0011](../0011-publish-visibility-and-community-feed/index.md),
+2026-09-02.** They are ticked below and the problem statements are kept as written,
+because the reasoning that found them is worth keeping. Each carries the answer in
+one line; the design is in 0011.
+
+- [x] **The fenced lock cannot be built as written.** _Locking_ above has a
       publisher `kv.set` the lock "only when the key is absent or its
       `expiresAt` has passed", and delete it "only when the token still
       matches". Both are read-then-write. The pinned SDK's `puter.kv` has no
@@ -493,27 +510,31 @@ fork, and this project decides those with `/architect`, not in passing. **Featur
       on a primitive that actually exists, most likely `incr`, which this spec
       dismissed as "a counter, not a mutex" without noticing it is the only
       atomic thing on offer.
-- [ ] **Publication commits through the client, which may never come back.**
+      **Answered in 0011:** there is no lock. A flat index makes every store B write a whole key `set` or `del`, so nothing is read and written back and there is nothing for a lock to protect.
+- [x] **Publication commits through the client, which may never come back.**
       `PublicAssets` is "written by the client from the publish response", so if
       the browser closes, or the store A write fails, after the worker committed
       store B and C, the project is live in the feed while its own record still
       reads private. That contradicts AC-13. Needs a compensating commit
       protocol across the three stores, one that does not treat the client's
       response handler as the authority.
-- [ ] **A failed publish leaks publicly readable images.** _Write order on
+      **Answered in 0011:** the client writes `visibility` before calling the worker, so the record is a durable statement of intent and every crash leaves the repairable direction, visible to its owner as out of date.
+- [x] **A failed publish leaks publicly readable images.** _Write order on
       publish_ copies every store C file first and abandons on any failure.
       Abandoning leaves those copies live at a guessable `*.puter.site` URL with
       no feed entry and no record pointing at them, which AC-13 forbids. Either
       stage them somewhere not publicly readable, or track every copied path
       durably and delete all of them whenever the lock, the feed writes, or the
       worker aborts. `feed:cleanup:<projectId>` covers unpublish, not this.
-- [ ] **Republishing breaks newest-first ordering.** An entry updated in place
+      **Answered in 0011:** store C paths are a pure function of the project id, so the next publish overwrites them and unpublish derives and deletes them. No manifest, and nothing orphaned.
+- [x] **Republishing breaks newest-first ordering.** An entry updated in place
       keeps its old chunk while `publishedAt` becomes the worker's clock at the
       moment of the rewrite, so a freshly republished project sits at an old
       position with a new timestamp. Either keep the original `publishedAt` on
       an in-place update, or splice the entry out of its old chunk, reinsert it
       into the newest one, and update `feed:where:<projectId>`.
-- [ ] **The staleness check compares two different clocks.** The owner's project
+      **Answered in 0011:** `publishedAt` is written once, at first publish, and is the entry's key. A republish rewrites contents at the same key and cannot move.
+- [x] **The staleness check compares two different clocks.** The owner's project
       view derives "the public copy is out of date" from
       `updatedAt > publishedAt`, but `updatedAt` is the browser's clock and
       `publishedAt` is the worker's. A slow browser clock hides a genuinely
@@ -521,7 +542,8 @@ fork, and this project decides those with `/architect`, not in passing. **Featur
       one shows a fresh copy as permanently stale. This wants one shared,
       server issued revision or mutation number that both the owner store update
       and the publish write and compare.
-- [ ] **`updateProject` is not safe against two renders finishing at once.**
+      **Answered in 0011:** a `revision` integer on the record, counting content changes only, compared against the revision the feed entry was built from. No clock on either side.
+- [x] **`updateProject` is not safe against two renders finishing at once.**
       The code says so deliberately, reasoning that the store is one person's
       and every write is driven by that person acting. Feature 6 breaks that
       reasoning: it fires both models at once, so two completions land in the
@@ -531,6 +553,7 @@ fork, and this project decides those with `/architect`, not in passing. **Featur
       narrows the window but does not close it. With no compare-and-swap in the
       SDK, the buildable answer is probably serializing writes per project in
       the client, but that is feature 6's decision to make and take.
+      **Answered in 0011:** the per project serial queue that already exists in `app/render/` moves behind `app/projects/store.ts`, so every write in the app goes through one door rather than the render feature's own.
 
 ---
 
