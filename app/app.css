@@ -1013,31 +1013,42 @@ body {
 }
 
 /*
- * The grip: the oblique tick a drawing terminates a dimension with, twice.
+ * The grip: a disc, a ring and a double arrow.
  *
- * Not a circle and not chevrons. Two ticks read as a drawing mark and as a pair
- * of grip ridges at once, which is exactly what this element is. The stroke
- * weight is `.plan-mark`'s and `.notice-mark`'s, so it belongs to the same hand
- * as the rest of the marks in the app.
+ * This is the shape spec 0009 refused, and its AC-7 is amended rather than
+ * quietly broken: two versions of the drawing mark, the dimension ticks and then
+ * the ticks with a shaft and arrowheads, both turned out too quiet to read as
+ * draggable in use. What is still true of that refusal is the part about the
+ * library: this is our own node, one flat disc in two palette colours, and none
+ * of `ReactCompareSliderHandle`'s 3.5rem circle, backdrop blur or two drop
+ * shadows is anywhere near it.
  *
- * `overflow: visible` because the ticks are wider than the hairline they sit on
- * and would otherwise be clipped to it. The casing is a second copy of each tick
- * drawn underneath in bone, the same clearance the divider carries.
+ * The disc is opaque bone, which is what retired `.compare-grip-casing`. Every
+ * earlier version drew each stroke twice, a bone copy under a clay one, because
+ * a 1.25 clay hairline on a dark render is not reliably visible. A filled disc
+ * says the same thing once: the ring and the arrow sit on bone whatever is
+ * underneath, and clay on bone is measured at 5.26:1 by `check-contrast.mjs` on
+ * every run.
+ *
+ * 40px against the library's 3.5rem, and the box is 1:1 with its own viewBox, so
+ * the 1.25 stroke is 1.25px on screen: the same hand as `.plan-mark` and
+ * `.notice-mark`, which is the one thing every version of this mark has kept.
  */
 .compare-grip {
   flex: none;
-  height: 1.5rem;
-  width: 0.75rem;
+  height: 2.5rem;
+  width: 2.5rem;
   overflow: visible;
   fill: none;
   stroke: var(--color-clay);
   stroke-width: 1.25;
   stroke-linecap: round;
+  /* The arrowheads are corners, and a mitred point at this weight reads sharp. */
+  stroke-linejoin: round;
 }
 
-.compare-grip-casing {
-  stroke: var(--color-bone);
-  stroke-width: 3.5;
+.compare-grip-disc {
+  fill: var(--color-bone);
 }
 
 /*
@@ -1059,6 +1070,11 @@ body {
 [data-rcs="handle-root"]:focus-visible .compare-grip {
   outline: var(--ring-width) solid var(--color-clay);
   outline-offset: var(--ring-offset);
-  border-radius: var(--radius);
-  background-color: var(--color-bone);
+  /*
+   * A round ring around a round mark. This is the one place `--radius` is not
+   * what draws the corner, because the thing being outlined is a disc and a 2px
+   * square around it would read as a second, competing shape. The background is
+   * gone with it: the disc is opaque, so there is nothing left to fill in.
+   */
+  border-radius: 50%;
 }

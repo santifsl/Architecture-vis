@@ -76,6 +76,20 @@ contain` on the ivory surface, so the whole drawing is always visible and is
   `.notice-mark`. No circle, no drop shadow, no chevrons. Every value comes from
   a token declared in `app/app.css`; no inline `style` object and no raw value in
   any `className`, so `eslint.config.js` passes without an exception.
+  _Amended 2026-09-02, during feature 11's build, in two steps, and the second
+  reverses this criterion rather than narrowing it. First the two ticks were too
+  quiet to read as draggable on a busy render, so a shaft and an arrowhead were
+  added either side of them. That was still judged too subtle in use, so the
+  mark is now the plain icon this criterion refused: a 40px bone disc with a clay
+  ring and a clay double arrow across it. **"No circle" no longer holds**, and
+  the drawing vernacular is gone from this one element. What still holds is
+  everything about the library: this remains our own node, one flat disc in two
+  palette colours, with none of `ReactCompareSliderHandle`'s 3.5rem circle,
+  backdrop blur or two drop shadows, and no drop shadow of its own. The opaque
+  disc also retired `.compare-grip-casing`: the ring and the arrow now sit on
+  bone whatever render is underneath, which is what the doubled strokes existed
+  to fake. The focus indicator stays on our grip and is now a round ring, the one
+  place `--radius` does not draw the corner._
 - **AC-8**: The handle root takes keyboard focus and moves the divider 5% per
   arrow key press, and focusing it puts a visible clay indicator **on our own
   grip**, drawn by `[data-rcs="handle-root"]:focus-visible .compare-grip` in

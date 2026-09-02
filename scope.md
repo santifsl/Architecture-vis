@@ -1201,7 +1201,16 @@ and browser automation, so verification is the manual walkthrough.
 Two things the build settled that the spec could only guess at.
 
 The grip is the architectural dimension tick, an oblique stroke at 45 degrees,
-drawn twice, in `.plan-mark`'s own weight. That is where `frontend-design`
+drawn twice, in `.plan-mark`'s own weight. That is no longer what ships, and the
+reversal is worth keeping visible rather than editing away. Feature 11's build
+first added a shaft and two arrowheads either side of the ticks, because the
+ticks alone were too quiet to read as draggable on a busy render; that was still
+too subtle in use, so the mark is now the plain icon spec 0009 refused, a bone
+disc with a clay ring and a double arrow. The drawing vernacular lost the one
+element that carried it, in exchange for a mark nobody has to learn. Still our
+own node and still flat, with none of the library handle's blur or shadows, and
+the opaque disc retired the doubled bone casing every earlier version needed.
+Recorded as an amendment on spec 0009's AC-7. That is where `frontend-design`
 landed after ruling out the two obvious answers: a circle is the library's
 default and the thing spec 0009 explicitly refused, and a pair of flat drag
 ridges is a widget from another product. A dimension tick is how a drawing
