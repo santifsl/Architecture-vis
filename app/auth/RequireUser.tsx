@@ -9,7 +9,7 @@
 import type { ReactNode } from "react";
 
 import { SignInPrompt } from "~/auth/SignInPrompt";
-import { requireUser, type RoomifyUser } from "~/auth/state";
+import { requireUser, type AvUser } from "~/auth/state";
 import { useAuthState } from "~/auth/useAuthState";
 
 export function RequireUser({
@@ -18,7 +18,7 @@ export function RequireUser({
 }: {
   /** What the person is signing in to see, finishing "Sign in to see …". */
   readonly what: string;
-  readonly children: (user: RoomifyUser) => ReactNode;
+  readonly children: (user: AvUser) => ReactNode;
 }) {
   const state = useAuthState();
   const result = requireUser(state);

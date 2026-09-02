@@ -26,9 +26,18 @@ export const links: Route.LinksFunction = () => [
     href: "https://fonts.gstatic.com",
     crossOrigin: "anonymous",
   },
+  /*
+   * One request, two families. Spec 0010, AC-4.
+   *
+   * Chakra Petch at 500 and 600 only, roman only: those are the two weights the
+   * type roles actually name, and asking for the italics or the other three
+   * would be bytes nothing on any screen can reach. Inter's axes are unchanged.
+   * `display=swap` keeps the text visible while both are in flight, so a slow
+   * font is a face that changes rather than a page that is blank.
+   */
   {
     rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    href: "https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
   },
 ];
 

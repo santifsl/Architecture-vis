@@ -48,6 +48,13 @@ import { init, getAuthToken } from "@heyputer/puter.js/src/init.cjs";
  * surfaced as `conflict` on create and then `forbidden` ("This is not your
  * worker") on the delete that tried to clear it. Prefixing with the project
  * makes a collision unlikely. The SDK lowercases whatever is put here.
+ *
+ * DO NOT FINISH THE RENAME HERE. Spec 0010 renamed the product to AV across
+ * `app/` and deliberately stopped at this file: this name is a held reservation
+ * in a global namespace, not a product name. Renaming it produces a different
+ * `.puter.work` URL, needs a redeploy from a verified account, and leaves
+ * `VITE_PUTER_WORKER_URL` in the Vercel project pointing at nothing. The same
+ * goes for `REMOTE_PATH` below and for `worker/roomify.js`.
  */
 const WORKER_NAME = "architecture-vis-roomify";
 /** Where the source is kept inside Puter storage, so a redeploy overwrites it. */

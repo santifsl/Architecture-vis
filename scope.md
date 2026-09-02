@@ -83,6 +83,7 @@ cheap decision to make now.
 | 8   | Side-by-side comparison view                   | Slice 3    | in-progress |
 | 9   | Public/private visibility & the community feed | Slice 4    | not started |
 | 10  | Export                                         | Slice 4    | not started |
+| 11  | The AV mark, a display typeface & real buttons | Slice 5    | in-progress |
 
 ## Foundation
 
@@ -1200,7 +1201,16 @@ and browser automation, so verification is the manual walkthrough.
 Two things the build settled that the spec could only guess at.
 
 The grip is the architectural dimension tick, an oblique stroke at 45 degrees,
-drawn twice, in `.plan-mark`'s own weight. That is where `frontend-design`
+drawn twice, in `.plan-mark`'s own weight. That is no longer what ships, and the
+reversal is worth keeping visible rather than editing away. Feature 11's build
+first added a shaft and two arrowheads either side of the ticks, because the
+ticks alone were too quiet to read as draggable on a busy render; that was still
+too subtle in use, so the mark is now the plain icon spec 0009 refused, a bone
+disc with a clay ring and a double arrow. The drawing vernacular lost the one
+element that carried it, in exchange for a mark nobody has to learn. Still our
+own node and still flat, with none of the library handle's blur or shadows, and
+the opaque disc retired the doubled bone casing every earlier version needed.
+Recorded as an amendment on spec 0009's AC-7. That is where `frontend-design`
 landed after ruling out the two obvious answers: a circle is the library's
 default and the thing spec 0009 explicitly refused, and a pair of flat drag
 ridges is a widget from another product. A dimension tick is how a drawing
@@ -1261,6 +1271,129 @@ render already has a permanent public URL from feature 5's storage approach.
 - [ ] Decide the approach
 - [ ] Build it
 
+## Slice 5: Identity & polish
+
+### 11. The AV mark, a display typeface & real buttons · in-progress
+
+The four screens that exist all work and none of them looks like anybody
+designed it. The typeface is whatever came with the template, the brand in the
+navbar is the literal word `Roomify` in a heading role, signing in is a real
+button while signing out is a piece of text, and the hero copy is a first draft
+that names a different product than the new copy does. This feature settles all
+of that at once: a drawn AV mark, Chakra Petch on everything except running
+prose, the new hero copy, a bordered button variant so sign out and sign in are
+the same kind of thing, and tighter spacing across the navbar, home, gallery and
+project page.
+
+Deliberately not in it: pricing, a community navigation item, or anything else
+from the marketing-site direction. Those are revisited once feature 9 actually
+exists. Nothing about spec 0004's look changes either, same six colours, same
+single accent, still flat with no shadow, no gradient and no pill.
+
+**Done when:** every screen is set in the new typeface through the token layer,
+the navbar carries the mark and two real buttons, the hero shows the new copy,
+and `npm run verify` plus a browser walk both pass with the flat system intact.
+
+**Spec: [0010](docs/specs/0010-visual-refresh-mark-type-buttons/index.md).**
+The decision was where the change is allowed to live. Feature 4's ESLint rules
+make a `className` incapable of carrying a family, a size, a weight or tracking,
+so a typeface can only enter through the token layer, which rules out styling
+the screens directly and makes a second parallel visual layer pure cost. So
+spec 0004 is amended in place: a seventh type role, `type-label`, which is what
+buttons and navigation links take so running prose can stay on Inter while every
+other piece of text moves to Chakra Petch; a third button variant, `.btn-outline`,
+bordered and set in ink so sign out reads as a button without pointing the
+product's one accent at its least important action; and a family axis on the
+roles. Sizes and the spacing ladder do not move, only tracking and weight, retuned
+for a squared face. The rename to AV is a presentation rename only: the Puter
+worker and app identity stay `architecture-vis-roomify`, because app and worker
+names are global across all of Puter and that one is a reservation this project
+holds. A cross check on a second model closed seven gaps before the spec was
+accepted, including the hero copy being required verbatim by an acceptance
+criterion that never quoted it.
+
+- [x] Design it (spec)
+- [x] Build it: /develop feature 11
+  - [x] The shared layer: `--font-display` and the Chakra Petch request, the
+        `type-label` role, the family and the retuned tracking and weight on the
+        five display roles, `.btn-outline` with all six states, the shared
+        metrics selector split so `.notice` keeps the body role, and the ESLint
+        messages moved from six roles to seven, covers AC-4 to AC-8 and AC-17
+  - [x] The navbar: the `Logo` component and its fixed box with the letter
+        placeholder, the landmark relabelled, `Sign in with Puter` on
+        `.btn-accent` and `Sign out` on `.btn-outline`, centre alignment and the
+        padding step, covers AC-3, AC-9, AC-10, AC-12
+  - [x] The rename across `app/`: prose, the three document titles, the meta
+        description and the two identifiers, with the deploy script and worker
+        deliberately untouched and commented to say why, covers AC-1, AC-2
+  - [x] The screens: the new hero copy and its measures, the gallery masthead
+        with its count line and the card rhythm, and the project page by type
+        and spacing only, covers AC-11, AC-13, AC-14, AC-15
+- [ ] Verify it: /check verify feature 11
+
+Same as features 1, 3 and 4, there is no `/test` box: `CLAUDE.md` rules out a
+test runner and browser automation, so verification is the manual walkthrough.
+
+Code: `app/app.css` (the type layer, `.btn-outline`, `.logo`), a new
+`app/shell/Logo.tsx`, `app/shell/Navbar.tsx`, `app/auth/AuthControl.tsx`,
+`app/routes/*`, `app/gallery/rules.ts` and `ProjectCard.tsx`, plus
+`eslint.config.js` and the rename across `app/`.
+
+Four things the build settled that the spec could not.
+
+The family axis reopened the closed set from a direction spec 0004 had already
+seen coming. Tailwind v4 turns every `--font-*` theme key into a `font-<name>`
+utility automatically, which is exactly the trap the type roles dodged by
+staying out of the `--text-*` namespace, and a family cannot dodge it: `--font-*`
+is where Tailwind reads a stack from. So `--font-display` shipped with a tenth
+design rule beside it, closing `font-sans`, `font-mono` and `font-display` in a
+`className`.
+
+AC-17's own test scenario was false before this feature touched anything. It
+asks for a planted `shadow-md` to fail lint, and it did not: the shadow guard
+only ever caught a shadow carrying a colour (`shadow-[#000]`, `shadow-red-500`),
+so the plain form every shadow actually arrives in went straight through. Two
+rules closed it, shadow and gradient, and the planted violation of each kind now
+fails. That was spec 0004's hole, inherited, not one this feature opened.
+
+The navigation links had to give up `type-meta`. With `.nav-link` carrying the
+control role from an unlayered rule, a `type-*` role on the same element is half
+overridden and half not, which is a mongrel rather than a role. So the navbar's
+`Projects` link and the home strip's `See all` moved off tracked caps and onto
+the label role, sentence case. AC-6 asks for exactly this; it is worth writing
+down because it changes two visible pieces of text no acceptance criterion
+quotes.
+
+Then three amendments, at the engineer's direction, after the first build
+landed. All three are written up properly in spec 0010's `## Amendments`, with
+the reasoning in its `rationale.md`; the short version is here.
+
+The mark shipped. It arrived as `assets/AV_logo_nobackground.png`, a transparent
+raster rather than the vector the spec assumed, so it is cropped to its own edges
+and painted as a CSS mask in `currentColor` rather than placed as an image: the
+mark is ink from the palette, it takes clay on hover, and no near-black of its
+own enters the navbar. `assets/` is the source art and is neither served nor
+imported; the shipped derivative is `app/shell/av-mark.png`.
+
+The home hero is centred, block and text, and it is the only screen in the app
+that is. Left anchored inside a centred column it left the right half of a wide
+display empty. The recent strip below it, the gallery masthead and the project
+sheet all keep the left edge.
+
+The navbar sticks to the top of the viewport, on `bg-bone` so the page cannot
+scroll through it, and the mark now has the wordmark `AV` beside it in
+`type-label`: a drawn monogram for a product nobody knows yet is a shape before
+it is two letters. The wordmark is also the link's accessible name now, so the
+`aria-label` is gone.
+
+`.plan-card` is a named exception to the flat rule and to the accent rule: a two
+layer shadow mixed from ink, and a circular badge behind the upload mark filled
+with clay at 10% over the surface tone. It is the one thing in the app a person
+is asked to drop a file onto, and flat it read as an empty box. Scoped to two
+class names in `app/app.css`, with the ESLint rule that fails `shadow-md` in a
+`className` deliberately left in place, so a second card wanting a shadow has to
+come back and argue for it.
+
 ## Not doing right now
 
 Kept here so the plan stays honest about what's deliberately left out.
@@ -1282,6 +1415,11 @@ Kept here so the plan stays honest about what's deliberately left out.
   the cheapest, `updateProject` already takes it. Delete is the one with a real
   open question: whether the hosted floor plan and render files in Puter storage
   go with the record or are left orphaned. That is its own decision, from spec 0008.
+- The marketing-site navigation direction: a `Pricing` item, a `Community`
+  item, or anything else that turns the navbar into a site menu. Ruled out of
+  feature 11 explicitly rather than forgotten. A `Community` item in particular
+  should not exist before the thing it links to does, which is feature 9. Worth
+  revisiting once that ships.
 - Privacy policy and terms pages.
 - Analytics or session-replay tooling. Nobody's asked for this yet.
 - Dark mode. Declined in spec 0004 rather than left as an unexamined gap. The

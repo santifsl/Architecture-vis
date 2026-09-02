@@ -1,5 +1,5 @@
 /**
- * What Roomify renders when a required environment variable is unset.
+ * What AV renders when a required environment variable is unset.
  * Spec 0001, AC-8.
  *
  * It replaces the app rather than sitting inside it, because with no worker URL
@@ -31,7 +31,7 @@ export function ConfigScreen({
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-16">
       <div className="w-full max-w-md">
-        <h1 className="type-heading text-ink">Roomify</h1>
+        <h1 className="type-heading text-ink">AV</h1>
         <div className="mt-4 border-t border-hairline" role="presentation" />
 
         <p className="notice" role="status">
@@ -45,10 +45,10 @@ export function ConfigScreen({
             <path d="M8 4.75v4" />
             <path d="M8 11.1v.4" />
           </svg>
-          Roomify can&rsquo;t start.{" "}
-          {plural ? "These settings are" : "This setting is"} missing, and
-          Roomify needs {plural ? "them" : "it"} to reach the Puter worker that
-          renders your floor plans.
+          AV can&rsquo;t start.{" "}
+          {plural ? "These settings are" : "This setting is"} missing, and AV
+          needs {plural ? "them" : "it"} to reach the Puter worker that renders
+          your floor plans.
         </p>
 
         <ul className="mt-4 space-y-1">

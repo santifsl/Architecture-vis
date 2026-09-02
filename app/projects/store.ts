@@ -61,7 +61,7 @@ const MESSAGES: Readonly<Record<StoreFailure, string>> = {
     "Your projects could not be reached just now. Check your connection and try again.",
   notFound: "That project is no longer here. It may have been deleted.",
   unreadable:
-    "That project was saved by a newer version of Roomify and cannot be opened here.",
+    "That project was saved by a newer version of AV and cannot be opened here.",
   invalid:
     "That change could not be saved because it would leave the project in an impossible state.",
   stillPublic:

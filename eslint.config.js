@@ -124,23 +124,50 @@ const DESIGN_SYSTEM_RULES = [
   ),
   design(
     `(?:^|\\s)(?:${COLOUR_PREFIX})-(?:${FAMILIES})(?:$|[\\s-])`,
-    "Roomify has six colours and no stock Tailwind families. There is no status colour, ever: no red, no green, no amber. Use text-ink, text-ink-soft, text-clay, bg-bone, bg-ivory or border-hairline.",
+    "AV has six colours and no stock Tailwind families. There is no status colour, ever: no red, no green, no amber. Use text-ink, text-ink-soft, text-clay, bg-bone, bg-ivory or border-hairline.",
   ),
   design(
     "(?:^|\\s)text-(?:xs|sm|base|lg|[0-9]?xl)(?:$|\\s)",
-    "Type comes from a role, never a stock size. Use type-display, type-title, type-heading, type-body, type-meta or type-code, each of which carries size, line height, weight, tracking and case together.",
+    "Type comes from a role, never a stock size. Use type-display, type-title, type-heading, type-label, type-body, type-meta or type-code, each of which carries family, size, line height, weight, tracking and case together.",
   ),
   design(
     "(?:^|\\s)font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black)(?:$|\\s)",
-    "A weight belongs to a type role, not to a screen. Use one of the six type-* roles.",
+    "A weight belongs to a type role, not to a screen. Use one of the seven type-* roles.",
+  ),
+  /*
+   * The family axis, added with the display face in spec 0010. Tailwind turns
+   * every --font-* theme key into a font-<name> utility automatically, so
+   * font-sans, font-mono and font-display all exist whether or not anybody
+   * wanted them to. That is the same hole the type roles avoided by staying out
+   * of the --text-* namespace, and a family cannot avoid it: --font-* is where
+   * Tailwind reads a font stack from. So it is closed here instead.
+   */
+  design(
+    "(?:^|\\s)font-(?:sans|mono|display)(?:$|\\s)",
+    "A family belongs to a type role, not to a screen. Use one of the seven type-* roles: type-display, type-title, type-heading and type-label carry the display face, type-body carries Inter, type-code the mono stack.",
   ),
   design(
     "(?:^|\\s)(?:tracking|leading)-",
-    "Tracking and line height belong to a type role, not to a screen. Use one of the six type-* roles.",
+    "Tracking and line height belong to a type role, not to a screen. Use one of the seven type-* roles.",
   ),
   design(
     "(?:^|\\s)(?:text|font|tracking|leading)-\\[",
-    "An arbitrary type value sits outside the closed set of six roles. Use a type-* role, or change the role's value in app/app.css and in spec 0004.",
+    "An arbitrary type value sits outside the closed set of seven roles. Use a type-* role, or change the role's value in app/app.css and in spec 0004 as amended by spec 0010.",
+  ),
+  /*
+   * Shadow and gradient. Spec 0004 ruled both out of the look and spec 0010
+   * kept them out, but until 0010 the rules only caught them carrying a colour:
+   * `shadow-[#000]` and `shadow-red-500` failed while a plain `shadow-md` went
+   * straight through, which is the shape a shadow actually arrives in. The
+   * `rounded` rule below already closes the pill.
+   */
+  design(
+    "(?:^|\\s)(?:shadow|drop-shadow|inset-shadow)(?:$|[\\s-])",
+    "The look is flat: no drop shadow, no glow, ever. Depth here is a hairline border and a surface tone, per spec 0004.",
+  ),
+  design(
+    "(?:^|\\s)bg-(?:gradient|linear|radial|conic)(?:$|[\\s-])",
+    "No gradient. A surface is bone or ivory, flat, per spec 0004.",
   ),
   design(
     "(?:^|\\s)rounded(?:$|[\\s-])",

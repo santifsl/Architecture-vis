@@ -10,10 +10,14 @@ import { PlanUploadCard } from "~/upload/PlanUploadCard";
 
 export function meta() {
   return [
-    { title: "Roomify" },
+    { title: "AV" },
     {
+      // The subhead's first sentence, not a third piece of copy. The tab, the
+      // search result and the page itself then say the same thing. Spec 0010,
+      // AC-11: change the hero and this follows it.
       name: "description",
-      content: "Turn a 2D floor plan into a photorealistic 3D render.",
+      content:
+        "AV is an AI-first design environment that turns any 2D floor plan into a photorealistic 3D render, seen straight from above, with your walls exactly where you drew them.",
     },
   ];
 }
@@ -61,7 +65,7 @@ function RecentProjects({
     <section className="mt-24 border-t border-hairline pt-8">
       <div className="flex items-baseline justify-between gap-4">
         <h2 className="type-heading text-ink">Recent projects</h2>
-        <Link className="nav-link type-meta text-ink-soft" to="/projects">
+        <Link className="nav-link text-ink-soft" to="/projects">
           See all
         </Link>
       </div>
@@ -93,23 +97,30 @@ function RecentProjects({
  * that swapped it for a prompt would unmount it and silently throw that file
  * away.
  *
- * Everything is set against one left edge rather than centred column by column:
- * the hero reads at prose width, the card at the width it was designed for, and
- * the strip across the sheet, all starting in the same place.
+ * The hero is CENTRED, and it is the only thing in the app that is. Spec 0010
+ * set every screen against one left edge and this screen is the deliberate
+ * exception to that, taken after looking at it on a wide display: the hero is a
+ * short headline and two sentences over a card, and left anchored inside a
+ * centred column it leaves the right half of a 2560px screen visibly empty while
+ * the eye still starts at the left. Centring the block and the text itself
+ * settles it. Nothing else moves: the recent strip below keeps the left edge,
+ * and so do the gallery and the project sheet, because a grid and a drawing
+ * sheet have a real left edge to line up against and a landing hero does not.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
-      <h1 className="max-w-2xl type-display text-ink">
-        Turn a floor plan into a room you can see.
+      <h1 className="mx-auto max-w-2xl text-center type-display text-ink">
+        From blueprint to built space, instantly, with AI.
       </h1>
 
-      <p className="mt-4 max-w-prose type-body text-ink-soft">
-        Upload a 2D floor plan and get a photorealistic 3D render back, seen
-        from straight above with your walls where you drew them.
+      <p className="mx-auto mt-6 max-w-prose text-center type-body text-ink-soft">
+        AV is an AI-first design environment that turns any 2D floor plan into a
+        photorealistic 3D render, seen straight from above, with your walls
+        exactly where you drew them. Upload a plan, and let AV do the rest.
       </p>
 
-      <div className="mt-12 max-w-2xl">
+      <div className="mx-auto mt-16 max-w-2xl">
         <PlanUploadCard />
       </div>
 

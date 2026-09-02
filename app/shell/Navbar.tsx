@@ -6,6 +6,19 @@
  * the only new things here are that the wordmark is now a link home and that a
  * `Projects` link appears beside it once somebody is signed in.
  *
+ * Spec 0010 replaced that wordmark with `Logo` and relabelled the landmark. The
+ * label is `Main` rather than the product name: a landmark names the region it
+ * wraps, and once the mark is a named link the old label was announcing the
+ * product twice in a row. The two clusters align on the centre line, because
+ * the left one is now a fixed box rather than a line of text and a baseline has
+ * nothing to align to.
+ *
+ * It sticks to the top of the viewport. `bg-bone` is not decoration: a sticky
+ * header with a transparent background lets the page scroll through it, and the
+ * hairline underneath stops reading as an edge. The `z-10` puts it over the
+ * page content, including the plate overlays, which position themselves inside
+ * their own frames and have no stacking claim of their own.
+ *
  * The auth fact comes from `useAuthState`, not from a prop, so the navbar and
  * the home strip read the same one value from the same root loader data and
  * cannot disagree about who is signed in. That is the whole reason the hook
@@ -16,18 +29,17 @@ import { Link } from "react-router";
 
 import { AuthControl } from "~/auth/AuthControl";
 import { useAuthState } from "~/auth/useAuthState";
+import { Logo } from "~/shell/Logo";
 
 export function Navbar() {
   const auth = useAuthState();
 
   return (
-    <header className="flex items-start justify-between gap-4 border-b border-hairline px-6 py-3">
-      <nav className="flex items-baseline gap-6" aria-label="Roomify">
-        <Link to="/" className="nav-link type-heading text-ink">
-          Roomify
-        </Link>
+    <header className="sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-hairline bg-bone px-6 py-4">
+      <nav className="flex items-center gap-6" aria-label="Main">
+        <Logo />
         {auth.status === "signedIn" && (
-          <Link to="/projects" className="nav-link type-meta text-ink-soft">
+          <Link to="/projects" className="nav-link text-ink-soft">
             Projects
           </Link>
         )}

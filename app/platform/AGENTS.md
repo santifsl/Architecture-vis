@@ -2,7 +2,7 @@
 
 ## Overview
 
-The boundary between Roomify and Puter. Two jobs, both small and both load
+The boundary between AV and Puter. Two jobs, both small and both load
 bearing: `puter.ts` is the only module in `app/` allowed to import the Puter
 SDK, and `env.ts` owns the startup check that fails fast on a missing
 environment variable. No feature logic lives here, only narrowing, gating, and
@@ -10,11 +10,11 @@ non interactive reads.
 
 ## Key files
 
-| File               | Owns                                                                                                                             |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `puter.ts`         | The sole `@heyputer/puter.js` import, `withPuter`, the narrowed `RoomifyUser`, sign in and sign out, session event subscriptions |
-| `env.ts`           | `checkPuterEnv` and `puterEnv`, the `VITE_PUTER_WORKER_URL` requirement                                                          |
-| `ConfigScreen.tsx` | The readable screen shown when a required variable is missing                                                                    |
+| File               | Owns                                                                                                                        |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `puter.ts`         | The sole `@heyputer/puter.js` import, `withPuter`, the narrowed `AvUser`, sign in and sign out, session event subscriptions |
+| `env.ts`           | `checkPuterEnv` and `puterEnv`, the `VITE_PUTER_WORKER_URL` requirement                                                     |
+| `ConfigScreen.tsx` | The readable screen shown when a required variable is missing                                                               |
 
 ## Conventions
 
@@ -27,7 +27,7 @@ non interactive reads.
   override because it imports the Node entry point (`src/init.cjs`), which takes
   a token instead of reading one out of a browser.
 - SDK values cross into the app as `unknown` and are proven, never asserted.
-  `toRoomifyUser` narrows rather than casts.
+  `toAvUser` narrows rather than casts.
 - Failures resolve to a result, they do not throw. `openSignIn` returns a
   failure code so a blocked popup is an ordinary outcome.
 
