@@ -729,7 +729,22 @@ router.post("/publish", async ({ request, user }) => {
     renderUrls: copied.renderUrls,
     floorPlanUrl: copied.floorPlanUrl,
     publishedAt: current.publishedAt,
-    publishedRevision: current.revision,
+    // The FIRST read's revision, not the second's, because that is the one the
+    // copied bytes belong to. Everything above derived from the copy, `models`
+    // and both URL fields, comes from `record`, and this has to agree with them
+    // or the entry describes bytes it does not hold: a content write landing in
+    // another tab between the copy and the second read would otherwise stamp
+    // N+1 onto revision N's images, and `publicState` reads equal revisions as
+    // `live`, which hides the republish that would fix it.
+    //
+    // Under claiming is always safe and over claiming never is. If nothing
+    // changed, this is exact. If something did, the record's `revision` is now
+    // ahead of it, the project reads `stale`, and the copy is made again, which
+    // is the correct answer for a copy whose vintage nothing can pin down: a
+    // write landing DURING the copy can leave it holding some of each revision,
+    // and no second read can detect that, since a regenerated render overwrites
+    // the same path rather than taking a new one.
+    publishedRevision: record.revision,
   };
 
   if (byteLength(JSON.stringify(entry)) > MAX_VALUE_BYTES)
@@ -749,7 +764,9 @@ router.post("/publish", async ({ request, user }) => {
       publicAssets: {
         floorPlanUrl: copied.floorPlanUrl,
         renderUrls: copied.renderUrls,
-        publishedRevision: current.revision,
+        // The same value the entry carries, so the owner's record and the feed
+        // never disagree about which revision is public.
+        publishedRevision: entry.publishedRevision,
       },
     },
     200,

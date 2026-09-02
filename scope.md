@@ -1349,7 +1349,8 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
           since been replaced** by `app/publish/VisibilityControl.tsx` and no
           longer exists. What survives from it is the state word reading from
           the record instead of the hardcoded `Private` it used to be
-    - [x] **Four corrections to spec 0011, all found by building it.** None
+    - [x] **Five corrections to spec 0011.** Four were found by building it and
+          the fifth in review. None
           changes what the feature does and each contradicts something the spec
           says, so they need folding back into 0011 by `/architect` rather than
           living only here:
@@ -1394,6 +1395,25 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
          which would have let precisely that record be deleted, taking with it
          the only thing that knows where its entry and its hosted files are. It
          now refuses whenever anything public is outstanding
+      5. **`publishedRevision` comes from the first read, not the second.**
+         0011's derivation table says it is "the record's `revision` at the
+         moment the worker read it back", which is the second read, and the
+         build followed it. That is wrong, and the spec contradicts itself two
+         tables earlier where the same field is "the `revision` the live public
+         copy was built from". The copy is built from the FIRST read: its paths
+         and its `models` both come from `record`. So a content write landing in
+         another tab between the copy and the second read stamped N+1 onto
+         revision N's images, and since `publicState` reads equal revisions as
+         `live`, the owner was shown a current public copy, with no republish
+         offered, over stale hosted bytes. It now stamps `record.revision`, and
+         the response carries the entry's own value so the record and the feed
+         cannot disagree. Under claiming is safe where over claiming is not: if
+         nothing changed the stamp is exact, and if something did the project
+         reads `stale` and copies again. That is the only available answer,
+         because a write landing DURING the copy can leave it holding some of
+         each revision and no read can detect it: `renderOutPath` is
+         deterministic, so a regenerated render overwrites its path rather than
+         taking a new one
   - [x] Withdrawal and the single public project page (AC-5, AC-9, AC-18), spec
         tasks 8 and 9. `POST /unpublish` is idempotent and has no "not
         published" error, deletes the pointer before the entry, mirroring
