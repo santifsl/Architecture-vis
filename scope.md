@@ -1166,6 +1166,27 @@ on the same 50 by coincidence.
         prop. Do not spend time on an outline rule that cannot win, satisfies
         AC-8, AC-9
 
+Code review caught one thing the fourteen code-shape checks could not, and it
+changed AC-10. `useStoredUrl` kept its `failed` flag per hook instance, so with
+the render in the plate and again in the comparison, the plate's `Try showing it
+again` re-minted for the plate alone and the comparison sat on a failure nothing
+could clear. Worse, a failed PLAN mint had no retry anywhere at all: the sheet
+mounts a comparison only when `planPlacement` says `"comparison"`, which is
+exactly when `FloorPlanKey`, the surface that owns that button, is off the page.
+The fix moves the attempt counter into a module-scope map keyed by path,
+subscribed to through `useSyncExternalStore`, so every view of one file retries
+together, and gives the comparison the plan's failure sentence while it owns the
+plan. AC-10 now reads "one button per failed file, and every failed file has one"
+rather than "no section if either URL failed", which is the rule it was reaching
+for all along.
+
+Reviewing also settled the oldest contradiction in `CLAUDE.md`: its "How to work"
+section claimed there was no spec-file system while "Workflow skills" mandated
+the `/architect` pass that creates one. Nine specs had already settled it. That
+paragraph now says specs live in `docs/specs/` and keeps only the standard it was
+really defending, that a spec records a real decision rather than fills a
+template.
+
 - [ ] Verify it: the manual walkthrough in
       [verify.md](docs/specs/0009-side-by-side-comparison-view/verify.md). Two
       steps are worth an independent pass and neither is visual: reading

@@ -44,18 +44,43 @@ export function RenderComparison({
   const render = useStoredUrl(renderPath);
 
   /*
-   * A failed mint takes the whole section away rather than showing half a
-   * comparison (AC-10). The plate above already carries one sentence and one
-   * `Try showing it again` for the very same file, and a second retry button for
-   * one underlying mint is two ways to fix one thing.
+   * A failed RENDER mint takes the whole section away (AC-10). The plate above
+   * carries one sentence and one `Try showing it again` for the very same file,
+   * and a second button for one underlying mint would be two ways to fix one
+   * thing. That holds only because `useStoredUrl` retries by path rather than by
+   * component: the plate's button re-mints for this section too, and the
+   * comparison comes back with it. Per-instance retry state would have left this
+   * `failed` forever and the sheet one picture short until a reload.
    *
-   * A mint that has not landed YET is a different case, and it is why the frame
+   * A failed PLAN mint is not the same case, and the first cut of this file had
+   * it wrong. The sheet only mounts a comparison when `planPlacement` returns
+   * `"comparison"`, and that is exactly when `FloorPlanKey`, the one surface that
+   * offers the plan a retry, is not on the page at all. Returning null here left
+   * a failed plan with no button anywhere and no way back short of a reload. So
+   * the comparison owns the plan's failure while it owns the plan, the same way
+   * the key does while the key holds it. Still one button per file.
+   *
+   * A mint that has not landed YET is a third case, and it is why the frame
    * below is rendered before the slider is. AC-3 wants the square reserved from
    * the first paint so a slow mint never shifts the page, and AC-10 wants no
-   * comparison without both images. Both hold if the frame is always here and
-   * only its contents wait.
+   * half comparison. Both hold if the frame is always here and only its contents
+   * wait.
    */
-  if (plan.failed || render.failed) return null;
+  if (render.failed) return null;
+
+  if (plan.failed) {
+    return (
+      <section className="mt-8" aria-label="Before and after">
+        <h2 className="type-heading text-ink">Before and after</h2>
+        <p className="mt-3 type-body text-ink">
+          Your floor plan is saved, but it can&rsquo;t be shown right now.
+        </p>
+        <button type="button" className="btn-quiet mt-1" onClick={plan.retry}>
+          Try showing it again
+        </button>
+      </section>
+    );
+  }
 
   // Read out of the hooks so the null check below narrows the type as well as
   // choosing the branch. A separate `ready` boolean would do neither.

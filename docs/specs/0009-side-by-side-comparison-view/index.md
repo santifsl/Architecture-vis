@@ -94,10 +94,27 @@ contain` on the ivory surface, so the whole drawing is always visible and is
   alone and not overridden.
 - **AC-9**: No `transition` prop is passed, so the divider never animates and
   nothing new needs switching off under `prefers-reduced-motion`.
-- **AC-10**: If a view URL for either the plan or the render is missing or
-  failed, the comparison section is not rendered at all. The plate above already
-  carries one sentence and one `Try showing it again` for that same file, and a
-  second retry for a single underlying mint is not added.
+- **AC-10**: Exactly one `Try showing it again` exists per failed file, and
+  every failed file has one. If the RENDER's view URL fails, the comparison
+  section is not rendered at all: the plate above already carries the sentence
+  and the button for that same file, and `useStoredUrl` retries by path, so the
+  plate's button brings this section back with it. If the PLAN's view URL fails,
+  the comparison carries the sentence and the button itself, because the sheet
+  only mounts a comparison when `planPlacement` returns `"comparison"`, which is
+  precisely when `FloorPlanKey` is off the page and no other surface offers the
+  plan a retry.
+
+  Revised during review. The original read "if a view URL for EITHER the plan or
+  the render is missing or failed, the comparison section is not rendered at
+  all", and justified it with "the plate above already carries one sentence and
+  one `Try showing it again` for that same file". That justification is true of
+  the render and false of the plan: the plate shows the plan only while it is
+  working, and the key that owns the plan's retry is hidden for the whole of the
+  `"comparison"` placement. Followed literally, a failed plan mint removed the
+  comparison and left no way back short of a reload. The rule the AC was reaching
+  for was one button per file, not no button in the section, so it now says
+  that.
+
 - **AC-11**: The feature adds no persisted state. No write goes through
   `app/projects/store.ts`, no render is claimed or started, and no worker route
   is called. `app/render/` stays the only place a render is claimed.
@@ -174,10 +191,10 @@ image.
 None. There is no endpoint, no worker route and no store call. The whole surface
 is two component props:
 
-| Component          | Props                                                           | Returns                                | Auth                                      | Key failure                                         |
-| ------------------ | --------------------------------------------------------------- | -------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
-| `RenderComparison` | `planPath: string`, `renderPath: string`, `projectName: string` | the section, or `null`                 | inherited from `RequireUser` on the route | either URL absent or failed, returns `null` (AC-10) |
-| `CompareHandle`    | none                                                            | the divider node for the `handle` prop | n/a                                       | n/a                                                 |
+| Component          | Props                                                           | Returns                                | Auth                                      | Key failure                                                                                                   |
+| ------------------ | --------------------------------------------------------------- | -------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `RenderComparison` | `planPath: string`, `renderPath: string`, `projectName: string` | the section, or `null`                 | inherited from `RequireUser` on the route | render URL failed, returns `null`; plan URL failed, returns the section carrying the plan's own retry (AC-10) |
+| `CompareHandle`    | none                                                            | the divider node for the `handle` prop | n/a                                       | n/a                                                                                                           |
 
 `renderPath` is `string`, never `string | null`. `ProjectSheet` narrows it at the
 call site, so the component never has to ask, and a `null` path cannot reach a
@@ -241,9 +258,12 @@ None. No new environment variable, no credential, no worker constant.
 - Failure case: a render that failed or stalled shows no comparison and does show
   the small plan key, and a project mid render shows neither, verifies **AC-1**,
   **AC-5**.
-- Mint failure: with the network throttled so a view URL fails, the comparison
-  is absent and exactly one sentence with one retry is on screen, not two,
-  verifies **AC-10**.
+- Mint failure, twice, because the two files behave differently. With the RENDER
+  URL failing, the comparison is absent and exactly one sentence with one retry
+  is on screen, not two, and pressing it brings the comparison back as well as
+  the plate's image. With the PLAN URL failing, the comparison is still on the
+  sheet carrying its own sentence and its own retry, and that button is the only
+  one for the plan. Verifies **AC-10**.
 - Keyboard: tab reaches the handle, the clay focus ring is visible against bone,
   and each arrow press moves the divider one twentieth of the frame, verifies
   **AC-8**.

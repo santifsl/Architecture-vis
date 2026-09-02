@@ -54,8 +54,10 @@ const MINTING_MESSAGE = "Loading";
  * project with no render rather than as one a moment from appearing.
  *
  * The caller keys this on the render path, so a card pointed at a new file
- * remounts and the previous URL goes with it. `useStoredUrl` does not reset on a
- * path change by itself, on purpose: the reset is a remount.
+ * remounts and the previous URL goes with it. The key is the reset, and it stays
+ * the reset here even though `useStoredUrl` now discards a result whose path no
+ * longer matches: a remount also drops everything else this component is holding
+ * about the old file, which a hook cannot do for it.
  */
 function CardPlate({
   project,

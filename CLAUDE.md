@@ -46,9 +46,22 @@ When a build step is actually underway, break it into its own short checklist
 of what's genuinely being done, and check items off in `scope.md` as they're
 finished.
 
-There's no formal spec-file system here, no numbered acceptance criteria, no
-separate directory per feature. A short, real, plain-language decision beats
-a long templated one every time.
+Specs live in `docs/specs/NNNN-slug/`, one directory per feature, written by
+`/architect` and nobody else. That is a reversal, and it is worth knowing it was
+one: this file originally said there was no formal spec-file system here, no
+numbered acceptance criteria and no separate directory per feature. The
+"Workflow skills" section below then required an `/architect` pass before any
+load-bearing code, and `/architect` writes exactly those files, so the two
+paragraphs contradicted each other from the day this was written. Nine specs,
+0001 through 0009, settled it in practice long before anyone noticed the
+sentence. The specs won, so the sentence is gone.
+
+What survives from it is the standard the prose is held to. A spec earns its
+place by recording a decision somebody actually had to make and the reasoning
+that would otherwise be lost, not by filling in a template. A short, real,
+plain-language decision still beats a long templated one every time; it just
+gets a numbered file now. `scope.md` stays the coarse living plan and the entry
+point, and every feature there links to its spec rather than restating it.
 
 ## Rules
 

@@ -124,9 +124,20 @@ every runtime step below look fine while being wrong.
       `<img>`. Two for the render means the promise cache in `app/storage/urls.ts`
       has regressed and this feature just doubled the page's Puter calls,
       **AC-4**.
-- [ ] Throttle the network hard enough that a view URL fails, then reload. The
-      comparison section is absent entirely, and there is exactly **one** failure
-      sentence with **one** `Try showing it again` on the page, not two, **AC-10**.
+- [ ] Make the **render's** view URL fail, by throttling hard enough to time the
+      mint out, then reload. The comparison section is absent entirely and there
+      is exactly **one** failure sentence with **one** `Try showing it again` on
+      the page, not two. Now restore the network and press that button: the
+      plate's image comes back **and so does the whole comparison**. If the plate
+      recovers alone and the comparison stays missing, the per-path retry in
+      `useStoredUrl` has regressed to per-instance state, **AC-10**.
+- [ ] Make the **plan's** view URL fail the same way, on a project with a
+      complete render, then reload. This one is the opposite: the comparison
+      section is **still on the sheet**, under its own `Before and after`
+      heading, carrying the plan's failure sentence and a retry. That button is
+      the only one for the plan on the page, because the small floor plan key is
+      not rendered during the comparison placement. A sheet with no retry
+      anywhere is the bug this replaced, **AC-10**.
 
 ## Access
 
