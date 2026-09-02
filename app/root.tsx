@@ -14,6 +14,7 @@ import type { AuthState } from "~/auth/state";
 import { resolveAuthState } from "~/auth/state";
 import { useAuthEvents } from "~/auth/useAuthEvents";
 import { ConfigScreen } from "~/platform/ConfigScreen";
+import { useAutoRepublish } from "~/publish/useAutoRepublish";
 import { checkPuterEnv } from "~/platform/env";
 import { Navbar } from "~/shell/Navbar";
 import { useForgetUrlsOnSignOut } from "~/storage/useForgetUrlsOnSignOut";
@@ -106,6 +107,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 function ConfiguredApp({ auth }: { readonly auth: AuthState }) {
   useAuthEvents();
   useForgetUrlsOnSignOut(auth);
+  // Above every screen on purpose (spec 0011, AC-22): whatever changes a public
+  // project, from wherever, its public copy is brought back into step without
+  // anybody asking. Wiring it into the screens that change a project is how one
+  // of them eventually gets forgotten.
+  useAutoRepublish();
 
   return (
     <>

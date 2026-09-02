@@ -43,6 +43,15 @@ export function Navbar() {
             Projects
           </Link>
         )}
+        {/*
+          Not behind the auth check, and that is the feature rather than an
+          oversight: the community feed is open to anyone (spec 0011, AC-3), so
+          the way to it has to be too. A signed out visitor who cannot see the
+          link cannot discover the thing the link exists for.
+        */}
+        <Link to="/community" className="nav-link text-ink-soft">
+          Community
+        </Link>
       </nav>
       <AuthControl state={auth} />
     </header>

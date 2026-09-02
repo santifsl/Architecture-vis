@@ -39,6 +39,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { createKeyedSingleFlight } from "~/auth/singleFlight";
+import { onProjectWritten } from "~/projects/afterWrite";
 import { updateProject, type StoreFailure } from "~/projects/store";
 import type { ModelId, Project, RenderState } from "~/projects/record";
 import type { RenderFailure } from "~/render/failures";
@@ -138,6 +139,29 @@ export const useProjectRenders = (loaded: Project): ProjectRenders => {
   const absorb = useCallback((next: Project | null) => {
     if (next !== null && alive.current) setProject(next);
   }, []);
+
+  /*
+   * Every write to THIS project, whoever made it, lands here.
+   *
+   * The sheet holds no project state of its own, so this hook's copy is the
+   * one the whole page reads, and feature 9 writes the same record from the
+   * same page: making a project public changes `visibility`, `publishedAt` and
+   * `publicAssets`, and the automatic republish changes it again from above
+   * every screen. Subscribing to the store's own announcement is what keeps
+   * those visible here without the publish control having to know this hook
+   * exists, or hold a second copy that would disagree with this one the moment
+   * a render landed.
+   *
+   * Writes for one project are serialised by the store's queue, so these arrive
+   * in the order they were written and the newest is always the last.
+   */
+  useEffect(
+    () =>
+      onProjectWritten(({ project: written }) => {
+        if (written.id === loaded.id) absorb(written);
+      }),
+    [absorb, loaded.id],
+  );
 
   /** Records, or clears, the reason a model's render could not be started. */
   const note = useCallback((model: ModelId, failure: RenderFailure | null) => {

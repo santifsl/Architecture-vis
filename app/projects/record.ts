@@ -293,8 +293,19 @@ export const newProjectId = (now: number = Date.now()): string =>
 /*
  * Keys.
  *
- * Store A holds one key shape. Store B holds two, and only one of them is named
- * here; see `feedWhereKey` for why the other is not.
+ * Store A holds one key shape, named here. Store B's keys are named only inside
+ * the worker.
+ *
+ * That asymmetry is deliberate. The worker cannot import this file, so any
+ * store B key written here would be a second copy of a string the worker
+ * already derives, free to drift out of step unnoticed. `feed:where:<id>`, the
+ * pointer the anonymous single project route follows, was mirrored here for
+ * exactly one commit and never read from `app/`; it is gone for that reason.
+ *
+ * Spec 0011 deleted three more of store B's keys outright. `feed:page:<nnnn>`
+ * went with the chunked index, `feed:meta` went because the cursor is the whole
+ * of `hasMore` and no screen shows a total, and `feed:lock` went because no key
+ * in store B is ever read and then written back.
  */
 
 export const PROJECT_KEY_PREFIX = "project:";
@@ -304,21 +315,3 @@ export const projectKey = (id: string): string => `${PROJECT_KEY_PREFIX}${id}`;
 
 /** Store A: the prefix the personal gallery lists against. AC-1. */
 export const PROJECT_LIST_PATTERN = `${PROJECT_KEY_PREFIX}*`;
-
-/**
- * Store B: which key holds a project's entry.
- *
- * The value is the entry's sort key. This pointer is the ONLY way the anonymous
- * single project route can find an entry: that route holds a project id and no
- * session, and `puter.kv`'s `pattern` is prefix only, so no scan can find a key
- * whose project id sits at the end of it.
- *
- * Spec 0011 deleted the three keys that used to sit here. `feed:page:<nnnn>`
- * went with the chunked index, `feed:meta` went because the cursor is the whole
- * of `hasMore` and no screen shows a total, and `feed:lock` went because no key
- * in store B is ever read and then written back. The entry key itself is
- * derived inside the worker, which cannot import this file, and so is not
- * mirrored here where it could drift out of step unnoticed.
- */
-export const feedWhereKey = (projectId: string): string =>
-  `feed:where:${projectId}`;

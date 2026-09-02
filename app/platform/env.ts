@@ -86,3 +86,18 @@ export const puterEnv = (): PuterEnv => {
   if (!checked.ok) throw new MissingEnvError(checked.missing);
   return checked.env;
 };
+
+/**
+ * One endpoint on the deployed worker, joined to whatever the variable holds.
+ *
+ * Three features reach the worker now, and each of them was going to trim the
+ * same trailing slash in its own way. Trailing slashes are exactly the sort of
+ * thing two copies eventually disagree about, and a URL that is wrong by one
+ * character fails as a 404 from somewhere in between rather than as anything
+ * naming the real problem, so the join happens once, here, beside the variable
+ * it reads.
+ *
+ * `path` starts with a slash: `workerEndpoint("/feed")`.
+ */
+export const workerEndpoint = (path: string): string =>
+  `${puterEnv().workerUrl.replace(/\/+$/, "")}${path}`;

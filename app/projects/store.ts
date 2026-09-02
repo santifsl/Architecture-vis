@@ -17,6 +17,7 @@
  */
 import { createSerialQueue } from "~/auth/singleFlight";
 import { PuterGateError, withPuter } from "~/platform/puter";
+import { announceProjectWritten } from "~/projects/afterWrite";
 import {
   checkProject,
   checkWriteSize,
@@ -93,7 +94,7 @@ const MESSAGES: Readonly<Record<StoreFailure, string>> = {
   superseded:
     "That change was already replaced by a newer one, so it was not saved.",
   stillPublic:
-    "Make this project private first, so its public copies come down with it.",
+    "This project still has public copies. Make it private, or finish taking them down, and then delete it.",
   unsafeToDelete:
     "This project cannot be read, so there is no way to tell whether it was shared publicly. It has been left in place rather than deleted with its public copies possibly still up.",
   tooLarge: "That project is too large to save. Try a shorter name.",
@@ -347,16 +348,32 @@ export const updateProject = async (
     const illegal = illegalTransitions(current.value, resolved.renders);
     if (illegal.length > 0) return fail<Project>("invalid", illegal);
 
-    return putProject({
+    const content = isContentChange(resolved);
+
+    const written = await putProject({
       ...current.value,
       ...resolved,
       ...(resolved.name === undefined ? {} : { name: resolved.name.trim() }),
       ...(resolved.renders === undefined
         ? {}
         : { renders: { ...current.value.renders, ...resolved.renders } }),
-      revision: current.value.revision + (isContentChange(resolved) ? 1 : 0),
+      revision: current.value.revision + (content ? 1 : 0),
       updatedAt: Date.now(),
     });
+
+    /*
+     * Announced from in here, inside the queued turn, rather than from the
+     * callers. Spec 0011 asks for exactly that, so that the rename path and the
+     * render path cannot be wired one without the other: whatever changes a
+     * project, the announcement is the same one.
+     *
+     * Never awaited. A listener that started a write and was waited for here
+     * would be waiting for a position in this very queue, which this turn is
+     * still holding. See `app/projects/afterWrite.ts`.
+     */
+    if (written.ok) announceProjectWritten({ project: written.value, content });
+
+    return written;
   });
 
 /**
@@ -422,12 +439,28 @@ export const deleteProject = async (id: string): Promise<StoreResult<true>> =>
         : current;
     }
 
-    if (current.value.visibility === "public") {
+    /*
+     * Public, OR still carrying the traces of having been. Spec 0011 gave a
+     * record a state where `visibility` already reads private and the stamp and
+     * the copies are still there, because an unpublish writes the intent first
+     * and clears those only once the worker confirms. Checking only the
+     * visibility would let exactly that record be deleted, taking with it the
+     * only thing that knows where its feed entry and its hosted files are.
+     * Nothing else can clean them up: the worker cannot enumerate anyone's
+     * store. So the test is whether anything public is outstanding, not what
+     * the visibility happens to say.
+     */
+    const outstanding =
+      current.value.visibility === "public" ||
+      current.value.publishedAt !== null ||
+      current.value.publicAssets !== null;
+
+    if (outstanding) {
       return fail<true>("stillPublic", [
         {
           rule: "delete.public",
           detail:
-            "A public project has to be made private before it can be deleted, so its public copies go too.",
+            "A project with public copies outstanding has to be withdrawn before it can be deleted, so those copies go too.",
         },
       ]);
     }
