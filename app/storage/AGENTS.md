@@ -47,9 +47,17 @@ cause.
 - **`useStoredUrl`'s `failed` flag must stay resettable.** It was once written
   only to `true`, with the resetting effect keyed on `[path]` alone, so a path
   that never changes (which is every path here) meant one failure lasted the life
-  of the component. The reset lives in an event handler and bumps an attempt
-  counter in the effect deps, rather than being a synchronous `setState` in an
-  effect body.
+  of the component. An attempt counter sits in the effect deps, and the result of
+  an attempt is compared during render rather than reset by a synchronous
+  `setState` in an effect body.
+- **`retry` is keyed by path, not by hook instance.** The attempt counter lives
+  in a module-scope map that components subscribe to through
+  `useSyncExternalStore`, so every view of one path retries together. Spec 0009
+  put the same render in the plate and in the comparison at once; with
+  per-instance counters the plate's button re-minted for the plate alone and the
+  comparison sat on a `failed` nothing could clear, so the section stayed missing
+  until a reload. Any second surface showing a file someone else owns the retry
+  for depends on this.
 
 ## Related specs
 
