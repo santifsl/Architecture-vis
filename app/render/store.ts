@@ -16,7 +16,7 @@
  * body of the wrong shape is a failure with a sentence, not a `Project` shaped
  * hole that surfaces three screens later.
  */
-import { puterEnv } from "~/platform/env";
+import { workerEndpoint } from "~/platform/env";
 import { PuterGateError, withPuter } from "~/platform/puter";
 import type { ModelId } from "~/projects/record";
 import { isRenderFailure, type RenderFailure } from "~/render/failures";
@@ -71,10 +71,6 @@ export const readAbsolutePath = async (
     return { ok: false, failure: "planUnreadable" };
   }
 };
-
-/** Joins the configured worker origin to an endpoint, whether or not it ends in a slash. */
-const endpoint = (path: string): string =>
-  `${puterEnv().workerUrl.replace(/\/+$/, "")}${path}`;
 
 /**
  * Narrows the worker's answer instead of trusting it.
@@ -142,7 +138,7 @@ export const requestRender = async (
 
   try {
     const response = await withPuter((sdk) =>
-      sdk.workers.exec(endpoint("/render"), {
+      sdk.workers.exec(workerEndpoint("/render"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

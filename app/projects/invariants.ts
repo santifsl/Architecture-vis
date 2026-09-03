@@ -23,6 +23,7 @@ import {
   isRenderStatus,
   MODEL_IDS,
   SCHEMA_VERSION,
+  UPGRADABLE_SCHEMA_VERSION,
   type ModelId,
   type Project,
   type PublicAssets,
@@ -66,6 +67,10 @@ const isNullableTimestamp = (value: unknown): value is number | null =>
 
 const isNullableString = (value: unknown): value is string | null =>
   value === null || typeof value === "string";
+
+/** A counter that only ever goes up: `revision` and `publishedRevision`. */
+const isCounter = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
 
 /*
  * Structural narrowing: is this the right shape?
@@ -125,13 +130,14 @@ const parseString = (value: unknown): string | null =>
 const parsePublicAssets = (value: unknown): PublicAssets | null => {
   if (!isRecordValue(value)) return null;
 
-  const { floorPlanUrl, renderUrls } = value;
+  const { floorPlanUrl, renderUrls, publishedRevision } = value;
   if (!isNonEmptyString(floorPlanUrl)) return null;
+  if (!isCounter(publishedRevision)) return null;
 
   const urls = parseModelMap(renderUrls, parseString);
   if (urls === null) return null;
 
-  return { floorPlanUrl, renderUrls: urls };
+  return { floorPlanUrl, renderUrls: urls, publishedRevision };
 };
 
 const parseModels = (value: unknown): readonly ModelId[] | null => {
@@ -160,9 +166,26 @@ const parseFloorPlan = (value: unknown): Project["floorPlan"] | null => {
 /**
  * Turns a stored value back into a `Project`, or `null` if it is not one.
  *
- * A record written by a future schema version lands on `null` here rather than
+ * A record written by a FUTURE schema version lands on `null` here rather than
  * being coerced, which is the point of storing `schemaVersion` at all: reading
  * a shape this build does not understand is a refusal, not a guess.
+ *
+ * Spec 0011 adds the other direction, and it is deliberately not symmetrical. A
+ * stored version 2 record is upgraded rather than refused, because this build
+ * understands every field it holds and the only thing missing is a counter
+ * whose starting value is known. Refusing it instead would empty a gallery of
+ * every project made before this change, for no gain (AC-21).
+ *
+ * The upgrade sets `revision` to `0` and `publicAssets` to `null`. Clearing the
+ * assets is the deliberate half: feature 9 has never shipped, so no version 2
+ * record can legitimately carry a live public copy, and a record that somehow
+ * does is carrying assets with no `publishedRevision` to compare against.
+ * Forcing a clean republish beats trusting a field that cannot exist. Nothing
+ * is stranded by it, because a version 2 record cannot have a feed entry either.
+ *
+ * The upgrade is a read. Nothing is written back until the project is next
+ * changed for some other reason, which is the lazy write half of spec 0011's
+ * migration plan.
  */
 export const parseProject = (value: unknown): Project | null => {
   if (!isRecordValue(value)) return null;
@@ -178,24 +201,33 @@ export const parseProject = (value: unknown): Project | null => {
     visibility,
     publishedAt,
     publicAssets,
+    revision,
     createdAt,
     updatedAt,
   } = value;
 
-  if (schemaVersion !== SCHEMA_VERSION) return null;
+  const upgrading = schemaVersion === UPGRADABLE_SCHEMA_VERSION;
+  if (schemaVersion !== SCHEMA_VERSION && !upgrading) return null;
   if (!isProjectId(id)) return null;
   if (typeof name !== "string" || !isNonEmptyString(owner)) return null;
   if (visibility !== "private" && visibility !== "public") return null;
   if (!isTimestamp(createdAt) || !isTimestamp(updatedAt)) return null;
   if (!isNullableTimestamp(publishedAt)) return null;
+  // A version 2 record has no `revision` at all, and that is the whole of what
+  // makes it a version 2 record. A version 3 one must carry a real counter.
+  const counter = isCounter(revision) ? revision : null;
+  if (!upgrading && counter === null) return null;
 
   const plan = parseFloorPlan(floorPlan);
   const requested = parseModels(models);
   const renderStates = parseModelMap(renders, parseRenderState);
   if (plan === null || requested === null || renderStates === null) return null;
 
-  const assets = publicAssets === null ? null : parsePublicAssets(publicAssets);
-  if (publicAssets !== null && assets === null) return null;
+  const stored =
+    publicAssets === null || publicAssets === undefined
+      ? null
+      : parsePublicAssets(publicAssets);
+  if (!upgrading && publicAssets !== null && stored === null) return null;
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -207,7 +239,10 @@ export const parseProject = (value: unknown): Project | null => {
     renders: renderStates,
     visibility,
     publishedAt,
-    publicAssets: assets,
+    publicAssets: upgrading ? null : stored,
+    // Non-null above whenever this is not an upgrade, so the fallback is only
+    // ever the upgrade's own starting value.
+    revision: upgrading ? 0 : (counter ?? 0),
     createdAt,
     updatedAt,
   };
@@ -315,35 +350,72 @@ const checkRenderStates = (project: Project): readonly Violation[] =>
 /**
  * Publishing state agrees with itself, which is most of AC-13.
  *
- * `visibility`, `publishedAt`, and `publicAssets` are three facts about one
- * thing, so any disagreement between them means something about a private
- * project could be treated as public, or the reverse.
+ * Spec 0011 loosened this, and the loosening is the point rather than a
+ * concession. It used to demand that `publishedAt` and `publicAssets` were both
+ * set exactly when the project was public, which is a rule only a publish that
+ * happens all at once can keep. Publishing is not atomic: it writes the owner's
+ * intent, calls the worker, and commits the response, and a browser can close
+ * between any two of those. So there are two legal disagreements now, both of
+ * them transient states of a sequence in progress, and both of them pointing
+ * the safe way:
+ *
+ *   - **public with no `publicAssets`**, the uncommitted state. The owner asked
+ *     for this and their own gallery shows it as out of date with a retry. The
+ *     alternative ordering, worker first, would instead leave a live feed card
+ *     for a project whose own record reads private, which nobody can repair.
+ *   - **private with `publishedAt` or `publicAssets` still set**, mid unpublish.
+ *     The worker needs `publishedAt` to derive the key it is deleting, so those
+ *     two fields are cleared only after it confirms (AC-17).
+ *
+ * What stays a hard rule is the direction that could actually mislead: a public
+ * project always carries the timestamp that gives it a place in the feed, and
+ * assets never exist without the timestamp that says when they were made.
  */
 const checkVisibility = (project: Project): readonly Violation[] => {
   const isPublic = project.visibility === "public";
-
   const stamped = project.publishedAt !== null;
   const hasAssets = project.publicAssets !== null;
 
   return [
-    ...(stamped !== isPublic
+    ...(isPublic && !stamped
       ? [
           {
             rule: "publishedAt.visibility",
-            detail: `publishedAt is ${stamped ? "set" : "null"} on a ${project.visibility} project.`,
+            detail:
+              "A public project has no publishedAt, so it has no position in the feed.",
           },
         ]
       : []),
-    ...(hasAssets !== isPublic
+    ...(hasAssets && !stamped
       ? [
           {
-            rule: "publicAssets.visibility",
-            detail: `publicAssets is ${hasAssets ? "set" : "null"} on a ${project.visibility} project.`,
+            rule: "publicAssets.publishedAt",
+            detail:
+              "publicAssets is set on a project that was never stamped as published.",
           },
         ]
       : []),
   ];
 };
+
+/**
+ * `revision` is a counter, and the freshness rule is only as good as it is.
+ *
+ * `parseProject` already refuses a stored record whose counter is not one, so
+ * this catches the other direction: a record built in memory by the store and
+ * about to be written. Both halves matter, because the value is arithmetic
+ * rather than something a person typed, and arithmetic that has gone wrong
+ * shows up as a project permanently stale rather than as anything failing.
+ */
+const checkRevision = (project: Project): readonly Violation[] =>
+  Number.isInteger(project.revision) && project.revision >= 0
+    ? []
+    : [
+        {
+          rule: "revision.counter",
+          detail: `revision must be a whole number of zero or more; it is ${project.revision}.`,
+        },
+      ];
 
 /**
  * Every public URL points at the app's own hosted subdomain over https.
@@ -398,7 +470,20 @@ const checkPublicAssets = (project: Project): readonly Violation[] => {
     detail: `A public URL for ${model}, whose render is not complete.`,
   }));
 
-  return [...badShape, ...unbacked];
+  // Present exactly when the assets are, which the type says and this proves
+  // for a record built in memory. Without a counter to compare against, the
+  // project would read as permanently fresh no matter what changed under it.
+  const counter =
+    Number.isInteger(assets.publishedRevision) && assets.publishedRevision >= 0
+      ? []
+      : [
+          {
+            rule: "publicAssets.publishedRevision",
+            detail: `publishedRevision must be a whole number of zero or more; it is ${assets.publishedRevision}.`,
+          },
+        ];
+
+  return [...badShape, ...unbacked, ...counter];
 };
 
 const checkTimestamps = (project: Project): readonly Violation[] =>
@@ -418,6 +503,7 @@ export const checkProject = (project: Project): readonly Violation[] => [
   ...checkRenderStates(project),
   ...checkVisibility(project),
   ...checkPublicAssets(project),
+  ...checkRevision(project),
   ...checkTimestamps(project),
 ];
 

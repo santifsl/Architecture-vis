@@ -224,7 +224,16 @@ export default tseslint.config(
   {
     files: ["worker/**/*.js"],
     languageOptions: {
-      globals: { ...globals.worker, ...globals.browser, router: "readonly" },
+      globals: {
+        ...globals.worker,
+        ...globals.browser,
+        router: "readonly",
+        // The app scoped Puter, injected by the same runtime that injects
+        // `router`. Feature 9 needs it: the community feed is served out of a
+        // store only the app itself can write, because an anonymous visitor
+        // holds no credential of any kind.
+        me: "readonly",
+      },
     },
   },
 

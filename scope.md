@@ -81,7 +81,7 @@ cheap decision to make now.
 | 6   | Create a project & generate the 3D render      | Slice 1    | in-progress |
 | 7   | App shell & project gallery                    | Slice 2    | in-progress |
 | 8   | Side-by-side comparison view                   | Slice 3    | in-progress |
-| 9   | Public/private visibility & the community feed | Slice 4    | not started |
+| 9   | Public/private visibility & the community feed | Slice 4    | in-progress |
 | 10  | Export                                         | Slice 4    | not started |
 | 11  | The AV mark, a display typeface & real buttons | Slice 5    | in-progress |
 
@@ -1236,7 +1236,7 @@ against 6.13 kB / 2.52 kB. That closes the spec's third follow-up.
 
 ## Slice 4: Sharing & export
 
-### 9. Public/private visibility & the community feed
+### 9. Public/private visibility & the community feed · in-progress
 
 A project owner can flip a project public or private at any time. Public
 projects show up in a global community feed anyone can browse, without
@@ -1245,22 +1245,235 @@ Only creating a project and toggling its visibility need sign-in. The
 owner's own view is identical to what anyone else sees, plus the ability to
 actually edit or regenerate.
 
-**Spec: [0002](docs/specs/0002-project-records-and-public-feed-index/index.md).**
-The approach is already decided there, alongside feature 3's record shape, since
-the two could not be settled apart: an anonymous visitor holds no credential, so
-the feed is served by the worker out of a store only the worker can write, and
-public images are copied into one app owned `*.puter.site` directory. What is
-left here is the public half of that spec's build plan, **tasks 4 to 11**, which
-the feature 3 pass deliberately left untouched because they have nothing to run
-against until a real worker is deployed: the hosted subdomain and its worker
-constant, the two anonymous `GET` routes, the fenced lock helper, `POST /publish`
-and `POST /unpublish`, the republish-on-mutation path with its "public copy is
-out of date" state, and the two public SPA routes. AC-3 to AC-10 and AC-12 are
-verified here too, for the same reason.
+**Specs: [0011](docs/specs/0011-publish-visibility-and-community-feed/index.md),
+which amends [0002](docs/specs/0002-project-records-and-public-feed-index/index.md).**
+0002 decided the three store model alongside feature 3's record shape, since the
+two could not be settled apart: an anonymous visitor holds no credential, so the
+feed is served by the worker out of a store only the worker can write, and public
+images are copied into one app owned `*.puter.site` directory. That stands. A
+review of 0002 then found six open design problems, all in this half, and 0011 is
+the pass that answers them. It replaces four things 0002 designed, the chunked
+index, the fenced lock, the publish write order, and the staleness rule, with a
+flat cursor paginated index that needs no lock, an intent first publish, and a
+revision counter that compares no clocks. 0011 also owns this feature's build
+plan; 0002's tasks 4 to 11 are superseded by it. AC-3 to AC-14 come from 0002 and
+AC-15 to AC-25 from 0011, and all of them are verified here.
 
-- [x] Decide the approach
-- [ ] Build it: tasks 4 to 11 of spec 0002's build plan
-- [ ] Verify it: AC-3 to AC-10 and AC-12, deferred here from feature 3
+- [x] Decide the approach: spec 0011
+- [x] Build it: /develop feature 9
+  - [x] Prove the platform facts, land schema 3, and move the write queue behind
+        `app/projects/store.ts` (AC-16, AC-19, AC-20, AC-21). The platform check
+        is a hard gate and blocks everything below it
+    - [x] Schema 3 (spec task 2): `revision` on `Project`, `publishedRevision`
+          on `PublicAssets` and `FeedEntry`, and `parseProject` reading a stored
+          version 2 record as version 3 with `revision` of `0` and
+          `publicAssets` cleared. `feedPageKey` and `FEED_META_KEY` are deleted
+          with the chunked index they belonged to. **The spec's task 2 was
+          incomplete and the build corrected it**: `checkVisibility` demanded
+          that `publishedAt` and `publicAssets` were set exactly when a project
+          was public, which no intent first publish can ever satisfy, and which
+          would have refused the upgrade's own output on the next write. It now
+          allows the two transient states the sequence really has, public with
+          no assets yet (uncommitted) and private with assets not yet withdrawn,
+          and keeps the direction that could mislead: public implies stamped,
+          and assets imply stamped. Satisfies AC-21, part of AC-19
+    - [x] The serial queue (spec task 3): `createSerialQueue` now sits in
+          `app/projects/store.ts` around `updateProject` and `deleteProject`,
+          and is gone from `app/render/useProjectRenders.ts`. `updateProject`
+          bumps `revision` only when `name` or `renders` is among the changes.
+          **A second correction to the plan**: "delete the queue, leave guard 3
+          in place" is not possible as written, because guard 3 is a read
+          followed by a write and the render hook's queue was what held the two
+          together. `updateProject` now also accepts a function of the stored
+          record returning changes, or `null` to abandon, so the check and the
+          write happen inside one turn of the store's own queue. Guard 3 is
+          strictly more correct than it was, and there is still one door.
+          Satisfies AC-20, AC-19, part of AC-13 and AC-17
+    - [x] Prove the platform facts (spec task 1). Scratch `/kv-probe/*` routes
+          were deployed and run by hand, and all three facts came back clean:
+          `me.puter.kv` exposes what the index needs, and a listed page holds
+          key order across a cursor boundary. The scratch block has been
+          removed from `worker/roomify.js`, which is byte for byte the file it
+          was before. The cursor is **opaque**, not positional: a key deleted
+          from page one left page two unaffected, so `AC-16`'s positional
+          fallback is not needed. All three results are recorded in spec 0011's
+          Follow-up. Unblocks AC-16
+  - [x] The thin public thread: the hosted subdomain, `POST /publish`, the client
+        publish action, and `GET /feed` reaching a signed out browser (AC-3,
+        AC-4, AC-6 to AC-8, AC-11 to AC-13, AC-15 to AC-18, AC-22). **Proven
+        against a real published project**, not only against an empty store: a
+        project published from a browser produced a live entry the anonymous
+        feed returns, and both hosted copies fetch with no auth at all, the
+        render as `image/png` at 1,960,689 bytes and the plan as `image/jpeg` at
+        35,172 bytes. Store C, the subdomain, the cross identity copy and the
+        entry are all real
+    - [x] A second platform gate before spec task 4, the same scratch shape as
+          the kv probe: `/hosting-probe/*` routes in `worker/roomify.js`, now
+          removed. Every fact came back clean. `me.puter` has both `hosting` and
+          `fs`, so the app identity creates and owns the subdomain itself and no
+          person in a browser is needed. The app root is `~/AppData/<appId>` and
+          **only relative paths reach it**, which cost the probe its first run
+          and which store C's paths now have to respect. A subdomain created by
+          `me` serves what `me` wrote, publicly and with no auth, so
+          HeyPuter/puter#2295 does not bite this design. Ownership was read from
+          `hosting.list()` only, never `get()`. And the cross identity copy, a
+          46,168 byte JPEG read as the caller and written as the app, came back
+          byte for byte from its public URL first try, which closes 0002's open
+          follow up as well. Written up in 0011's Follow-up. Unblocks AC-6 to
+          AC-8, AC-11
+    - [x] The worker half: spec tasks 4, 5 and 7, all in `worker/roomify.js`.
+          `ensureHosting` creates and owns `architecture-vis-public` itself, so
+          there is no manual step left anywhere. `POST /publish` re reads the
+          record as the caller, refuses a record that does not already say
+          public and one with no complete render, copies the plan and every
+          finished render across identities, **re reads the record a second time
+          before writing anything**, then sets the entry and then the pointer.
+          `GET /feed` is anonymous and reads one bounded page through the app's
+          own store. Deployed and driven by `curl`: the anonymous feed answers
+          `200 {"entries":[],"cursor":null}` with no session at all, a limit of
+          999 answers `400 badRequest`, and a publish with no session answers
+          `401 signedOut`. Satisfies AC-6 to AC-8, AC-11 to AC-13, AC-15,
+          AC-16, AC-18
+    - [x] The client half: spec task 6 and the `/community` route.
+          `app/publish/` holds the failure vocabulary, the worker call with its
+          response parsed rather than trusted, and the three step action, intent
+          write, worker, commit, with the commit dropping a response whose
+          `publishedRevision` is older than what is stored. `app/feed/` holds
+          the anonymous read and the card, and `Community` is in the navbar for
+          everyone, signed in or not. `useProjectRenders` now returns `apply`,
+          so a publish hands the newer record back to the one copy the sheet
+          already has rather than starting a second. Satisfies AC-14, AC-17,
+          AC-3, AC-4, AC-12, and the client half of AC-22
+    - [x] A temporary Make public button carried this thread at its review point,
+          since task 10 owns the real toggle and task 9 owns unpublish. **It has
+          since been replaced** by `app/publish/VisibilityControl.tsx` and no
+          longer exists. What survives from it is the state word reading from
+          the record instead of the hardcoded `Private` it used to be
+    - [x] **Five corrections to spec 0011.** Four were found by building it and
+          the fifth in review. None
+          changes what the feature does and each contradicts something the spec
+          says, so they need folding back into 0011 by `/architect` rather than
+          living only here:
+      1. **The feed read cannot go through `withPuter`.** 0011 says the client
+         reaches all four routes through `puter.workers.exec()` behind
+         `withPuter`, carrying `x-puter-no-auth` when the reader is signed out.
+         That cannot work: `withPuter` rejects with `PuterGateError` when no
+         token is held, so it refuses before the header is ever sent, and AC-3
+         is precisely the signed out case. `app/feed/store.ts` uses a plain
+         `fetch` with that header on every call instead. Nothing is lost:
+         `workers.exec` exists to attach a session and this route deliberately
+         has none. No SDK import is involved, so the rule
+         `app/platform/AGENTS.md` actually owns is untouched
+      2. **Two queues, not one.** 0011 asks that the publish and unpublish
+         worker calls go through the same per project queue as every record
+         write. That deadlocks on the first press rather than racing:
+         `updateProject` enters that queue itself, so a sequence held inside one
+         of its turns can never reach the position it is waiting for.
+         `app/publish/queue.ts` holds a whole publish sequence and the record
+         queue still holds every individual write. The invariant 0011 wanted, a
+         publish and an unpublish of one project never overlapping in a tab,
+         holds; the single writer rule is untouched, since nothing in that
+         module writes a record
+      3. **The public subdomain serves `public/`, not the app root.** 0011's
+         data model reads store C's paths as relative to the app root with the
+         subdomain served from the root itself. Binding it one level down
+         produces the identical public URL and keeps everything else the app
+         account ever writes out of a directory served to the world. The URL
+         shape the record stores, and everything `checkPublicAssets` checks
+         about it, is unchanged
+      4. **A fifth state the spec did not name: `withdrawing`.** 0011's state
+         transitions name the uncommitted state, where the record reads public
+         and no copy was committed, and stop there. Its mirror is just as real
+         and arrives the same way: an unpublish writes `visibility` first and
+         clears `publishedAt` and `publicAssets` only once the worker confirms,
+         so a failure in between leaves a record reading private with its public
+         copies possibly still up. Two things had to change for it.
+         `publicState` reports it rather than folding it into `private`, because
+         a project shown as private whose only control says `Make public` offers
+         exactly the wrong direction, and the repair now carries which way it
+         goes. And `deleteProject` refused only on `visibility === "public"`,
+         which would have let precisely that record be deleted, taking with it
+         the only thing that knows where its entry and its hosted files are. It
+         now refuses whenever anything public is outstanding
+      5. **`publishedRevision` comes from the first read, not the second.**
+         0011's derivation table says it is "the record's `revision` at the
+         moment the worker read it back", which is the second read, and the
+         build followed it. That is wrong, and the spec contradicts itself two
+         tables earlier where the same field is "the `revision` the live public
+         copy was built from". The copy is built from the FIRST read: its paths
+         and its `models` both come from `record`. So a content write landing in
+         another tab between the copy and the second read stamped N+1 onto
+         revision N's images, and since `publicState` reads equal revisions as
+         `live`, the owner was shown a current public copy, with no republish
+         offered, over stale hosted bytes. It now stamps `record.revision`, and
+         the response carries the entry's own value so the record and the feed
+         cannot disagree. Under claiming is safe where over claiming is not: if
+         nothing changed the stamp is exact, and if something did the project
+         reads `stale` and copies again. That is the only available answer,
+         because a write landing DURING the copy can leave it holding some of
+         each revision and no read can detect it: `renderOutPath` is
+         deterministic, so a regenerated render overwrites its path rather than
+         taking a new one
+  - [x] Withdrawal and the single public project page (AC-5, AC-9, AC-18), spec
+        tasks 8 and 9. `POST /unpublish` is idempotent and has no "not
+        published" error, deletes the pointer before the entry, mirroring
+        publish's entry before pointer, and removes the whole store C directory
+        by deriving it from the project id alone, so no manifest is kept
+        anywhere. `GET /feed/project/:projectId` reads the pointer key, the only
+        way an anonymous route can find an entry, since `kv.list`'s pattern is
+        prefix only. Confirmed live: the route resolves a real published project
+        by id, and answers one identical bare 404, with an empty body rather
+        than the router's own `Path not found`, for both a well formed id that
+        is not in the feed and a malformed one. `/community/:projectId` renders
+        it for anybody, signed in or not
+  - [x] The owner's controls and the states (AC-10, AC-19, AC-22 to AC-25), spec
+        tasks 10 to 12
+    - [x] The visibility toggle, in `app/publish/VisibilityControl.tsx`. Going
+          public asks once and names what happens; going private takes effect
+          immediately (AC-25). The confirmation is **an inline two step**, a
+          sentence and `Share it` / `Cancel` in place on the sheet, decided with
+          the engineer rather than assumed: the design system has no overlay, no
+          scrim colour and no focus trap in it, and a dialog would have meant
+          adding all three for one question. Focus moves to the confirming
+          button when the question opens, and the sentence is its
+          `aria-describedby`, so it is announced with it
+    - [x] Freshness as a pure function in `app/publish/rules.ts` (AC-19). It is
+          one comparison of two integers, `revision` against
+          `publicAssets.publishedRevision`, and no timestamp is compared with
+          another timestamp anywhere in the file, which is the whole of AC-19
+    - [x] The automatic republish (AC-22, AC-10), and it is wired the way the
+          spec insisted rather than at the call sites. `app/projects/store.ts`
+          announces every successful write from inside its own queued turn
+          through `app/projects/afterWrite.ts`, and `useAutoRepublish` listens
+          above every screen, so whatever changes a public project brings its
+          public copy back into step. **A listener is never awaited**: it runs
+          inside the store's queued turn and waiting for one would be waiting
+          for a position in the queue that turn still holds, which deadlocks
+          rather than races. One refinement to the rule as written: a content
+          write that leaves no complete render is skipped, because taken
+          literally the rule would republish the write that moves a
+          regenerating render to `running`, which the worker would correctly
+          refuse with `noRender` and which would put a failure sentence in front
+          of somebody who did nothing wrong. The write that finishes the render
+          is itself a content change and republishes then
+    - [x] The empty feed, signed in and signed out (AC-23), and the one plain
+          page a withdrawn, private or never real project gets (AC-24), which
+          says the same thing and carries the same way onward for all three,
+          because telling them apart would tell an anonymous visitor which
+          private projects exist
+    - [x] One cleanup on the way out: `feedWhereKey` is gone from
+          `app/projects/record.ts`. It was exported, imported nowhere in `app/`,
+          and duplicated a string the worker derives for itself, which is the
+          exact drift the comment block around it argues against. The key is
+          unchanged and still lives in `worker/roomify.js`; only the app side
+          mirror is gone, and the reasoning it carried stays in that comment
+- [ ] Verify it: /check verify feature 9, AC-3 to AC-25. The worker half is
+      already proven live by `curl` against a really published project, and
+      every check above passes: typecheck, lint, format, contrast and a real
+      build. What is genuinely unwalked is the browser: the confirmation and its
+      keyboard path, the two empty feed invitations, the out of date state and
+      its retry, unpublish from the uncommitted state, and the two tab races
+      spec 0011's Critical test scenarios name
 
 ### 10. Export
 

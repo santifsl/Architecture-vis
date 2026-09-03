@@ -16,6 +16,7 @@
  */
 import { RenderComparison } from "~/compare/RenderComparison";
 import type { Project } from "~/projects/record";
+import { VisibilityControl } from "~/publish/VisibilityControl";
 import { RenderPlate } from "~/render/RenderPlate";
 import { planPlacement, plateView } from "~/render/rules";
 import { useProjectRenders } from "~/render/useProjectRenders";
@@ -78,7 +79,7 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
     <main className="mx-auto max-w-4xl px-6 py-16">
       <div className="border-b border-hairline pb-6">
         <h1 className="type-display text-ink">{project.name}</h1>
-        <p className="mt-2 type-meta text-ink-soft">Private</p>
+        <VisibilityControl project={project} />
       </div>
 
       {placement === "key" && (
