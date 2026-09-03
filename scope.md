@@ -77,12 +77,12 @@ cheap decision to make now.
 | 2   | Coding standards & tooling                     | Foundation | done        |
 | 3   | Data model                                     | Foundation | done        |
 | 4   | Design & look                                  | Foundation | done        |
-| 5   | Upload & host a floor plan                     | Slice 1    | in-progress |
-| 6   | Create a project & generate the 3D render      | Slice 1    | in-progress |
-| 7   | App shell & project gallery                    | Slice 2    | in-progress |
-| 8   | Side-by-side comparison view                   | Slice 3    | in-progress |
+| 5   | Upload & host a floor plan                     | Slice 1    | done        |
+| 6   | Create a project & generate the 3D render      | Slice 1    | done        |
+| 7   | App shell & project gallery                    | Slice 2    | done        |
+| 8   | Side-by-side comparison view                   | Slice 3    | done        |
 | 9   | Public/private visibility & the community feed | Slice 4    | in-progress |
-| 10  | Export                                         | Slice 4    | not started |
+| 10  | Export                                         | Slice 4    | in-progress |
 | 11  | The AV mark, a display typeface & real buttons | Slice 5    | in-progress |
 
 ## Foundation
@@ -507,7 +507,7 @@ test runner and browser automation, so verification is the manual walkthrough.
 
 ## Slice 1: Core render loop
 
-### 5. Upload & host a floor plan · in-progress
+### 5. Upload & host a floor plan · done
 
 A user uploads a 2D floor plan image. It's written to permanent storage
 through `puter.fs`, and what everything downstream (the worker, the KV record,
@@ -575,7 +575,7 @@ handed the `XMLHttpRequest` whose `abort` the SDK overrides. TypeScript caught
 it; had the types been looser it would have compiled and silently never
 cancelled anything. AC-17 now names the right mechanism.
 
-- [ ] Verify it: `/check verify` feature 5, the walkthrough in
+- [x] Verify it: `/check verify` feature 5, the walkthrough in
       [verify.md](docs/specs/0005-upload-and-host-a-floor-plan/verify.md). Two
       steps need a nearly full Puter drive and may have to be waived. The step
       most worth doing properly is cancelling the picker during Replace, since
@@ -593,11 +593,30 @@ cancelled anything. AC-17 now names the right mechanism.
       cannot be walked as written: the `.tiff` Replace case, because the file
       input's `accept` attribute filters `.tiff` out of the picker before
       validation ever runs._
+      **Closed 2026-09-02 with 19 of 59 steps run and passing and 40 waived.**
+      Closed on the engineer's call, not because the walk finished. The three
+      unrun steps this box was held open for, the shape of the stored path, the
+      preview loading from a minted `token-read` URL rather than a `blob:` one,
+      and a first upload on a fresh account where `createMissingParents` bites,
+      are waived as exercised indirectly rather than as still unknown: features
+      6 through 9 are all built directly on that path, and every one of them
+      reads it, writes to it, or copies out of it. Feature 6 renders from a
+      stored plan and writes its output beside it, feature 7 lists those paths
+      in the gallery, feature 8 mints view URLs for them, and feature 9 copies
+      the plan and the render out of that directory into public hosting, proven
+      live at 62,798 and 1,220,851 bytes. A wrong path shape or a missing parent
+      directory would have taken all four of those down, and none of them saw
+      it. The `.tiff` Replace case is waived as unwalkable rather than unwalked:
+      the file input's `accept` attribute filters `.tiff` out of the picker
+      before validation ever runs, so there is no way to press it. The remaining
+      36 are the ordinary browser walk. What is genuinely unwalked and worth
+      knowing: a first upload on a truly fresh account has still never been seen
+      by a person, only inferred from four features standing on it.
 
 No `/test` box, same as features 1, 3 and 4: `CLAUDE.md` rules out a test runner
 and browser automation, so verification is the manual walkthrough.
 
-### 6. Create a project & generate the 3D render · in-progress
+### 6. Create a project & generate the 3D render · done
 
 **Revised on 2026-08-31, read the revision below before this section.** Claude is
 gone, the render is one direct call instead of two stages, and the busy state is
@@ -650,7 +669,7 @@ chosen if the answer is no: the worker returns the bytes and the client writes
 them, exactly as feature 5 writes a plan.
 
 - [x] Decide the approach
-- [ ] Build it: `/develop` feature 6, the eleven tasks of spec 0006's build plan,
+- [x] Build it: `/develop` feature 6, the eleven tasks of spec 0006's build plan,
       ordered as a tracer bullet per CLAUDE.md, one model end to end before
       anything is made fuller
   - [x] Prove the write direction with a throwaway `/probe`, then build
@@ -741,12 +760,24 @@ two-model promise honest: the models are compared on how they **read** the plan,
 because one shared image model painted both, and the page says so in one line
 under the plates rather than letting anyone conclude Claude drew a picture.
 
-- [ ] Verify it: `/check verify` feature 6, the walkthrough in
+- [x] Verify it: `/check verify` feature 6, the walkthrough in
       [verify.md](docs/specs/0006-create-a-project-and-render/verify.md). Two
       steps are worth doing properly whatever else gets waived: the second tab on
       a generating project, and the late answer from a timed-out attempt landing
       after a retry. Both were found by cross-check rather than by design, which
       is exactly why they need a real hand check
+      **Closed 2026-09-02 with 0 of 43 steps run and 43 waived.** That number is
+      the honest one and it is not a typo: this walkthrough was written and never
+      opened. What stands in for it is the revision below, spec 0007, whose own
+      walkthrough ran 30 of 49 and which supersedes the parts of 0006 that
+      carried the most risk, the two-stage render, the model parity rule and the
+      picker. The render loop itself has also been exercised continuously since,
+      by every project features 7, 8 and 9 were built and demonstrated against,
+      including the two projects sitting in the live community feed right now
+      with finished Gemini renders. Closed on the engineer's call. The two steps
+      this box named as worth doing properly, the second tab on a generating
+      project and the late answer from a timed-out attempt landing after a retry,
+      are the same gap the claim-fix box below records, and they stay unwalked
 
 #### Revision, 2026-08-31: one model, one call, a new busy state
 
@@ -881,7 +912,7 @@ slider easier to build.
         which is both wrong and less useful than the sentence it replaced. The
         migration ran client, then worker, then this deletion, with no window in
         which a deployed client could meet a code it did not know
-- [ ] Verify it: `/check verify` feature 6 revision, the walkthrough in
+- [x] Verify it: `/check verify` feature 6 revision, the walkthrough in
       [verify.md](docs/specs/0007-one-model-and-the-top-down-render/verify.md).
       Two steps are worth doing properly whatever else gets waived: the dark
       floor plan against the overlay text, because the 8.13:1 figure is computed
@@ -889,6 +920,14 @@ slider easier to build.
       because whether the model actually respects the strict geometry
       requirements is the entire premise of the change and no code review can
       tell you
+      **Closed 2026-09-02 with 30 of 49 steps run and passing and 19 waived.**
+      Closed on the engineer's call. Of the two steps this box called out, the
+      second one has effectively been answered by use rather than by a formal
+      pass: every render this project has produced since has been looked at
+      beside its plan, and the top-down geometry has held. The first one has not.
+      The dark floor plan against the overlay text is still a computed 8.13:1 and
+      nobody has put a genuinely dark plan under that text and looked, which is
+      the accepted gap here
 
 Seven findings came back from the cross-check on spec 0007 and all seven are
 folded in. Two would have broken the build as written, and they're recorded in
@@ -1030,12 +1069,23 @@ one tab:
 - [x] Guard 3 stays. It is still the backstop for a late answer from an attempt
       whose lease ran out
 - [x] `npm run verify` green: typecheck, lint, format, contrast, build
-- [ ] Walk it by hand: two tabs on the same pending project, and a Retry on a
+- [x] Walk it by hand: two tabs on the same pending project, and a Retry on a
       stalled render. Nothing here can be checked by reading
+      **Closed 2026-09-02 unwalked, and this is the feature's real exposure.** Every
+      one of the nine claim points above was settled by code review and reasoning,
+      including the three that review itself caught: the delete-before-claim race,
+      the release that could free a successor's live claim, and the degraded
+      `unguarded` attempt reporting `won`. Not one of them was ever put in front of
+      two real tabs. Reasoning found three defects in this code and it is entirely
+      possible it left a fourth. What bounds the risk is the cost of the failure
+      rather than its likelihood: the worst case is a duplicated paid render, not a
+      lost project or a corrupt record, because guard 3's compare before write and
+      the lease's own expiry both sit underneath it. That is why this is a waive and
+      not a shipped defect, and it stays named here rather than being tidied away
 
 ## Slice 2: App shell & gallery
 
-### 7. App shell & project gallery · in-progress
+### 7. App shell & project gallery · done
 
 The frame everything else sits inside: a navbar, and a personal gallery of a
 signed-in user's own past projects, each card showing its render (or its
@@ -1094,17 +1144,29 @@ project page beside it said "Stopped". The card goes through `renderView` and
   - [x] The home strip: its own `clientLoader` calling `listProjects`
         unconditionally, the same grid capped at 3, and `See all`, satisfies
         AC-7, AC-11
-- [ ] Verify it: the manual walkthrough in
+- [x] Verify it: the manual walkthrough in
       [verify.md](docs/specs/0008-app-shell-and-project-gallery/verify.md). The
       stale-render step is the one worth an independent pass: a card reading the
       stored status passes every other step on that page.
+      **Closed 2026-09-02 with 10 of 50 steps run and passing and 40 waived.**
+      Closed on the engineer's call. The stale-render step this box singled out
+      is ticked in `verify.md`, but it was ticked by the build's own pass and
+      never independently walked, and that is the accepted gap. It matters more
+      than its one line suggests: it is the one place where `renderView` and the
+      stored status can silently drift, a card that reads the stored status
+      passes every other step on the page, and the defect it exists for is one
+      the cross check actually found in the first draft. The rule is pure and
+      lives in `app/render/rules.ts`, which is what makes reading it a fair
+      substitute for walking it, but reading it is what happened. The other 39
+      are the ordinary browser walk of a gallery whose cards have been looked at
+      constantly since, while features 8, 9 and 11 were built on top of them
 
 No `/test` box, same as features 1, 3, 4, 5 and 6: `CLAUDE.md` rules out a test
 runner and browser automation, so verification is the manual walkthrough.
 
 ## Slice 3: Comparison
 
-### 8. Side-by-side comparison view · in-progress
+### 8. Side-by-side comparison view · done
 
 Checked against feature 6's 2026-08-31 revision and **unaffected**. This compares
 the plan against the render, not two models against each other, so dropping Claude
@@ -1188,12 +1250,24 @@ paragraph now says specs live in `docs/specs/` and keeps only the standard it wa
 really defending, that a spec records a real decision rather than fills a
 template.
 
-- [ ] Verify it: the manual walkthrough in
+- [x] Verify it: the manual walkthrough in
       [verify.md](docs/specs/0009-side-by-side-comparison-view/verify.md). Two
       steps are worth an independent pass and neither is visual: reading
       `planPlacement` against `["running", "complete"]` by hand, since one model
       means the two-plan bug cannot be walked, and counting the view-URL mints in
       the network panel, since a second mint per path is invisible on screen.
+      **Closed 2026-09-02 with 14 of 34 steps run and passing and 20 waived.**
+      Closed on the engineer's call. Both steps this box named as worth an
+      independent pass are the accepted gaps. `planPlacement` against
+      `["running", "complete"]` is ticked in `verify.md` from the build's own
+      reading and was never independently re-read; with one model the two-plan
+      bug it guards cannot be walked at all, so a second pair of eyes on a pure
+      function was the entire available check and it did not happen. The view-URL
+      mint count in the network panel was never opened, so a regression in the
+      promise cache in `app/storage/urls.ts` would quietly double this page's
+      Puter calls with nothing on screen to show for it. Both are cheap to run
+      later and neither can corrupt anything: the first is a layout mistake and
+      the second is a cost mistake. The other 18 are the ordinary browser walk
 
 No `/test` box, same as every feature here: `CLAUDE.md` rules out a test runner
 and browser automation, so verification is the manual walkthrough.
@@ -1475,14 +1549,62 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
       its retry, unpublish from the uncommitted state, and the two tab races
       spec 0011's Critical test scenarios name
 
-### 10. Export
+### 10. Export · in-progress
 
-A way to download a generated render at full resolution for use outside the
-app, a presentation, a portfolio, a client deck. Straightforward once the
-render already has a permanent public URL from feature 5's storage approach.
+A way to download a generated render for use outside the app, a presentation, a
+portfolio, a client deck. "Full resolution" means the stored bytes untouched,
+nothing resized or re-encoded, rather than anything upscaled.
 
-- [ ] Decide the approach
-- [ ] Build it
+The sentence that used to sit here was wrong and is worth recording as wrong,
+because believing it leads straight to a mechanism that cannot work. It said
+this was straightforward once the render had a permanent public URL from feature
+5's storage approach. Feature 5 decided the opposite: a path is the durable
+identifier, and a URL is minted on demand and allowed to expire. The permanent
+public URL exists only for a project feature 9 has published, so anything built
+on it would cover published projects and silently fail for every private one.
+Export starts from the private path instead.
+
+**Done when:** a finished render on the project page can be saved to disk under
+the project's own name, byte for byte the file the worker wrote, with the three
+states and three failure sentences the spec pins down, and `npm run verify` plus
+a real browser walk both pass.
+
+**Spec: [0012](docs/specs/0012-download-a-render/index.md).** The decision was
+the mechanism, and browsers settled it rather than taste: the `download`
+attribute is honoured only for same origin URLs, and every URL this app can
+produce for a stored file is on a Puter origin, so an anchor pointed at one
+opens the image in a tab and names it whatever the server says. So the render is
+read with `puter.fs.read`, which returns a blob, and that blob is saved through
+an object URL, which is same origin by construction. It is a pure read: no
+schema change, no worker call, no write, so `revision` never moves, and the
+feature ships independently of feature 9 still being in progress. A cross check
+on a second model closed five gaps before the spec was accepted, all of them
+values an acceptance criterion needed whose source the spec never named, and
+caught a live inconsistency on the way: `AuthControl.tsx` already sets
+`aria-disabled` on the sign in button while busy, and `app.css` has only ever
+styled `[disabled]`, so that button has never dimmed.
+
+- [x] Decide the approach (spec)
+- [ ] Build it: `/develop` feature 10, the eight tasks of spec 0012's build plan
+  - [ ] The thin thread, proven in a real browser before anything is thickened:
+        `app/export/` with `DownloadRender.tsx`, the SDK read, and the save.
+        Tasks 1, AC-1 and AC-2
+  - [ ] The filename and the failure vocabulary: `rules.ts` with its own slug
+        rule rather than `sanitisePlanName`, and `failures.ts` plus `store.ts`
+        with the `stat` first rule that tells the three codes apart. Tasks 2 and
+        3, AC-3 and AC-7 to AC-9
+  - [ ] The three states, and the design system amendment they need: busy,
+        unavailable, and absent, plus spec 0004's disabled selector extended to
+        match `aria-disabled`. Tasks 4 to 6, AC-4, AC-5, AC-6, AC-13
+  - [ ] The accessibility pass, and confirming the feature is inert everywhere
+        else. Tasks 7 and 8, AC-10 to AC-12
+- [ ] Verify it: `/check verify` feature 10, the walkthrough in
+      `docs/specs/0012-download-a-render/verify.md`. The gate runs first: if the
+      saved file opens in a tab instead of landing in Downloads, nothing after it
+      is worth building
+
+No `/test` box on this feature, same as every other one here: `CLAUDE.md` rules
+out a test runner, and `verify.md` is the walkthrough instead.
 
 ## Slice 5: Identity & polish
 
@@ -1616,6 +1738,11 @@ Kept here so the plan stays honest about what's deliberately left out.
 - Commenting, liking, or any social feature on the community feed beyond
   browsing public projects.
 - An admin or moderation page for public content.
+- Downloading from the public project page, so an anonymous visitor with a
+  shared link gets a named file rather than a right click. Deferred from spec
+  0012: a visitor has no Puter session, so it cannot reuse feature 10's SDK
+  read and would be a genuinely different mechanism built on the hosted URL,
+  with its own CORS question to answer. Revisit once feature 9 is verified.
 - A public API for the community feed.
 - Multiple floor plans per project, or re-uploading a corrected plan into an
   existing project.
