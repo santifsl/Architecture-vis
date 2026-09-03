@@ -1549,7 +1549,7 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
       its retry, unpublish from the uncommitted state, and the two tab races
       spec 0011's Critical test scenarios name
 
-### 10. Export · in-progress
+### 10. Export · done
 
 A way to download a generated render for use outside the app, a presentation, a
 portfolio, a client deck. "Full resolution" means the stored bytes untouched,
@@ -1584,24 +1584,60 @@ caught a live inconsistency on the way: `AuthControl.tsx` already sets
 `aria-disabled` on the sign in button while busy, and `app.css` has only ever
 styled `[disabled]`, so that button has never dimmed.
 
+One thing in the spec turned out to be wrong once it was built, and the
+correction is worth keeping. Spec 0012 expected the `aria-disabled` selector to
+make `AuthControl`'s buttons dim during sign in, on the reading that they had
+never dimmed at all. They had: state 6 of spec 0004 already paints a busy label
+in clay at 55%, which measures 2.33:1 on bone, and stacking state 5's 0.55
+opacity on top of it takes that to about 1.55:1. So the amendment excludes a
+busy control, `[aria-disabled="true"]:not([aria-busy="true"])`, and busy keeps
+the purpose-built look it already had. AC-13 still holds, AC-11 would not have.
+The hover and active exclusions took `aria-disabled` too, or the waiting
+download would have answered the pointer as though it could act.
+
 - [x] Decide the approach (spec)
-- [ ] Build it: `/develop` feature 10, the eight tasks of spec 0012's build plan
-  - [ ] The thin thread, proven in a real browser before anything is thickened:
-        `app/export/` with `DownloadRender.tsx`, the SDK read, and the save.
-        Tasks 1, AC-1 and AC-2
-  - [ ] The filename and the failure vocabulary: `rules.ts` with its own slug
+- [x] Build it: `/develop` feature 10, the eight tasks of spec 0012's build plan
+  - [x] The thin thread: `app/export/` with `DownloadRender.tsx`, the SDK read,
+        and the save. Tasks 1, AC-1 and AC-2. The browser proof moved to the
+        verify pass rather than happening mid build
+  - [x] The filename and the failure vocabulary: `rules.ts` with its own slug
         rule rather than `sanitisePlanName`, and `failures.ts` plus `store.ts`
         with the `stat` first rule that tells the three codes apart. Tasks 2 and
         3, AC-3 and AC-7 to AC-9
-  - [ ] The three states, and the design system amendment they need: busy,
+  - [x] The three states, and the design system amendment they need: busy,
         unavailable, and absent, plus spec 0004's disabled selector extended to
         match `aria-disabled`. Tasks 4 to 6, AC-4, AC-5, AC-6, AC-13
-  - [ ] The accessibility pass, and confirming the feature is inert everywhere
-        else. Tasks 7 and 8, AC-10 to AC-12
-- [ ] Verify it: `/check verify` feature 10, the walkthrough in
-      `docs/specs/0012-download-a-render/verify.md`. The gate runs first: if the
-      saved file opens in a tab instead of landing in Downloads, nothing after it
-      is worth building
+  - [x] The accessibility pass, and confirming the feature is inert everywhere
+        else. Tasks 7 and 8, AC-10 to AC-12. `RenderPlate` is mounted only by
+        `ProjectSheet`, which is only on `/project/:id`, so AC-12 holds by
+        construction rather than by a check
+        A second thing in the spec turned out to be wrong, and this one shipped as a
+        real bug before the offline walk caught it. Spec 0012 told the three failure
+        codes apart by WHICH call rejected: a failing `stat` meant `unreadable`, and only
+        a `stat` that succeeded followed by a failing `read` meant `unreachable`. A
+        `stat` rejection has at least two causes, so the rule could not separate them.
+        Fully offline, the `stat` failed first and the app told people their render was
+        missing from storage. The same rule made `unreachable` nearly unreachable, since
+        producing it needed the network to survive one call and die before the next: the
+        one code the extra round trip was bought to enable was the one it hid. The
+        discrimination moved from which call failed to why, the `stat` went with it
+        because it had nothing left to do, and `isMissing` moved out of
+        `app/upload/store.ts` to `app/platform/puter.ts` as `isMissingError` rather than
+        being copied, since a second feature now asks the same question. The download is
+        one round trip instead of two. Spec 0012's Key invariants and Consequences are
+        amended in place and owe `/architect` a ratification pass.
+
+- [x] Verify it: `/check verify` feature 10, the walkthrough in
+      `docs/specs/0012-download-a-render/verify.md`. The gate passed on the first
+      walk: the file lands in Downloads rather than opening in a tab, which was
+      the one browser fact the whole mechanism rested on. The offline walk then
+      found the `stat` first bug recorded above, and everything came back clean on
+      the re-walk after the fix, including a `failed` render from a real
+      `outOfAllowance` and a throttled double press producing exactly one file.
+      Five steps are left unticked in `verify.md` and none of them blocks: the
+      screen reader announcement, the focus ring across all three looks, the
+      control's exact placement in the label row, the comparison slider still
+      working, and the step the `aria-busy` correction made stale
 
 No `/test` box on this feature, same as every other one here: `CLAUDE.md` rules
 out a test runner, and `verify.md` is the walkthrough instead.
