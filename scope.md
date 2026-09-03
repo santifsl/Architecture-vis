@@ -1584,16 +1584,13 @@ caught a live inconsistency on the way: `AuthControl.tsx` already sets
 `aria-disabled` on the sign in button while busy, and `app.css` has only ever
 styled `[disabled]`, so that button has never dimmed.
 
-One thing in the spec turned out to be wrong once it was built, and the
-correction is worth keeping. Spec 0012 expected the `aria-disabled` selector to
-make `AuthControl`'s buttons dim during sign in, on the reading that they had
-never dimmed at all. They had: state 6 of spec 0004 already paints a busy label
-in clay at 55%, which measures 2.33:1 on bone, and stacking state 5's 0.55
-opacity on top of it takes that to about 1.55:1. So the amendment excludes a
-busy control, `[aria-disabled="true"]:not([aria-busy="true"])`, and busy keeps
-the purpose-built look it already had. AC-13 still holds, AC-11 would not have.
-The hover and active exclusions took `aria-disabled` too, or the waiting
-download would have answered the pointer as though it could act.
+Two of that spec's rules turned out wrong once they were built, and one of them
+shipped as a real bug: fully offline, a download told people their render was
+missing from storage rather than that the connection had gone. The last sentence
+of the paragraph above is itself one of the two, and it is left standing as
+written because being able to see the wrong version is the point. Both are
+corrected in place in spec 0012, in **Key invariants** and **Consequences**, and
+both owe `/architect` a ratification pass.
 
 - [x] Decide the approach (spec)
 - [x] Build it: `/develop` feature 10, the eight tasks of spec 0012's build plan
@@ -1611,22 +1608,6 @@ download would have answered the pointer as though it could act.
         else. Tasks 7 and 8, AC-10 to AC-12. `RenderPlate` is mounted only by
         `ProjectSheet`, which is only on `/project/:id`, so AC-12 holds by
         construction rather than by a check
-        A second thing in the spec turned out to be wrong, and this one shipped as a
-        real bug before the offline walk caught it. Spec 0012 told the three failure
-        codes apart by WHICH call rejected: a failing `stat` meant `unreadable`, and only
-        a `stat` that succeeded followed by a failing `read` meant `unreachable`. A
-        `stat` rejection has at least two causes, so the rule could not separate them.
-        Fully offline, the `stat` failed first and the app told people their render was
-        missing from storage. The same rule made `unreachable` nearly unreachable, since
-        producing it needed the network to survive one call and die before the next: the
-        one code the extra round trip was bought to enable was the one it hid. The
-        discrimination moved from which call failed to why, the `stat` went with it
-        because it had nothing left to do, and `isMissing` moved out of
-        `app/upload/store.ts` to `app/platform/puter.ts` as `isMissingError` rather than
-        being copied, since a second feature now asks the same question. The download is
-        one round trip instead of two. Spec 0012's Key invariants and Consequences are
-        amended in place and owe `/architect` a ratification pass.
-
 - [x] Verify it: `/check verify` feature 10, the walkthrough in
       `docs/specs/0012-download-a-render/verify.md`. The gate passed on the first
       walk: the file lands in Downloads rather than opening in a tab, which was

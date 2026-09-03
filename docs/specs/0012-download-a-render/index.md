@@ -322,13 +322,31 @@ worth learning in task 1 rather than task 7.
   nothing. The early return in the handler is what makes that safe, and it is a
   guard that must not be dropped in a later refactor. Spec 0004 already names
   this exact hazard for the busy state.
-- Extending the disabled selector in `app/app.css` changes a shared rule, and it
-  has one immediate visible effect outside this feature: `AuthControl.tsx`
-  already sets `aria-disabled` on the sign in button while it is busy, so that
-  button will start dimming during sign in when it never did before. That is a
-  fix rather than a regression, and it is still a look changing somewhere nobody
-  was editing. Any future control setting `aria-disabled` for a different reason
-  picks up the disabled look for free, wanted or not.
+- Extending the disabled selector in `app/app.css` changes a shared rule. Any
+  future control setting `aria-disabled` for a different reason picks up the
+  disabled look for free, wanted or not.
+
+  **The visible effect this bullet predicted does not happen, and the reasoning
+  behind the prediction was wrong (build correction, 2026-09-03).** It said
+  `AuthControl.tsx`'s sign in button would start dimming during sign in "when it
+  never did before", on the reading that only `[disabled]` was styled. That
+  missed state 6: a busy label is already painted in clay at 55%, which measures
+  2.33:1 on bone. Stacking state 5's 0.55 opacity on top takes it to about
+  1.55:1, so the "fix" would have made the one label somebody is waiting on
+  nearly unreadable, and AC-11 would have failed on the busy look.
+
+  So the selector excludes a busy control,
+  `[aria-disabled="true"]:not([aria-busy="true"])`, and busy keeps the
+  purpose-built look it already had. The hover and active exclusions took
+  `aria-disabled` too, or a waiting control would answer the pointer as though it
+  could act. AC-13 still holds in full.
+
+  The blast radius is smaller than this bullet feared rather than larger: every
+  `aria-disabled` in the app today (`AuthControl` twice, `SignInPrompt`,
+  `SessionBanner`, `PlanUploadCard`) is paired with `aria-busy` on the same
+  element, so the change touches **no** existing control. The waiting download is
+  the only thing the new selector reaches.
+
 - ~~Telling `unreadable` from `unreachable` costs a `stat` before every
   download.~~ Withdrawn by the build correction in **Key invariants**: the `stat`
   could not tell them apart and is gone, so the download costs one round trip and
