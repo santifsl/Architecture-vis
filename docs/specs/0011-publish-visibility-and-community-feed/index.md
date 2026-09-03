@@ -88,8 +88,14 @@ build need not open 0002 for the gist:
   `revision` of `0`. No project disappears from its owner's gallery because of
   this change.
 - **AC-22**: Any successful content change to a public project republishes without
-  being asked. A republish that fails leaves the out of date state and a retry,
-  and never a silent divergence.
+  being asked, **except one that leaves the project with no complete render**,
+  which is skipped rather than sent. A republish that fails leaves the out of date
+  state and a retry, and never a silent divergence. The exception is not a
+  loophole: `AC-6` says the worker refuses a publish with no complete render, so
+  such a write would be correctly refused and the person would be shown a failure
+  sentence for doing nothing wrong. The project is already showing as out of date
+  meanwhile, and the write that finishes the render is itself a content change,
+  so it republishes then.
 - **AC-23**: A feed with nothing in it shows an invitation, and which invitation
   depends on whether the reader is signed in.
 - **AC-24**: A public project URL that is withdrawn, private, or was never real
@@ -182,6 +188,15 @@ the hard way; see Follow-up. The leading slash reads as the root of the served
 subdomain, which is what a public URL sees, and it is written app relative in
 `me.puter.fs`.
 
+**The subdomain is bound to a `public/` directory one level down, not to the app
+root.** This spec first served the app root itself. The build narrowed it, and
+the URL a record stores is identical either way, because the subdomain's root is
+whatever directory it is bound to: files land at `public/<projectId>/<name>.<ext>`
+in `me.puter.fs` and are served at `https://<PUBLIC_SUBDOMAIN>.puter.site/<projectId>/<name>.<ext>`
+exactly as written above. What changes is exposure: everything else the app
+account ever writes under `~/AppData/<appId>` stays out of a directory that is
+served to the world. Nothing the client checks about the URL shape moves.
+
 **Relationships**: `Project` 1 to 0..1 `FeedEntry`, only while public · `Project`
 1 to many `RenderState`, embedded, currently at most one · `FeedEntry` 1 to many
 store C files, all under one directory named by the project id.
@@ -209,6 +224,19 @@ rather than a new field:
   the uncommitted state is legal and is how an owner abandons a publish that will
   not complete, which is why `/unpublish` is idempotent rather than refusing when
   it finds no entry.
+- **withdrawing**: `visibility` is `private` and `publishedAt` or `publicAssets`
+  is still set. **This spec named four states and the build found a fifth**, and
+  it is the exact mirror of `uncommitted`: the state a crashed unpublish leaves,
+  because the visibility write goes first there too. It cannot be folded into
+  `private`. A record in it reads private while its public copies are still up,
+  and shown as plain `private` the only control offered would be `Make public`,
+  which is precisely the wrong direction for somebody whose withdrawal did not
+  finish. So it gets its own repair sentence and its own direction, `unpublish`,
+  and the word beside the name still reads `Private` because that is what the
+  record honestly says.
+
+`app/publish/rules.ts` holds all five as one pure function of the record, which
+is what keeps the sheet, the badge and the repair reading the same state.
 
 ### API surface
 
@@ -238,31 +266,46 @@ entry was ever written, instead of being offered only a retry.
 `sortKey`, then reads the entry. A missing pointer, a missing entry, and a
 project that never existed all answer the same `404` with no body.
 
-The client reaches all four through `puter.workers.exec()` behind `withPuter`
-from spec 0001. The two `GET` routes carry the `x-puter-no-auth` header when the
-reader is signed out.
+The two write routes are reached through `puter.workers.exec()` behind
+`withPuter` from spec 0001. **The two anonymous `GET` routes are not, and cannot
+be.** This spec originally wrote all four that way, carrying `x-puter-no-auth`
+when the reader is signed out, and that is not implementable: `withPuter` rejects
+with `PuterGateError` when no token is held, which is exactly right everywhere
+else in the app and exactly wrong here, because `AC-3` is the signed out visitor
+and a signed out visitor holds no token by definition. The gate refuses before
+the header is ever sent.
+
+So `app/feed/store.ts` reads the two public routes with a plain `fetch` against
+`VITE_PUTER_WORKER_URL`, carrying `x-puter-no-auth` on every call, signed in or
+signed out alike. Nothing is lost by that. `workers.exec` exists to attach a
+session, and these routes deliberately have none: the worker serves them out of
+its own store through `me.puter` and never looks at `user`. Attaching a session
+would buy nothing and would mean a signed in reader and a signed out one taking
+two different paths to the same public data. The rule `app/platform/AGENTS.md`
+actually owns, that only `puter.ts` imports the SDK, is untouched, because a
+`fetch` imports nothing.
 
 ### Value sourcing
 
-| Action              | Value produced / displayed             | Source                                                                                                                                                                                                                                                         |
-| ------------------- | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| any write           | `revision`                             | `updateProject` increments the stored value, but only when `name` or `renders` is among the changes. A `visibility`, `publishedAt` or `publicAssets` write leaves it alone                                                                                     |
-| publish, intent     | `publishedAt`                          | the client's own clock, written once at the intent write and never rewritten. Safe as a client clock because it is only ever a sort position and a displayed date                                                                                              |
-| publish             | the store B key's `sortKey`            | derived in the worker: `(10 ** 13 - publishedAt)` as a base 10 string left padded to 13 characters, so a larger `publishedAt` sorts earlier                                                                                                                    |
-| publish             | `publishedAt` used to build that key   | read off the record through `user.puter`, never the request body, so `AC-7` still holds                                                                                                                                                                        |
-| publish             | `publishedRevision`                    | the record's `revision` at the moment the worker read it back                                                                                                                                                                                                  |
-| publish             | `FeedEntry.author`, `models`           | as 0002: the caller's username and the complete renders, both from the record read through `user.puter`                                                                                                                                                        |
-| publish             | store C paths                          | derived from `projectId` and the source file extension alone, never from a request body and never random                                                                                                                                                       |
-| unpublish           | which key to delete                    | recomputed from the record's own `publishedAt` and `id`, read through `user.puter` before the client clears them. If the record is already cleared, `feed:where:<projectId>` answers instead                                                                   |
-| single project read | which key holds the entry              | `feed:where:<projectId>`. There is no other source: the route is anonymous, and `kv.list`'s `pattern` is prefix only so no scan can find it                                                                                                                    |
-| republish           | when it fires                          | inside `updateProject`'s queued task, after a successful write whose changes included `name` or `renders`, when the stored `visibility` is `public`. Not from a call site, so neither the rename path nor the render path can be wired and the other forgotten |
-| publish, commit     | whether this response may be written   | the incoming `publishedRevision` compared against the stored `publicAssets.publishedRevision`. A lower one is a slower republish answering late and is dropped, the same compare before write shape as render guard 3                                          |
-| feed read           | `hasMore`                              | the presence of a `cursor` in the `kv.list` page. No count is stored and none is requested                                                                                                                                                                     |
-| feed read           | the next page                          | the `cursor` the previous page returned, held in route state, never an offset                                                                                                                                                                                  |
-| owner's view        | whether the public copy is out of date | `visibility === "public"` and (`publicAssets === null` or `revision !== publicAssets.publishedRevision`). No timestamp on either side                                                                                                                          |
-| project sheet       | the public link to show                | `publicAssets.floorPlanUrl`'s origin plus the project id, or nothing at all while `publicAssets` is `null`                                                                                                                                                     |
-| empty feed          | which invitation to show               | the resolved user from spec 0001's root loader, the same fact every other screen asks                                                                                                                                                                          |
-| withdrawn page      | what to render                         | the single `404` from `/feed/project/:projectId`, which carries no reason by design                                                                                                                                                                            |
+| Action              | Value produced / displayed             | Source                                                                                                                                                                                                                                                                                                                |
+| ------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| any write           | `revision`                             | `updateProject` increments the stored value, but only when `name` or `renders` is among the changes. A `visibility`, `publishedAt` or `publicAssets` write leaves it alone                                                                                                                                            |
+| publish, intent     | `publishedAt`                          | the client's own clock, written once at the intent write and never rewritten. Safe as a client clock because it is only ever a sort position and a displayed date                                                                                                                                                     |
+| publish             | the store B key's `sortKey`            | derived in the worker: `(10 ** 13 - publishedAt)` as a base 10 string left padded to 13 characters, so a larger `publishedAt` sorts earlier                                                                                                                                                                           |
+| publish             | `publishedAt` used to build that key   | read off the record through `user.puter`, never the request body, so `AC-7` still holds                                                                                                                                                                                                                               |
+| publish             | `publishedRevision`                    | the record's `revision` at the moment the worker read it back                                                                                                                                                                                                                                                         |
+| publish             | `FeedEntry.author`, `models`           | as 0002: the caller's username and the complete renders, both from the record read through `user.puter`                                                                                                                                                                                                               |
+| publish             | store C paths                          | derived from `projectId` and the source file extension alone, never from a request body and never random                                                                                                                                                                                                              |
+| unpublish           | which key to delete                    | recomputed from the record's own `publishedAt` and `id`, read through `user.puter` before the client clears them. If the record is already cleared, `feed:where:<projectId>` answers instead                                                                                                                          |
+| single project read | which key holds the entry              | `feed:where:<projectId>`. There is no other source: the route is anonymous, and `kv.list`'s `pattern` is prefix only so no scan can find it                                                                                                                                                                           |
+| republish           | when it fires                          | announced from inside `updateProject`'s queued task, after a successful write whose changes included `name` or `renders`, when the stored `visibility` is `public` **and at least one render is complete**. Not from a call site, so neither the rename path nor the render path can be wired and the other forgotten |
+| publish, commit     | whether this response may be written   | the incoming `publishedRevision` compared against the stored `publicAssets.publishedRevision`. A lower one is a slower republish answering late and is dropped, the same compare before write shape as render guard 3                                                                                                 |
+| feed read           | `hasMore`                              | the presence of a `cursor` in the `kv.list` page. No count is stored and none is requested                                                                                                                                                                                                                            |
+| feed read           | the next page                          | the `cursor` the previous page returned, held in route state, never an offset                                                                                                                                                                                                                                         |
+| owner's view        | whether the public copy is out of date | `visibility === "public"` and (`publicAssets === null` or `revision !== publicAssets.publishedRevision`). No timestamp on either side                                                                                                                                                                                 |
+| project sheet       | the public link to show                | `publicAssets.floorPlanUrl`'s origin plus the project id, or nothing at all while `publicAssets` is `null`                                                                                                                                                                                                            |
+| empty feed          | which invitation to show               | the resolved user from spec 0001's root loader, the same fact every other screen asks                                                                                                                                                                                                                                 |
+| withdrawn page      | what to render                         | the single `404` from `/feed/project/:projectId`, which carries no reason by design                                                                                                                                                                                                                                   |
 
 ### Key invariants
 
@@ -271,11 +314,24 @@ reader is signed out.
   invariant to check first if anyone is ever tempted to add a counter or a list.
   It holds per key and per call, and it is deliberately not a claim that the whole
   publish sequence is atomic; the next two invariants are what carry that weight.
-- **Publish and unpublish for one project never overlap in one tab.** Both worker
-  calls go through the same per project serial queue as every record write, so an
-  unpublish cannot begin while a publish is still copying files. Without this a
-  slow publish's `kv.set` can land after an unpublish's `kv.del` and leave a live
-  card for a project whose own record reads private, which nobody can then repair.
+- **Publish and unpublish for one project never overlap in one tab.** Without
+  this a slow publish's `kv.set` can land after an unpublish's `kv.del` and leave
+  a live card for a project whose own record reads private, which nobody can then
+  repair. **This spec first said both sequences go through the same per project
+  serial queue as every record write, and that is not implementable: it
+  deadlocks, on the first press.** A publish sequence writes the record, so held
+  inside one of the record queue's turns it would wait for a queue position that
+  cannot come free until it returns.
+
+  So there are two queues and they compose rather than compete.
+  `app/publish/queue.ts` holds a whole publish or unpublish SEQUENCE, intent
+  write, worker call and commit together, which is the thing that must not
+  interleave. The record queue in `app/projects/store.ts` is unchanged and still
+  holds every individual write. The single writer rule below is untouched: the
+  publish queue writes no record itself, it only decides who may run a sequence
+  next, and every write inside that sequence still lands through the one shared
+  queue.
+
 - **The worker re reads the record immediately before its `kv.set`.** Copying
   store C files takes time, and the visibility can change during it. The second
   read makes the window one round trip wide instead of the whole copy, and closes
@@ -292,8 +348,19 @@ reader is signed out.
   disagreement, it points the safe way, and it is visible to the owner.
 - Store C paths are a pure function of `projectId` and the file extension. Nothing
   random, nothing timestamped, nothing recorded.
+- **`deleteProject` refuses while anything public is outstanding**, meaning the
+  record reads `public` **or** it still carries `publishedAt` or `publicAssets`.
+  0002 already refused a public project; the wider test is what `withdrawing`
+  forces, because a record deleted in that state strands a feed entry and a
+  directory of hosted files with nothing left pointing at them, and the worker
+  cannot enumerate anyone's store to find them again. So the test is whether any
+  public copy is outstanding, not what the visibility field alone says. The
+  refusal is a plain sentence asking for the withdrawal to be finished first,
+  never an exception.
 - Every write to a project record goes through the per project serial queue in
-  `app/projects/store.ts`. No feature keeps its own queue.
+  `app/projects/store.ts`. That is still the only door into the store, and the
+  publish queue above is not a second one: it serialises sequences, never writes,
+  and every write it makes goes through the same shared queue as any other.
 - `publishedAt` is written once. A republish never touches it, which is what keeps
   a renamed project in its original feed position.
 - All of 0002's invariants that this spec does not name still hold, in particular
@@ -424,8 +491,9 @@ feed and loading for a signed out browser. Tasks 7 to 12 thicken it.
    app relative directory itself, and the identity that owns the files is the
    identity that owns the subdomain over them. So this is code, not a checklist
    item: on the publish path, ensure the directory exists and, if
-   `hosting.list()` does not already show `PUBLIC_SUBDOMAIN`, create it. `list()`
-   and never `get()`, because a name resolving is not a name you own, per
+   `hosting.list()` does not already show `PUBLIC_SUBDOMAIN`, create it over the
+   app relative `public/` directory rather than the app root, per the data model.
+   `list()` and never `get()`, because a name resolving is not a name you own, per
    `worker/AGENTS.md`. Idempotent, so it costs one list on a path that is already
    doing real work. Prerequisite for **AC-4**.
 5. Add `POST /publish` to the worker: re read the record through `user.puter`,
@@ -436,11 +504,13 @@ feed and loading for a signed out browser. Tasks 7 to 12 thicken it.
    with `publicAssets`. Entry before pointer, so an orphaned pointer resolves to
    a `404` rather than a card pointing at nothing. Satisfies **AC-6**, **AC-7**,
    **AC-8**, **AC-11**, **AC-13**, **AC-15**, **AC-18**.
-6. Add the client publish action, through the queue from task 3: the intent write
-   first, then the worker call, then the `publicAssets` commit, which drops a
-   response whose `publishedRevision` is lower than the stored one. A plain
-   sentence and a retry on every failure. Satisfies **AC-17**, **AC-22**,
-   **AC-14**.
+6. Add the client publish action, through the **publish** queue in
+   `app/publish/queue.ts` and not the record queue from task 3, which deadlocks
+   (see Key invariants): the intent write first, then the worker call, then the
+   `publicAssets` commit, which drops a response whose `publishedRevision` is
+   lower than the stored one. Each of those writes still lands through task 3's
+   shared queue. A plain sentence and a retry on every failure. Satisfies
+   **AC-17**, **AC-22**, **AC-14**.
 7. Add the anonymous `GET /feed` route reading through `me.puter` with
    `kv.list({ pattern, limit, cursor, returnValues: true })`, and build the
    `/community` SPA route with a `clientLoader`, 24 cards a screen, and a load
@@ -457,17 +527,20 @@ feed and loading for a signed out browser. Tasks 7 to 12 thicken it.
    the key from the record's own `publishedAt`, or from `feed:where` if the
    record no longer carries one, then `kv.del` the pointer, `kv.del` the entry,
    and delete the store C directory. Pointer before entry, mirroring publish.
-   Then the client half, through the queue: the `visibility` write first, and
-   `publishedAt` and `publicAssets` cleared only after the worker confirms. It
-   must work from the uncommitted state, which is how a stuck publish is
-   abandoned. Satisfies **AC-9**, **AC-18**, **AC-17**.
+   Then the client half, through the same publish queue as task 6: the
+   `visibility` write first, and `publishedAt` and `publicAssets` cleared only
+   after the worker confirms. It must work from the uncommitted state, which is
+   how a stuck publish is abandoned, and a crash between those two writes is what
+   leaves the `withdrawing` state. Satisfies **AC-9**, **AC-18**, **AC-17**.
 10. Add the visibility toggle to the project sheet, with a confirmation on going
     public that names what happens and none on going private. Satisfies **AC-25**.
 11. Add the freshness rule as a pure function in the projects feature, the out of
     date state with its retry on the project sheet, and the automatic republish
-    fired from inside `updateProject`'s queued task after a successful content
-    write to a public project. Inside the store, not at the call sites, so the
-    rename path and the render path cannot be wired one without the other.
+    fired from a subscription to the store's own write announcement, after a
+    successful content write to a public project that still has a complete
+    render. Driven by the store, not by the call sites, so the rename path and
+    the render path cannot be wired one without the other. Skip the write that
+    leaves nothing complete, per **AC-22**'s exception.
     Satisfies **AC-19**, **AC-22**, **AC-10**, **AC-14**.
 12. Build the empty feed invitation, signed in and signed out, and the plain
     "not public" page with its link onward. Satisfies **AC-23**, **AC-24**.
@@ -550,6 +623,16 @@ warns.
   orphaned entry is unreachable by the single project route and disappears from
   the feed on the next unpublish), but there are now two keys to keep in step
   where the first draft had one.
+- **There are two queues now, not one.** "One write queue for every feature" is
+  still true of writes, and the publish queue is a second thing serialising a
+  different unit, a whole sequence. It composes correctly and the reason it has
+  to exist is a deadlock rather than a preference, but somebody reading
+  `createSerialQueue` in two places has to know which is which, and the wrong one
+  reached for from a third feature is a hang rather than a loud failure.
+- **Five visibility states is one more than anybody wants to reason about.** The
+  fifth is real, `withdrawing` is what a crashed unpublish leaves, and it is the
+  unavoidable price of writing visibility first in both directions. Keeping the
+  derivation in one pure function is what stops it multiplying further.
 - No moderation. Any signed in person can put anything into one shared global
   feed and only its owner can take it down. Named here so it is a decision on
   the record rather than an oversight, and revisited when the feed is real.
@@ -630,5 +713,11 @@ warns.
 - [ ] `app/projects/AGENTS.md` and `worker/AGENTS.md` both state facts this spec
       changes: the schema version, the two store description, and the worker
       owning no state. `/sync` should update them once this is built.
+- [ ] **No rename and no regenerate control exists in the UI yet**, so `AC-22`
+      and `AC-10`, the automatic republish, cannot be reached by pressing
+      anything. `verify.md` carries a console recipe that drives a real content
+      write through `updateProject` instead. Replace that step with the real
+      control the moment one ships, because a recipe verifies the store and only
+      a control verifies the path a person actually takes.
 - [ ] Moderation is deliberately absent. Revisit before the feed is promoted
       anywhere public facing.

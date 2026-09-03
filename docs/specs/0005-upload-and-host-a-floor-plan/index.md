@@ -1,7 +1,7 @@
 # 0005. Upload and host a floor plan
 
 **Date**: 2026-08-28
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

@@ -1,7 +1,7 @@
 # 0008. The app shell and the personal project gallery
 
 **Date**: 2026-09-01
-**Status**: In Progress
+**Status**: Accepted
 
 ## Summary
 

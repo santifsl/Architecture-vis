@@ -1,7 +1,7 @@
 # 0007. One model, one direct call, and the top down render
 
 **Date**: 2026-08-31
-**Status**: In Progress
+**Status**: Accepted
 
 Supersedes parts of [0006](../0006-create-a-project-and-render/index.md): AC-2,
 AC-3, AC-5, AC-6 and AC-7, the two stage render, the Model parity rule, and the

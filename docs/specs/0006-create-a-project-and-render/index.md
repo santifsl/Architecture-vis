@@ -1,7 +1,7 @@
 # 0006. Create a project and generate the 3D render
 
 **Date**: 2026-08-28
-**Status**: In Progress
+**Status**: Accepted
 
 **Revised 2026-08-31 by [0007](../0007-one-model-and-the-top-down-render/index.md).**
 Claude is dropped, so AC-2's independence between models, AC-6's picker, and the
