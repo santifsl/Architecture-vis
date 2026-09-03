@@ -325,14 +325,14 @@ body {
  * State 2 of 6, hover. Excluded while disabled or busy: a control that cannot
  * act must not answer the pointer as though it can.
  */
-.btn-accent:hover:not([disabled], [aria-busy="true"]),
-.btn-outline:hover:not([disabled], [aria-busy="true"]) {
+.btn-accent:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
+.btn-outline:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
   border-color: var(--color-clay);
   background-color: var(--color-clay);
   color: var(--color-bone);
 }
 
-.btn-quiet:hover:not([disabled], [aria-busy="true"]) {
+.btn-quiet:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
   color: var(--color-clay);
   text-decoration: underline;
 }
@@ -342,27 +342,52 @@ body {
  * press reads instantly rather than easing, which is what makes a quiet button
  * feel crisp under the finger.
  */
-.btn-accent:active:not([disabled], [aria-busy="true"]),
-.btn-outline:active:not([disabled], [aria-busy="true"]) {
+.btn-accent:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
+.btn-outline:active:not(
+    [disabled],
+    [aria-disabled="true"],
+    [aria-busy="true"]
+  ) {
   transition: none;
   border-color: var(--color-clay);
   background-color: var(--color-clay);
   color: var(--color-bone);
 }
 
-.btn-quiet:active:not([disabled], [aria-busy="true"]) {
+.btn-quiet:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
   transition: none;
   color: var(--color-clay);
   text-decoration: underline;
 }
 
 /*
- * State 5 of 6, disabled. Driven by the real disabled attribute, not a class, so
- * the control is genuinely inert rather than merely styled as inert.
+ * State 5 of 6, disabled. Driven by an attribute, not a class, so the look
+ * always follows the fact a screen reader is being told rather than a class
+ * somebody remembered to add.
+ *
+ * Spec 0012, AC-13, amended this to match `aria-disabled="true"` as well as the
+ * real `disabled` attribute. The real attribute takes a control out of the tab
+ * order, and there are controls that should look unavailable while staying
+ * reachable: the download beside a render that is still generating is one, so a
+ * keyboard user can find out that a download is coming rather than wonder
+ * whether the feature exists. The cost is the one state 6 already names, an
+ * `aria-disabled` control still answers a click, so every one of them returns
+ * early in its own handler.
+ *
+ * A busy control is excluded, and that is a correction to spec 0012 rather than
+ * a detail. The spec expected this change to make `AuthControl`'s buttons dim
+ * during sign in, on the reading that they had never dimmed at all. They had:
+ * state 6 below already paints a busy label in clay at 55%, which measures
+ * 2.33:1 on bone. Stacking this rule's 0.55 opacity on top of that takes it to
+ * about 1.55:1, so the "fix" would have made the one label somebody is waiting
+ * on nearly unreadable. Busy has its own purpose-built look and keeps it.
  */
 .btn-accent[disabled],
 .btn-outline[disabled],
-.btn-quiet[disabled] {
+.btn-quiet[disabled],
+.btn-accent[aria-disabled="true"]:not([aria-busy="true"]),
+.btn-outline[aria-disabled="true"]:not([aria-busy="true"]),
+.btn-quiet[aria-disabled="true"]:not([aria-busy="true"]) {
   opacity: 0.55;
   cursor: default;
 }

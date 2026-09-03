@@ -94,6 +94,7 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
             <RenderPlate
               model={model}
               render={render}
+              projectName={project.name}
               planPath={project.floorPlan.path}
               blocked={blocked[model]}
               onRetry={retry}
