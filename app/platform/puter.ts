@@ -43,6 +43,37 @@ export class PuterGateError extends Error {
   }
 }
 
+/**
+ * Did this rejection mean "that file is not there"? Spec 0012's build correction.
+ *
+ * It lives here rather than in a feature module because it is a fact about the
+ * SHAPE of a Puter rejection, which is exactly what this boundary is for, and
+ * because two features now ask it. It started private inside `app/upload/store.ts`
+ * for Replace, which treats a delete of something already gone as success;
+ * `app/export/store.ts` needs the same question to tell a missing render from a
+ * dead network. CLAUDE.md's rule is that the second use is where a copy would
+ * have started, the same move that put `readStoredUrl` in `app/storage/`.
+ *
+ * The discrimination is structural rather than textual, which is what makes it
+ * safe. A missing subject rejects with a `code` or a `status` on the object; a
+ * transport failure rejects with a bare `TypeError` the SDK builds at
+ * `networkUtils.js`'s shape step, carrying neither. So anything without these
+ * fields is not a missing file, and the caller can say so.
+ *
+ * Restated rather than imported from the SDK, whose own version is internal to a
+ * module this app may not import. If Puter adds a fourth shape this goes stale,
+ * and the cost is one missing file reported as unreachable, which is wrong but
+ * not harmful.
+ */
+export const isMissingError = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) return false;
+  const { code, status } = error as {
+    code?: unknown;
+    status?: unknown;
+  };
+  return code === "subject_does_not_exist" || status === 404;
+};
+
 /** The two rejection codes `puter.auth.signIn` documents. */
 export type SignInFailure = "popup_blocked" | "auth_window_closed" | "unknown";
 

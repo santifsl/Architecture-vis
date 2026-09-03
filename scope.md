@@ -1549,7 +1549,7 @@ AC-15 to AC-25 from 0011, and all of them are verified here.
       its retry, unpublish from the uncommitted state, and the two tab races
       spec 0011's Critical test scenarios name
 
-### 10. Export · in-progress
+### 10. Export · done
 
 A way to download a generated render for use outside the app, a presentation, a
 portfolio, a client deck. "Full resolution" means the stored bytes untouched,
@@ -1584,24 +1584,41 @@ caught a live inconsistency on the way: `AuthControl.tsx` already sets
 `aria-disabled` on the sign in button while busy, and `app.css` has only ever
 styled `[disabled]`, so that button has never dimmed.
 
+Two of that spec's rules turned out wrong once they were built, and one of them
+shipped as a real bug: fully offline, a download told people their render was
+missing from storage rather than that the connection had gone. The last sentence
+of the paragraph above is itself one of the two, and it is left standing as
+written because being able to see the wrong version is the point. Both are
+corrected in place in spec 0012, in **Key invariants** and **Consequences**, and
+both owe `/architect` a ratification pass.
+
 - [x] Decide the approach (spec)
-- [ ] Build it: `/develop` feature 10, the eight tasks of spec 0012's build plan
-  - [ ] The thin thread, proven in a real browser before anything is thickened:
-        `app/export/` with `DownloadRender.tsx`, the SDK read, and the save.
-        Tasks 1, AC-1 and AC-2
-  - [ ] The filename and the failure vocabulary: `rules.ts` with its own slug
+- [x] Build it: `/develop` feature 10, the eight tasks of spec 0012's build plan
+  - [x] The thin thread: `app/export/` with `DownloadRender.tsx`, the SDK read,
+        and the save. Tasks 1, AC-1 and AC-2. The browser proof moved to the
+        verify pass rather than happening mid build
+  - [x] The filename and the failure vocabulary: `rules.ts` with its own slug
         rule rather than `sanitisePlanName`, and `failures.ts` plus `store.ts`
         with the `stat` first rule that tells the three codes apart. Tasks 2 and
         3, AC-3 and AC-7 to AC-9
-  - [ ] The three states, and the design system amendment they need: busy,
+  - [x] The three states, and the design system amendment they need: busy,
         unavailable, and absent, plus spec 0004's disabled selector extended to
         match `aria-disabled`. Tasks 4 to 6, AC-4, AC-5, AC-6, AC-13
-  - [ ] The accessibility pass, and confirming the feature is inert everywhere
-        else. Tasks 7 and 8, AC-10 to AC-12
-- [ ] Verify it: `/check verify` feature 10, the walkthrough in
-      `docs/specs/0012-download-a-render/verify.md`. The gate runs first: if the
-      saved file opens in a tab instead of landing in Downloads, nothing after it
-      is worth building
+  - [x] The accessibility pass, and confirming the feature is inert everywhere
+        else. Tasks 7 and 8, AC-10 to AC-12. `RenderPlate` is mounted only by
+        `ProjectSheet`, which is only on `/project/:id`, so AC-12 holds by
+        construction rather than by a check
+- [x] Verify it: `/check verify` feature 10, the walkthrough in
+      `docs/specs/0012-download-a-render/verify.md`. The gate passed on the first
+      walk: the file lands in Downloads rather than opening in a tab, which was
+      the one browser fact the whole mechanism rested on. The offline walk then
+      found the `stat` first bug recorded above, and everything came back clean on
+      the re-walk after the fix, including a `failed` render from a real
+      `outOfAllowance` and a throttled double press producing exactly one file.
+      Five steps are left unticked in `verify.md` and none of them blocks: the
+      screen reader announcement, the focus ring across all three looks, the
+      control's exact placement in the label row, the comparison slider still
+      working, and the step the `aria-busy` correction made stale
 
 No `/test` box on this feature, same as every other one here: `CLAUDE.md` rules
 out a test runner, and `verify.md` is the walkthrough instead.

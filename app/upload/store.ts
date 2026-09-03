@@ -22,7 +22,7 @@
  * renders needed it too, because a second caller is where a copy would have
  * started.
  */
-import { PuterGateError, withPuter } from "~/platform/puter";
+import { isMissingError, PuterGateError, withPuter } from "~/platform/puter";
 import type { FloorPlan } from "~/projects/record";
 import { forgetStoredUrl } from "~/storage/urls";
 import { fail, succeed, type UploadResult } from "~/upload/failures";
@@ -166,14 +166,14 @@ export const deletePlan = async (path: string): Promise<UploadResult<void>> => {
     return succeed(undefined);
   } catch (error: unknown) {
     if (error instanceof PuterGateError) return fail("signedOut");
-    if (isMissing(error)) return succeed(undefined);
+    if (isMissingError(error)) return succeed(undefined);
     return fail("unreachable");
   }
 };
 
-/** A delete of something that was not there. Puter reports this as a 404 or a subject error. */
-const isMissing = (error: unknown): boolean => {
-  if (typeof error !== "object" || error === null) return false;
-  const { code, status } = error as { code?: unknown; status?: unknown };
-  return code === "subject_does_not_exist" || status === 404;
-};
+/*
+ * `isMissing` used to live here, private to this module. Spec 0012 needed the
+ * same question in `app/export/store.ts`, so it moved to `app/platform/puter.ts`
+ * as `isMissingError` rather than being copied: it is a fact about the shape of
+ * a Puter rejection, which is what that boundary is for.
+ */

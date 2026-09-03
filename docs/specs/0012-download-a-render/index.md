@@ -1,7 +1,7 @@
 # 0012. Download a render
 
 **Date**: 2026-09-03
-**Status**: Proposed
+**Status**: Accepted
 
 ## Summary
 
@@ -122,7 +122,7 @@ component in the new `app/export/` module:
 | Function                                     | Signature                                                   | Auth                          | Key errors                                                                                                         |
 | -------------------------------------------- | ----------------------------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `downloadFilename` (`rules.ts`)              | `(projectName: string) => string`                           | pure, none                    | none, it cannot fail; an empty slug falls back                                                                     |
-| `readRenderBlob` (`store.ts`)                | `(path: string) => Promise<DownloadOutcome>`                | signed in owner               | `signedOut`, `unreadable`, `unreachable`                                                                           |
+| `readRenderBlob` (`store.ts`)                | `(path: string) => Promise<DownloadOutcome>`                | signed in owner               | `signedOut`, `unreadable`, `unreachable`, decided by rejection shape (see the build correction in Key invariants)  |
 | `saveBlob` (`download.ts`)                   | `(blob: Blob, filename: string) => boolean`                 | none, browser only            | returns `false` if the DOM work throws, which the hook reads as `unreachable`; nothing after the click is knowable |
 | `useDownloadRender` (`useDownloadRender.ts`) | `(args) => { state, failure, download, retry }`             | signed in owner               | surfaces the three above as sentences                                                                              |
 | `DownloadRender` (`DownloadRender.tsx`)      | `({ project, model, render, view }) => JSX.Element \| null` | rendered inside `RequireUser` | none; it renders the hook's state and nothing else                                                                 |
@@ -166,15 +166,32 @@ raw escapes.
 
 - The bytes written to disk equal the bytes at `render.path`. No canvas, no
   `toDataURL`, no image element anywhere in this path.
-- **The three failure codes are told apart by a `stat` before the read, not by
-  reading the SDK's rejection text.** `readRenderBlob` calls
-  `puter.fs.stat(path)` first: a `PuterGateError` at either step is `signedOut`,
-  a `stat` that rejects for any other reason is `unreadable`, and a `stat` that
-  succeeds followed by a `read` that rejects is `unreachable`. This costs one
-  extra round trip and buys a rule that is decidable now rather than one that has
-  to be reverse engineered from whatever `fs.read` happens to throw.
-  `app/storage/urls.ts` is precedent for the `signedOut` half only; it has no
-  third case, so this rule is new here.
+- **The three failure codes are told apart by the SHAPE of the rejection, not by
+  which call produced it.** `readRenderBlob` reads straight away, with no `stat`
+  in front of it: a `PuterGateError` is `signedOut`, a rejection carrying
+  `code: "subject_does_not_exist"` or `status: 404` is `unreadable`, and anything
+  else is `unreachable`. The predicate is `isMissingError` in
+  `app/platform/puter.ts`.
+
+  **This replaces the `stat` first rule, which was wrong and shipped before the
+  offline walk caught it (build correction, 2026-09-03).** The original rule
+  keyed on which call rejected: a failing `stat` meant `unreadable`, and only a
+  succeeding `stat` followed by a failing `read` meant `unreachable`. A `stat`
+  rejection has at least two causes, so that cannot separate them. With the
+  network down the `stat` failed first and every offline download told the person
+  their render was missing from storage. The rule also made `unreachable` nearly
+  impossible to reach, since producing it needed the network to survive the
+  `stat` and die before the `read`: the one code the extra round trip was bought
+  to enable was the one it hid.
+
+  The replacement is stronger than the original feared, and it reads no message
+  text. A missing subject rejects with a structured `code` or `status`; a
+  transport failure rejects with a bare `TypeError` built at `networkUtils.js`'s
+  shape step, carrying neither. `app/upload/store.ts` has told those two apart
+  this way since spec 0005, so the predicate moved to the platform boundary
+  rather than being copied, and the download is now one round trip instead of
+  two. `app/storage/urls.ts` remains precedent for the `signedOut` half only.
+
 - `saveBlob` never throws at its caller. The DOM work is wrapped, and a throw
   becomes `false`, which the hook shows as `unreachable`. AC-9 admits no raw
   exception, including from the half of this feature that looks like it cannot
@@ -305,16 +322,36 @@ worth learning in task 1 rather than task 7.
   nothing. The early return in the handler is what makes that safe, and it is a
   guard that must not be dropped in a later refactor. Spec 0004 already names
   this exact hazard for the busy state.
-- Extending the disabled selector in `app/app.css` changes a shared rule, and it
-  has one immediate visible effect outside this feature: `AuthControl.tsx`
-  already sets `aria-disabled` on the sign in button while it is busy, so that
-  button will start dimming during sign in when it never did before. That is a
-  fix rather than a regression, and it is still a look changing somewhere nobody
-  was editing. Any future control setting `aria-disabled` for a different reason
-  picks up the disabled look for free, wanted or not.
-- Telling `unreadable` from `unreachable` costs a `stat` before every download.
-  One extra round trip on a deliberate click, in exchange for not depending on
-  the wording of an SDK rejection.
+- Extending the disabled selector in `app/app.css` changes a shared rule. Any
+  future control setting `aria-disabled` for a different reason picks up the
+  disabled look for free, wanted or not.
+
+  **The visible effect this bullet predicted does not happen, and the reasoning
+  behind the prediction was wrong (build correction, 2026-09-03).** It said
+  `AuthControl.tsx`'s sign in button would start dimming during sign in "when it
+  never did before", on the reading that only `[disabled]` was styled. That
+  missed state 6: a busy label is already painted in clay at 55%, which measures
+  2.33:1 on bone. Stacking state 5's 0.55 opacity on top takes it to about
+  1.55:1, so the "fix" would have made the one label somebody is waiting on
+  nearly unreadable, and AC-11 would have failed on the busy look.
+
+  So the selector excludes a busy control,
+  `[aria-disabled="true"]:not([aria-busy="true"])`, and busy keeps the
+  purpose-built look it already had. The hover and active exclusions took
+  `aria-disabled` too, or a waiting control would answer the pointer as though it
+  could act. AC-13 still holds in full.
+
+  The blast radius is smaller than this bullet feared rather than larger: every
+  `aria-disabled` in the app today (`AuthControl` twice, `SignInPrompt`,
+  `SessionBanner`, `PlanUploadCard`) is paired with `aria-busy` on the same
+  element, so the change touches **no** existing control. The waiting download is
+  the only thing the new selector reaches.
+
+- ~~Telling `unreadable` from `unreachable` costs a `stat` before every
+  download.~~ Withdrawn by the build correction in **Key invariants**: the `stat`
+  could not tell them apart and is gone, so the download costs one round trip and
+  this tradeoff no longer exists. Nothing depends on the wording of an SDK
+  rejection either; the test is structural.
 - The read pulls the whole file into memory before the save begins. For the
   square renders this app produces that is fine, and it would not be for a very
   large file, so this is not a pattern to reach for again without thinking.
