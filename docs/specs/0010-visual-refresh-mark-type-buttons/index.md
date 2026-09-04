@@ -429,6 +429,32 @@ planted `shadow-md` in a `className` is unchanged, and both the shadow and the
 wash exist only inside `.plan-card` and `.plan-badge` in `app/app.css`. Any
 second use of either is a new decision, not a precedent this one set.
 
+### 6. `.btn-outline` is deleted
+
+This spec introduced `.btn-outline` for the sign out button, and gave it
+`.btn-accent`'s geometry with the hairline and ink at rest. Spec 0004's
+amendment 3 fills that button instead, as `.btn-neutral`, and moves the other two
+call sites to `.btn-primary`. With no call sites left, the class and its
+focus rule are removed rather than kept as a shape nothing wears.
+
+`### The button matrix after this change` above is therefore two rows out of
+date. The current matrix is the table in
+[spec 0004's amendment 3](../0004-design-system-tokens-and-states/index.md#amendments),
+which owns the button system.
+
+### 5. Both bordered buttons grow on hover
+
+Added after this spec shipped, in a polish pass. `### The button matrix after
+this change` says `.btn-outline`'s hover, active and focus states are
+`.btn-accent`'s, and that is still true: they now share a `scale: 1.02` on hover
+as well as the clay fill. `.btn-quiet` is deliberately left out, because it has
+no box to scale.
+
+The decision, the reasoning, the reduced motion handling and the value live in
+[spec 0004's `## Amendments`](../0004-design-system-tokens-and-states/index.md#amendments),
+which owns the state matrix. This entry exists only so a reader of the matrix
+table above finds it.
+
 ## Migration plan
 
 **Strategy**: in place, phased, no data migration.

@@ -11,7 +11,6 @@
  * to put in it, so a render arriving never shifts the page under someone
  * reading it (AC-8).
  */
-import { DownloadRender } from "~/export/DownloadRender";
 import type { ModelId } from "~/projects/record";
 import type { RenderState } from "~/projects/record";
 import { renderMessage, type RenderFailure } from "~/render/failures";
@@ -127,15 +126,12 @@ export function BusyPlan({
 export function RenderPlate({
   model,
   render,
-  projectName,
   planPath,
   blocked,
   onRetry,
 }: {
   readonly model: ModelId;
   readonly render: RenderState;
-  /** What the saved file is named after. Spec 0012, AC-3. */
-  readonly projectName: string;
   /** The floor plan, which the plate blurs behind the scrim while it works. */
   readonly planPath: string;
   /** Set when the render could not even be recorded as started. Shown instead of the stored state. */
@@ -166,20 +162,13 @@ export function RenderPlate({
       </div>
 
       {/*
-        The label row, and since spec 0012 the download sits in it, at the
-        opposite end from the state word. A bordered control on a line spec 0004
-        left as two pieces of text makes the row read heavier than it did, which
-        is a cost taken knowingly for a control that is easy to find and to hit.
+        The label row: the model name and the state word, and nothing else. Spec
+        0012 briefly put the download here too, and its amendment 1 moved it up
+        to the sheet's title block, which gives this line back the two pieces of
+        text spec 0004 left it as.
       */}
       <div className="mt-3 flex items-baseline justify-between gap-4">
-        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-          <h2 className="type-heading text-ink">{MODEL_NAMES[model]}</h2>
-          <DownloadRender
-            projectName={projectName}
-            path={render.path}
-            view={view}
-          />
-        </div>
+        <h2 className="type-heading text-ink">{MODEL_NAMES[model]}</h2>
         <p className="type-meta text-ink-soft" role="status">
           {STATE_WORDS[view]}
         </p>

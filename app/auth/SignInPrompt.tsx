@@ -26,7 +26,7 @@ export function SignInPrompt({ what }: { readonly what: string }) {
       <div className="mt-6">
         <button
           type="button"
-          className="btn-accent"
+          className="btn-primary"
           onClick={start}
           aria-busy={busy}
           aria-disabled={busy}

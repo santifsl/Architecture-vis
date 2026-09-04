@@ -24,7 +24,7 @@ export function SessionBanner({ state }: { readonly state: AuthState }) {
         </p>
         <button
           type="button"
-          className="btn-accent"
+          className="btn-primary"
           onClick={start}
           aria-busy={busy}
           aria-disabled={busy}

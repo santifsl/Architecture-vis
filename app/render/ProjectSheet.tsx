@@ -15,8 +15,10 @@
  * complete would show a blurred plan and a sharp one at the same time.
  */
 import { RenderComparison } from "~/compare/RenderComparison";
+import { DownloadRender } from "~/export/DownloadRender";
 import type { Project } from "~/projects/record";
-import { VisibilityControl } from "~/publish/VisibilityControl";
+import { VisibilityActions, VisibilityWord } from "~/publish/VisibilityControl";
+import { useVisibility } from "~/publish/useVisibility";
 import { RenderPlate } from "~/render/RenderPlate";
 import { planPlacement, plateView } from "~/render/rules";
 import { useProjectRenders } from "~/render/useProjectRenders";
@@ -54,6 +56,16 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
   const { project, retry, blocked } = useProjectRenders(loaded);
 
   /*
+   * Called here, once, and handed to both halves of the visibility control.
+   * Spec 0011's amendment 2: the state word sits above the sheet's rule and the
+   * button below it, which no single element can straddle, so the ONE answer to
+   * "is this shared" has to be lifted to their common parent. Calling the hook
+   * inside each half instead would give the word and the button separate
+   * answers, which is exactly what spec 0011 wrote that component to prevent.
+   */
+  const visibility = useVisibility(project);
+
+  /*
    * Every render on the sheet, which spec 0007 left at one, paired with what its
    * plate is showing. Resolved once, here, because both the plan's placement and
    * each plate's own comparison read the same view, and asking twice is how the
@@ -75,11 +87,45 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
 
   const placement = planPlacement(plates.map((plate) => plate.view));
 
+  /*
+   * The render the title block's download refers to. Spec 0012, amendment 1.
+   *
+   * There is exactly one, because spec 0007 fixed this app at one model and the
+   * flatMap above yields one plate as a result. A second model would make a
+   * single button up here ambiguous and would have to move it back beside its
+   * own plate; that is the condition under which the placement reopens, and it
+   * is the same seam spec 0007 left open.
+   */
+  const [sole] = plates;
+
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
+      {/*
+        The title block: what this project is called, and whether anybody else
+        can see it. The state word is a fact about the project, so it belongs
+        with the name, above the rule that closes the block.
+      */}
       <div className="border-b border-hairline pb-6">
-        <h1 className="type-display text-ink">{project.name}</h1>
-        <VisibilityControl project={project} />
+        <h1 className="sheet-title type-display text-ink">{project.name}</h1>
+        <VisibilityWord control={visibility} />
+      </div>
+
+      {/*
+        The two things you can DO to the whole project, below the rule and above
+        the render: save it to your machine, and change who can see it. Actions
+        sit on the other side of the rule from the facts, and neither is about
+        looking at the image, which is why they are up here rather than in the
+        plate's label row.
+      */}
+      <div className="mt-6 flex flex-wrap items-start justify-end gap-4">
+        {sole !== undefined && (
+          <DownloadRender
+            projectName={project.name}
+            path={sole.render.path}
+            view={sole.view}
+          />
+        )}
+        <VisibilityActions control={visibility} />
       </div>
 
       {placement === "key" && (
@@ -94,7 +140,6 @@ export function ProjectSheet({ loaded }: { readonly loaded: Project }) {
             <RenderPlate
               model={model}
               render={render}
-              projectName={project.name}
               planPath={project.floorPlan.path}
               blocked={blocked[model]}
               onRetry={retry}
