@@ -73,7 +73,7 @@ export function DownloadRender({
     <div className="flex flex-col items-start gap-1">
       <button
         type="button"
-        className="btn-outline"
+        className="btn-primary"
         aria-busy={busy}
         aria-disabled={waiting || busy}
         onClick={() => {

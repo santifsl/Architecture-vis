@@ -574,6 +574,93 @@ than silent. Nothing is lost.
 are already built on it, which is why it is task 1 and why it blocks rather than
 warns.
 
+## Amendments
+
+### 1. The visibility toggle is a bordered button, and the confirmation is not
+
+Made in a polish pass after this spec shipped. `Make public` and `Make private`
+move from `.btn-quiet` to `.btn-outline`, so the control that changes a project's
+visibility reads as a button rather than as a word in a sentence.
+
+**This is cosmetic, and it does not reopen the decision it looks like it might.**
+That was worth checking before changing anything, because `VisibilityControl` was
+built as an inline two step deliberately: the confirmation is asked in place
+rather than in a dialog, on the grounds that the design system has no overlay
+colour, no scrim and no focus trap in it, and adding all three for one question
+is a lot of machinery for something a sentence and two actions answer. The test
+of whether a change reopens that is simple, and this change fails it in every
+term. After it, the confirmation is still asked in place, still a sentence plus
+two actions in the normal flow of the page, still moves focus to the confirming
+button, and still has no overlay, no scrim and no trap. `useVisibility` does not
+move, no state is added or removed, and **AC-25** reads exactly the same before
+and after: going public asks once, going private does not. What changed is which
+class two elements wear.
+
+**Three things deliberately stay `.btn-quiet`**, so the weight lands only where
+it was asked for:
+
+- `Share it` and `Cancel`, inside the confirmation. Two bordered buttons under a
+  question builds the visual weight of a dialog while having none of a dialog's
+  behaviour, which is the worst of both. It would also need a hierarchy between
+  the two, and the system has no third button class to express one.
+- The repair action, the one that appears when the public copy is behind. It sits
+  under a sentence of prose, which is exactly what `.btn-quiet` is for, and it
+  only exists when something has gone wrong; a bordered control there competes
+  with the state word next to it.
+- Every other inline retry in the app, which this change does not touch.
+
+**`.btn-outline`, never `.btn-accent`.** Clay at rest marks the one thing on a
+screen a person is being pointed at, and on a project sheet that is the render,
+not the visibility toggle. Hover still takes clay, so the accent rule is intact:
+clay appears only where somebody is interacting.
+
+**The cost, recorded rather than hidden.** A bordered control beside the
+`type-meta` state word makes that row read heavier than a line of two words did.
+That is the same cost spec 0012 took knowingly when the download joined the
+plate's label row, and it is taken knowingly again here.
+
+_Amended again by amendment 2 below: the two toggles are now filled rather than
+bordered, and they no longer sit beside the state word at all._
+
+### 2. The state word and the control move to opposite sides of the rule
+
+The project sheet now reads: the project's name, the state word under it, the
+rule that closes the title block, and then the things you can DO to the project.
+Facts above the line, actions below it. `Make public` and `Make private` sit
+below the rule beside the download; `PUBLIC` and `PRIVATE` stay above it with the
+name they describe.
+
+**This is the amendment that has to argue with this spec, so here is the
+argument.** `VisibilityControl` was deliberately one component, and this spec's
+reason was written down: the state word, the control that changes it, and the
+sentence saying the public copy is behind are one decision, and split into three
+components each working the state out again, "three answers to one question is
+how two of them end up disagreeing". A word above a rule and a button below it
+cannot be one element.
+
+The invariant survives, because it was never really about the component boundary.
+`useVisibility` is now called ONCE, by `ProjectSheet`, and the same `control`
+object is handed to both `VisibilityWord` and `VisibilityActions`. There is still
+exactly one answer to the question; it is rendered in two places instead of one.
+What this spec was warning against is each piece calling the hook for itself, and
+that is the thing these two must never do. It is stated at the top of the file so
+the next person to touch it reads it before the imports.
+
+The failure it prevents is not hypothetical. The word comes off `control.state`,
+not off `project.visibility`, so while a publish is in flight the word and the
+button describe the same moment. Read from the record instead, the word would
+show the last thing successfully written while the button already said
+`Working…`, which is precisely two answers to one question.
+
+**Also from spec 0004's amendments 3 and 6**: the two toggles are now filled
+rather than bordered, and both are `.btn-neutral`. Amendment 3 first made
+`Make public` clay on a direction rule, affirmative against undo; amendment 6
+replaced that rule with "clay marks the control a surface exists to offer" and
+this control is not it. On a project sheet the render is the point and who can
+see it is a property of it, so the visibility control carries no accent in either
+direction. The confirmation's `Share it` and `Cancel`, and the repair action, all
+stay `.btn-quiet` for the reasons amendment 1 gives.
+
 ## Consequences
 
 **Positive**:

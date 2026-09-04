@@ -450,6 +450,489 @@ has something real to build against.
    prose, and dark mode written into `scope.md`'s "Not doing right now".
    Satisfies **AC-2**, **AC-9**, **AC-10**.
 
+## Amendments
+
+Six changes made after this spec was accepted, across three polish passes rather
+than inside a feature, at the engineer's direction. They are recorded here rather
+than left in a conversation, because a later reader would otherwise take any of
+them for drift.
+
+Amendments 3 and 4 came from the second pass and 5 and 6 from the third. Two of
+them undo earlier ones, so read them in order or read the summary here:
+
+- Amendment 3 REVERSES this spec's accent rule rather than extending it, and
+  amendment 6 then rewrites the rule amendment 3 introduced.
+- Amendment 4 replaces amendment 1's drawing and placement while keeping its
+  argument for why a drawing belongs here at all, and amendment 5 replaces
+  amendment 4's darkness, extent and count.
+
+For what is actually on screen today, read 5 and 6. Read 1 and 3 for the
+arguments that still stand underneath them.
+
+### 1. The hero band carries a line drawing
+
+> **Superseded in part by amendment 4.** The decision that a drawing belongs on
+> this screen, and the argument that it is not the grid pattern `scope.md`
+> feature 4 refused, both stand and are still made here. The drawing itself, its
+> placement, its opacity and its fade were all replaced. Nothing in the
+> "Placement", "A static drawing" or "The fade is a mask" paragraphs below is
+> what is on screen today.
+
+**A new decision, not a parked one resumed.** This was raised as the parked item
+from `scope.md`'s `## Not doing right now` list, style and scope supposedly left
+open for a later `/architect` pass. That item is not on that list and never was;
+the list was read end to end before this was written. What the plan actually
+says about a decorated home screen is the opposite, and it says it twice:
+`scope.md` feature 4's structural reference cut "a decorative grid-pattern
+background" from behind the upload card, and this spec's `### Replaces` made the
+whole look flat. So the change has to earn its place against a rule that already
+said no once, rather than inherit permission from a queue entry that does not
+exist.
+
+It earns it by not being the thing that was refused. Feature 4 cut a generic SaaS
+grid from behind the one element a person is asked to drop a file onto, because a
+patterned ground makes a target harder to read. What goes in instead is a sparse
+architectural line drawing behind the whole hero band, and it never appears
+behind that card at all: `.plan-card` is opaque `--color-bone` and carries the
+app's one shadow, so it occludes whatever is under it. The drawing is the
+product's own subject rather than a texture, set in the palette's existing
+hairline tone, and the surface feature 4 protected stays exactly as protected as
+it was.
+
+**Placement: the hero band only.** The drawing spans the full viewport width
+behind the headline, the subhead and the upload card, and fades to nothing before
+the `Recent projects` strip. The strip, the gallery, the project sheet, the
+community feed and every other route are untouched and stay on clean bone. Two
+reasons for stopping there rather than running it behind the whole route: the
+strip below holds real render thumbnails, which are the only saturated things on
+the screen by design, and a drawing under them competes with the one thing the
+palette exists to frame; and a background that stops is a decision a reader can
+see, while one that runs everywhere becomes a page texture, which is what was
+refused.
+
+**Contrast, and the one rule that makes it safe.** The drawing's darkest possible
+ground is `--color-ivory`. That is not an estimate, it is how the layer is built,
+and it is why no new token and no new check are needed: this spec already
+requires every text colour to clear 4.5:1 against ivory, and `npm run verify`
+already measures it on every run (`ink` 14.48:1, `ink-soft` 4.64:1, `clay`
+4.69:1).
+
+Two details hold that ceiling up, and neither is optional:
+
+- **The strokes are `--color-hairline` at full strength; the opacity lives on the
+  layer.** `--color-hairline` at 50% over `--color-bone` composites to `#efebe4`,
+  which is `--color-ivory` to within a rounding step. Painted at full strength
+  instead, the same linework puts `ink-soft` at 4.11:1 and `clay` at 4.16:1, both
+  under the minimum, so the reduction is load bearing rather than a taste call.
+- **Group opacity, never per stroke opacity.** Two strokes each drawn at 50%
+  composite to 75% where they cross, which is darker than ivory and lands
+  `ink-soft` back under 4.5:1, and an architectural drawing is nothing but
+  crossing lines. Opacity on the `<svg>` element flattens the drawing first and
+  composites the result once, so an intersection costs exactly what a single line
+  costs. Anyone moving the opacity onto the strokes to "simplify" it reintroduces
+  the defect invisibly.
+
+**A static drawing, hand authored, inlined as JSX.** `app/home/HeroBackdrop.tsx`
+holds the geometry as an inline `<svg>`, not a file under `public/`, for the
+reason spec 0010 gave when it turned the AV mark into a mask: an asset brings its
+own colour, and this one has to take `--color-hairline` from `@theme` so retuning
+the palette retunes the drawing. It is written out once and never changes: no
+randomness, no generation, no animation, no canvas, nothing that runs per frame.
+"Drawn in code" here means only that JSX is the file format. It is
+`aria-hidden="true"`, `focusable="false"` and `pointer-events: none`, so it is
+invisible to the keyboard, to a screen reader and to the pointer alike.
+
+What it draws, sparsely, with the empty space as the point: double line wall runs
+with a door swing arc, one dimension line with extension lines and angled ticks,
+and a stepped wireframe elevation with floor lines. No text, no numbers, no
+furniture, and nothing that could be mistaken for a real plan somebody uploaded.
+
+**The fade is a mask, not a gradient.** The band ends in a
+`mask-image: linear-gradient(...)` that takes the drawing to nothing above the
+strip. This does not loosen the flat rule and does not touch the ESLint rule that
+fails `bg-gradient` in a `className`: a mask paints no colour, it only decides
+how much of a layer survives, the rule matches class strings and this lives in
+`app/app.css`, and nothing on screen has a gradient in it. The alternative was a
+hard horizontal edge where the drawing stops, which reads as an unintended
+border. Recorded here so the `mask-image` is not later read as the flat rule
+slipping.
+
+**Where the values come from**, extending `### Where each value comes from`:
+
+| Treatment                      | Value              | Source                                                                  |
+| ------------------------------ | ------------------ | ----------------------------------------------------------------------- |
+| The sketch stroke colour       | `--color-hairline` | the palette, unchanged                                                  |
+| The sketch layer opacity       | `0.5`              | this amendment; the measured point where the ground is ivory            |
+| The sketch's worst case ground | `--color-ivory`    | this spec's own surface guarantee, already measured by `npm run verify` |
+
+### 2. Both bordered buttons grow a little under the pointer
+
+**First, the half that needed no change.** This was raised as two asks, and the
+first one turned out to be already true. `Sign in with Puter` and `Sign out` do
+stay in the clay family on hover, and always have: `.btn-accent` and
+`.btn-outline` share one hover rule that fills the control with `--color-clay`
+and sets the label to `--color-bone`. `.btn-outline` differs from `.btn-accent`
+at rest only, in which colour its border and label take, and every other state it
+has is the accent button's, which is what spec 0010 wrote and what `app/app.css`
+does today. Nothing is owed there, and nothing changed.
+
+**The half that is genuinely new.** Nothing in this app scales on hover. This
+adds that, as a second property on the hover row of `### The six interactive
+states` rather than as a seventh state: there are still six states, and hover now
+carries a size as well as a colour.
+
+| State | Treatment, amended                                                                                                           |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------- |
+| hover | `.btn-accent` and `.btn-outline` fill clay with bone text **and take `scale: 1.02`**; `.btn-quiet` turns clay and underlines |
+
+**It applies to both bordered classes, everywhere, and not to `.btn-quiet`.**
+That exclusion is a rule with a reason, not an omission. `.btn-quiet` has no box:
+it is text with padding, no border and no background, it appears inline beside
+prose and inside failure sentences, and scaling a run of text against a flat page
+softens the glyphs and nudges the line around it. So the rule a later reader
+applies to a new control class is one sentence, "a bordered button grows, a text
+button does not", rather than a list of buttons somebody has to keep current. The
+alternative considered and rejected was scoping it to the two navigation buttons,
+which would have left `Download` and every other bordered button in the app
+answering the pointer differently from the navbar, and opened this spec's closed
+matrix to per button exceptions.
+
+The rest of it:
+
+- **`scale: 1.02`**, on `--duration-quick` and `--ease-standard`, the same motion
+  tokens every other transition in the file already uses. On a control of this
+  height that is under a pixel of growth at each edge, which reads as the button
+  answering rather than as the button moving.
+- **The CSS `scale` property, not `transform: scale()`.** They do the same thing
+  here, but `transform` is a single slot: a later rule wanting to nudge or rotate
+  a button would silently drop the scale, and two rules quietly clobbering each
+  other is the failure this avoids.
+- **Active drops back to `1`.** The press already suppresses the transition; it
+  also returns the control to full size, so pressing pushes the button down
+  rather than leaving it reading as a larger hover.
+- **Disabled and busy are excluded**, by the same `:not([disabled],
+[aria-disabled="true"], [aria-busy="true"])` guard the hover colour already
+  carries. A control that cannot act must not answer the pointer as though it
+  can, and that already applied to the colour.
+- **Reduced motion switches it off, rather than just un-animating it.** The
+  existing `prefers-reduced-motion: reduce` block sets `transition: none` on the
+  three classes, which would leave the size change happening instantly instead of
+  not happening. An instant jump in size is precisely what that query is for, so
+  the block also pins hover `scale` to `1`. The colour change stays: reduce is
+  about motion, not about a control going quiet.
+- **Nothing reflows.** `scale` paints outside the layout box, so the username
+  beside `Sign out` and the state word beside `Download` do not move when a
+  neighbour is hovered.
+
+| Treatment             | Value             | Source         |
+| --------------------- | ----------------- | -------------- |
+| The hover scale       | `1.02`            | this amendment |
+| Its duration and ease | the motion tokens | this spec      |
+
+### 3. The accent is spent at rest, not held back for hover
+
+> **The rule stated here was replaced by amendment 6.** Everything about
+> mechanism (the two filled classes, the hover deepening, the busy fill
+> recession, the focus-ring reasoning, the `CONTROL_FILLS` bucket) is unchanged
+> and is documented here. Only the question of WHICH control gets which class
+> moved.
+
+A deliberate reversal of this spec, not a drift from it, and worth saying so
+plainly: `### The six interactive states` held clay back until you reached for a
+control, so at rest a screen showed you outlines and told you which one mattered
+only once your pointer was already on it. The rule now is the opposite. The one
+action a screen is asking you to take carries the accent from the moment the
+screen loads, and everything else is quieter than it.
+
+That costs something real, and the cost is the reason the old rule existed:
+`scope.md` feature 4 chose the near monochrome palette so the uploaded floor plan
+and the render would be the only saturated things on screen. A filled clay button
+is now a third. It is a small one, it never sits inside a plate or a card, and it
+is spent once per screen, but it is a genuine dent in that sentence rather than a
+free change.
+
+**The split, which is a rule and not a list of buttons.** Two new classes, one
+deleted, one narrowed:
+
+| Class          | At rest                      | What it is for                                         |
+| -------------- | ---------------------------- | ------------------------------------------------------ |
+| `.btn-primary` | filled clay, bone label      | the affirmative action: sign in, download, make public |
+| `.btn-neutral` | filled warm grey, bone label | the undo direction: sign out, make private             |
+| `.btn-accent`  | outlined clay, clay label    | the upload card's two controls, and nothing else       |
+| `.btn-quiet`   | text, ink                    | an inline action inside prose, unchanged               |
+
+`.btn-outline` is **deleted**. Spec 0010 introduced it for the sign out button,
+and sign out is exactly the control that becomes `.btn-neutral` here, so after
+the three call sites moved it had none left. Removing it is why the set is four
+classes rather than five: this amendment adds a direction to the system, it does
+not add a layer to it.
+
+**Why grey and not black.** The neutral fill is `--color-ink-soft`. Measured, the
+grey is L\* 44.3 and clay is L\* 44.0, so a primary and a neutral standing side by
+side carry the same visual weight and differ only in hue, which leaves the accent
+doing the whole job of saying which one the screen is pointing at. A near black
+fill measures L\* 9.8 and would have made signing out the heaviest object in the
+navbar, with the affirmative button beside it looking like the afterthought.
+
+**Why the upload card keeps its outlines.** `.btn-accent` survives for
+`Choose a floor plan` and `Generate the render`, which look exactly as they did.
+That is an exception taken on purpose: the card already carries the app's one
+shadow and its one clay wash, both named exceptions in spec 0010, and filling its
+buttons as well would make the quietest screen in the app the loudest. It does
+leave `Generate the render` reading as no more affirmative than the button that
+replaces the file, which is the price and is recorded in Follow-up.
+
+**A control at full colour needs a different hover, and here it is.** Inverting is
+not available to a button that is already filled, so the two filled variants
+deepen instead: one step along their own hue toward ink, mixed from the palette
+at the point of use so retuning clay or ink-soft retunes the hover with it, and
+no seventh colour enters `@theme`. The scale from amendment 2 carries the rest.
+
+| Variant        | Rest      | Hover and active                           | Shift  | Bone label    |
+| -------------- | --------- | ------------------------------------------ | ------ | ------------- |
+| `.btn-primary` | `#a94d19` | `color-mix(clay 85%, ink)` → `#944619`     | 5 L\*  | 5.26 → 6.29:1 |
+| `.btn-neutral` | `#6e685e` | `color-mix(ink-soft 70%, ink)` → `#555149` | 10 L\* | 5.20 → 7.44:1 |
+
+Neither hover needs a measurement of its own, and that is an argument rather than
+an oversight: both mixes move toward ink, so a bone label on either can only
+measure better than it does at rest. If rest clears, hover clears.
+
+**Busy is where a filled button actually breaks, and it is the one state worth
+reading twice.** State 6 drops a control's label to clay at 55%. On a filled
+control that is unreadable by construction: the label and its ground would be the
+same colour at different alphas. So for the filled variants the recession moves
+from the label to the FILL. The button fades to 55% of its own colour over bone
+and the label comes back up to `--color-ink`. That is still scope.md's rule, the
+accent quietly receding at 55% rather than a second hue appearing, applied to the
+layer that actually carries the colour.
+
+Both resulting grounds are precomputed as `@theme` tokens and measured on every
+run, exactly as spec 0007's `--color-scrim-ground` is:
+
+| Token                         | Value     | Is                        | `--color-ink` on it |
+| ----------------------------- | --------- | ------------------------- | ------------------- |
+| `--color-clay-busy-ground`    | `#cd9a7c` | clay at 55% over bone     | 6.97:1              |
+| `--color-neutral-busy-ground` | `#ada9a2` | ink-soft at 55% over bone | 7.35:1              |
+
+**Focus visible does not change, and that was checked rather than assumed.** A
+clay ring around a clay button sounds like the same mark twice. It is not:
+`--ring-offset` puts two pixels of the page between the control and its ring, so
+the ring is measured against `--color-bone` at 5.26:1 exactly as it is for every
+other control. The same offset is why neither fill needs measuring as a ring
+background: a ring never touches one. So this spec's "one treatment for every
+interactive element, never replaced per component" survives intact.
+
+**The contrast script gained a bucket, and it had to.** Until now `bone` was only
+ever a surface and never a text colour, so the script's "everything that is not a
+surface is text" rule covered the whole app. A bone label on clay is the exact
+pairing that model could not express, and it would have been skipped in silence.
+`CONTROL_FILLS` maps each rest fill to the inks painted on it, and
+`npm run contrast` now measures 16 pairs rather than 9.
+
+### 4. Two building studies in the margins, replacing the hero sketch
+
+> **Superseded in part by amendment 5.** The drawings, the recreate-do-not-trace
+> argument, the crossing invariant and the "heavier is free, darker is not" rule
+> all stand and are made here. The single flat opacity, the hairline stroke
+> colour, the hero-only extent, the count of two, and the `TEXT_ONLY_SURFACES`
+> exemption were all replaced.
+
+A full rework of amendment 1 rather than a tweak to it. What that amendment
+decided about _whether_ a drawing belongs on this screen stands, along with its
+argument for why this is not the grid pattern `scope.md` feature 4 refused. What
+it decided about the drawing and where it goes is replaced.
+
+**Two drawings, not one, standing in the margins.** `TowerSketch` on the left and
+`LatticeSketch` on the right, each running the full height of the hero band, from
+the top of the hero down to where the projects strip begins. They frame the
+content column rather than sitting behind it. Below `64rem` the layer is hidden
+outright: there is no margin left to stand in at that width, and a building
+elevation at six rem wide is a smudge rather than a drawing.
+
+**Recreated, not traced.** Both are hand built SVG recreations of the references
+in `assets/`: `image_6f1a843.jpg`, a pencil study of the Burj Khalifa, and
+`Screenshot 2026-09-03 at 2.50.29 p.m..png`, one of 30 St Mary Axe. Recreating
+rather than shipping the files is not extra work for its own sake. A raster
+brings its own greys and its own paper tone into a palette that is closed, it
+cannot take `--color-hairline`, and both references get their depth from graphite
+shading, which is the one thing this system may not have. Spec 0010 made the same
+call for the same reason when the AV mark arrived as a PNG.
+
+What is taken from them: confident varied weight linework, converging
+construction guides, and the specific thing that makes each building itself. For
+the tower that is the setbacks stepping at DIFFERENT heights on each side,
+because the real plan is a three winged spiral and no two wings stop at the same
+floor; a first attempt with matched steps read as a wedding cake. For the lattice
+it is the diagrid, computed rather than typed, since every line is a helix
+wrapping a solid of revolution and its screen position is
+`cx + rx(u) * cos(phase ± turns * u)`.
+
+What is deliberately not taken: their shading, tone and depth fill. No fills, no
+gradients, no washes, per this spec's flat rule. Three line weights do the work
+shading did.
+
+**The contrast rule, restated and now enforced rather than asserted.** The ceiling
+is that every stroke inside the layer is fully opaque and the LAYER carries the
+only transparency. That is what makes crossings free: opaque over opaque is
+idempotent, so a hundred crossing lines composite to exactly what one line
+composites to. Put the opacity on the strokes and two 55% lines make 80% where
+they cross, which is most of a diagrid.
+
+The layer sits at 0.55, and `--color-hairline` at 55% over `--color-bone` is
+declared as `--color-sketch-ground` (`#edeae2`) and measured on every run:
+`ink` 14.32:1, `ink-soft` 4.59:1, `clay` 4.64:1. Amendment 1 asserted its
+equivalent in a comment; this one fails the build if it stops being true.
+
+The token is listed in `TEXT_ONLY_SURFACES` rather than `SURFACES`, and the
+reason differs slightly from `scrim-ground`'s: everything focusable inside the
+hero band sits on `.plan-card`, which is opaque bone, so no control is ever
+painted on the drawing and the ring minimum cannot apply. **If a link or button
+is ever added to the hero outside that card, move the token into `SURFACES` and
+recompute rather than keeping the exemption.**
+
+**Heavier is free; darker is not.** The brief for this rework asked for heavier,
+more legible linework. Line WIDTH does not change what a pixel of that line
+composites to, so a 2.25px stroke is exactly as safe behind text as a hairline
+one, and weight and density are where all of the extra presence comes from. Going
+darker is the one thing the ceiling forbids: at full strength the same linework
+puts `ink-soft` at 4.11:1 and fails.
+
+**One bug found by building it, worth recording because it was invisible.**
+Colour and weight are set on the container and inherited, never on the shapes.
+`stroke` and `stroke-width` are inherited SVG properties, and a weight class is
+often put on a `<g>` wrapping several shapes. Setting `stroke-width` in the shape
+rule instead makes it win over the value inherited from that `<g>`, so every
+grouped weight silently does nothing and the drawing renders flat. That shipped
+in the first draft of these files. `vector-effect` has to stay on the shape rule
+for the opposite reason: it is not inherited, so setting it on the root `<svg>`
+would reach nothing.
+
+**The fade is gone.** Amendment 1 masked its band out with a
+`linear-gradient`. These drawings stand on a ground line at the bottom of the
+band and are cropped at the top, which is how an elevation is cropped anyway, so
+the mask has no work left to do and is deleted along with the argument that
+justified it.
+
+### 5. One drawing layer, two darknesses, and a pair per page length
+
+Amendment 4's drawings were correct and nearly invisible. This fixes that, and
+the fix is worth reading because the obvious version of it does not work.
+
+**The behind-text zone was already at its ceiling, and could not be darkened.**
+The constraint is on the composited GROUND, not on the ink used to reach it, so
+no change of stroke colour buys anything where text sits. Amendment 4 ran
+`--color-hairline` at 55%, which composited to `#edeae2`. The absolute limit,
+where `--color-ink-soft` lands exactly on 4.5:1, is `#ece8df`. That is the whole
+available headroom: 1.13:1 line contrast against bone versus 1.19:1. Darkening
+the drawing uniformly was never on the table.
+
+**So the layer carries two darknesses instead of one.** The drawings sit at 0.75
+at the page edges and fade to an effective 0.10 across the content column:
+
+| Zone                      | Effective alpha | Ground                  | Line against bone |
+| ------------------------- | --------------- | ----------------------- | ----------------- |
+| Page edges, no text       | 0.75            | `#918c84`               | **3.15:1**        |
+| Across the content column | 0.10            | `--color-sketch-ground` | 1.13:1            |
+
+That is about two and a half times the presence where it is free to have it, and
+unchanged where it is not. The strokes moved from `--color-hairline` to
+`--color-ink-soft` to make the dark end possible at all: hairline is the app's
+border colour and at any alpha it is barely a line, so there was no headroom to
+be dark in. The effective alpha fell from 55% to 10% to land the safe zone on the
+same place it was.
+
+**`--color-sketch-ground` is now `#eceae5`**, ink-soft at 10% over bone.
+Measured: `ink` 14.32:1, `ink-soft` 4.59:1, `clay` 4.64:1, and `clay` as a focus
+ring 4.64:1 against a 3:1 minimum.
+
+**The two zones are one mask, not two layers.** A `linear-gradient` mask on the
+layer, full strength at the edges and `--sketch-safe` across the middle. Its
+stops are measured from the CENTRE rather than as percentages, because what has
+to be protected is the content column, which is a fixed 56rem while the layer is
+the whole viewport: safe out to 30rem either side, which is the column's 28rem
+plus two rem of slack, fading to full by 34rem. Under a 68rem viewport the
+negative stops clamp and the layer simply runs everywhere at the safe level,
+which is right, because at that width there is no margin for a dark zone to be
+in. The crossing invariant is untouched: opacity and mask both apply to the
+flattened group, so strokes still composite exactly once.
+
+**`--color-sketch-ground` is a SURFACE now, not a text-only ground.** This is the
+part most worth carrying forward. Amendment 4 exempted it from the focus-ring
+minimum on the argument that everything focusable in the hero sits on the opaque
+upload card. Running the drawings the length of the page put the gallery's card
+links and its `See all` link on top of them and killed that argument. The token
+moved into `SURFACES`, which measures it against every text token and the ring
+minimum, and `npm run contrast` now runs 17 pairs. The general lesson is written
+into the script beside the two busy grounds that still hold such an exemption:
+the argument is about where a thing is on screen, so it has to be re-made every
+time the thing moves.
+
+**The drawings run the whole page.** `.hero-band` is on `<main>` itself rather
+than around the hero, so the layer's height is the page's height and the drawings
+end where the content ends however long it turns out to be. Every card surface is
+opaque (`.plan-card` bone, `.plate-frame` and `.plan-chip` ivory), so the only
+thing the drawings ever sit behind is text.
+
+**A pair per page length.** A signed in home screen with a projects strip is
+about twice the height of a signed out one, and the two tall studies crop badly
+into a short sheet. So there are four drawings in two pairs: `TowerSketch` and
+`LatticeSketch` for the long page, `ColonnadeSketch` and `PavilionSketch`, both
+squat, for the short one. The portico and the pavilion are deliberately opposed,
+load bearing masonry against a slab on thin posts, so the pair reads as two ways
+of standing something up rather than one drawing done twice.
+
+Which pair appears is decided ONCE, by `homeStrip` in the home route, because the
+same answer decides whether the strip renders at all. Asked separately, the two
+would eventually disagree and the page would get the drawings for a length it is
+not. This is the same rule spec 0011 applies to the visibility control.
+
+**Each tall sheet gained a plan above its elevation**, and that is not decoration
+for its own sake. The sheet is now about twice the height of the building on it,
+and something has to occupy the upper half or the top of the page reads as blank.
+A plan over an elevation is the oldest arrangement in architectural drawing, it
+is the same building explained, and, unlike ruled lines, it is not the decorative
+grid `scope.md` feature 4 refused. The tower's is the Y footprint its asymmetric
+setbacks come from; the lattice's is a circle whose radials are the diagrid seen
+from above, generated from the same `LINES_PER_FAMILY` as the elevation.
+
+### 6. Clay marks the control a surface is for, not the affirmative direction
+
+Amendment 3 split the two filled classes by direction: affirmative actions clay,
+undo-direction actions grey. That rule did not survive being looked at. `Sign
+out` is the undo direction and it is also the only thing the navbar is for, and
+painting it grey while `Download` two hundred pixels below it was clay said the
+wrong thing about both.
+
+**The rule now:** `.btn-primary` is the control a surface exists to offer, and
+`.btn-neutral` is a real button that is not it. That is much closer to this
+spec's original accent rule, "clay marks the one thing on a screen you are being
+pointed at", with the single change amendment 3 actually cared about: it is spent
+at rest rather than held back for hover.
+
+Applied, that moves two controls and leaves the rest:
+
+| Control              | Was            | Now            | Because                                            |
+| -------------------- | -------------- | -------------- | -------------------------------------------------- |
+| `Sign in with Puter` | `.btn-primary` | `.btn-primary` | the navbar exists to get you in and out            |
+| `Sign out`           | `.btn-neutral` | `.btn-primary` | same control, same job, other direction            |
+| `Download`           | `.btn-primary` | `.btn-primary` | the file is what the project page is for           |
+| `Make public`        | `.btn-primary` | `.btn-neutral` | visibility is a setting, not the point of the page |
+| `Make private`       | `.btn-neutral` | `.btn-neutral` | unchanged                                          |
+
+The visibility control therefore has no clay in it at all, in either direction,
+which is the intended reading: on a project sheet the render is the point and who
+can see it is a property of it.
+
+One consequence worth naming rather than discovering: on a signed in project page
+there are now two clay buttons on screen, `Sign out` in the navbar and `Download`
+in the sheet. The rule holds because they belong to different surfaces, the app's
+chrome and the page's content, and the navbar's is always the same single control
+in one of its two states. If a second clay control ever appears within one page's
+content, that is the rule breaking rather than bending.
+
+Nothing else moves. `.btn-accent` still belongs to the upload card alone, and
+`.btn-quiet` is untouched.
+
 ## Consequences
 
 **Positive**:
@@ -516,6 +999,13 @@ has something real to build against.
 - [ ] Feature 8's comparison slider is the second interactive element allowed
       the accent. Check when it is built that it fits the six state matrix, or
       extend the matrix here rather than in that feature.
+- [ ] From amendment 3: the upload card keeps `.btn-accent` for both of its
+      controls, so once a plan is hosted `Generate the render` and
+      `Replace floor plan` are still the same treatment, and the card gives no
+      hint which of committing and undoing is the one it wants. That was chosen
+      deliberately, to keep the quietest screen in the app quiet, but it is the
+      one place the new direction rule is not applied. Worth looking at again on
+      a real screen with a real plan in the card.
 
 ## Rationale
 

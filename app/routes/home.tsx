@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import type { Route } from "./+types/home";
 import { useAuthState } from "~/auth/useAuthState";
+import { SketchBackdrop } from "~/home/SketchBackdrop";
 import { ProjectGrid } from "~/gallery/ProjectGrid";
 import { HOME_STRIP_COUNT } from "~/gallery/rules";
 import { UnreadableNote } from "~/gallery/UnreadableNote";
@@ -39,26 +40,34 @@ export async function clientLoader() {
 clientLoader.hydrate = true as const;
 
 /**
- * The recent strip. Present only when somebody is signed in and has something to
- * show, plus the one case where it is empty only because every record was
- * unreadable, which is worth a line rather than silence.
+ * What the strip has to show, or null when there is no strip on this page.
+ * Derived from the loader's own success shape rather than restated, so it cannot
+ * drift from what `listProjects` actually returns.
+ */
+type Strip = Extract<Route.ComponentProps["loaderData"], { ok: true }>["value"];
+
+/**
+ * Whether the recent strip appears at all, answered ONCE.
  *
  * Whether anyone is signed in comes from `useAuthState`, never from the loader
  * result, so the navbar's `Projects` link and this strip can never disagree. The
  * loader only decides whether there is anything to put in it, and a failed read
  * is nothing to put in it: `/projects` is where that failure gets its sentence
  * and its retry.
+ *
+ * It is a function rather than a check inside the strip because the answer now
+ * decides two things: whether the strip renders, and which pair of building
+ * studies stands behind the page, since a page with a strip is about twice as
+ * tall as one without. Asked in two places those two would eventually disagree
+ * and the page would get the drawings for a length it is not.
  */
-function RecentProjects({
-  list,
-}: {
-  readonly list: Route.ComponentProps["loaderData"];
-}) {
-  const auth = useAuthState();
+const homeStrip = (
+  auth: ReturnType<typeof useAuthState>,
+  list: Route.ComponentProps["loaderData"],
+): Strip | null => (auth.status === "signedIn" && list.ok ? list.value : null);
 
-  if (auth.status !== "signedIn" || !list.ok) return null;
-
-  const { projects, unreadable } = list.value;
+function RecentProjects({ strip }: { readonly strip: Strip }) {
+  const { projects, unreadable } = strip;
   if (projects.length === 0) return <UnreadableNote count={unreadable} />;
 
   return (
@@ -106,10 +115,28 @@ function RecentProjects({
  * settles it. Nothing else moves: the recent strip below keeps the left edge,
  * and so do the gallery and the project sheet, because a grid and a drawing
  * sheet have a real left edge to line up against and a landing hero does not.
+ *
+ * Two architectural studies stand in the margins either side of the whole page
+ * (spec 0004, amendments 1, 4 and 5). `.hero-band` is on `main` itself rather
+ * than around the hero, which is what makes the drawings run the full height of
+ * the content: it positions the layer and fixes its height in one, so the
+ * drawings end exactly where the page does however long it turns out to be.
+ *
+ * The render thumbnails in the strip are unaffected: every card surface is
+ * opaque, so the only thing the drawings ever sit behind is text, which is what
+ * `.sketch-layer`'s mask exists to protect.
  */
 export default function Home({ loaderData }: Route.ComponentProps) {
+  const auth = useAuthState();
+  const strip = homeStrip(auth, loaderData);
+  // A strip full of projects roughly doubles the page. Nothing else on this
+  // screen changes its height enough to matter.
+  const long = strip !== null && strip.projects.length > 0;
+
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
+    <main className="hero-band mx-auto max-w-4xl px-6 py-16">
+      <SketchBackdrop variant={long ? "tall" : "short"} />
+
       <h1 className="mx-auto max-w-2xl text-center type-display text-ink">
         From blueprint to built space, instantly, with AI.
       </h1>
@@ -124,7 +151,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <PlanUploadCard />
       </div>
 
-      <RecentProjects list={loaderData} />
+      {strip !== null && <RecentProjects strip={strip} />}
     </main>
   );
 }

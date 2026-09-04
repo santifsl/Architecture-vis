@@ -68,6 +68,47 @@
   --color-scrim-ground: #b4b2b0;
 
   /*
+   * Three more precomputed grounds, all the same kind of thing as
+   * --color-scrim-ground above: not colours anything is painted with, but what a
+   * transparent layer composites to over the surface beneath it, written down so
+   * check-contrast.mjs can measure text against them on every run.
+   *
+   * Each one is half of a fact whose other half is a `color-mix` further down
+   * this file. Change one and the other is wrong, so each names the other.
+   *
+   * The two busy grounds are a filled button while it works. Spec 0004's
+   * amendment 3: a filled control recedes by dropping its FILL to 55% rather
+   * than its label, because a label at 55% on a full-strength fill is the one
+   * thing nobody can read, and 55% is the figure scope.md already fixed for work
+   * in progress. The label goes to ink on both, which is why ink is the only ink
+   * either of them is measured with.
+   */
+  --color-clay-busy-ground: #cd9a7c;
+  --color-neutral-busy-ground: #ada9a2;
+
+  /*
+   * The darkest ground the home screen's drawings put behind TEXT: ink-soft
+   * strokes at an effective 10% over bone. Spec 0004, amendments 4 and 5.
+   *
+   * It is a hard ceiling rather than an average, because every stroke inside the
+   * drawings is fully opaque and the layer carries the only transparency. Opaque
+   * over opaque is idempotent, so a hundred crossing lines composite to exactly
+   * what one line composites to, and this value is reached but never passed.
+   *
+   * Amendment 5 made the drawings much darker everywhere they are NOT behind
+   * text, and this token did not move, because it cannot: the ceiling is a
+   * property of the ground, not of the ink used to reach it. The strokes went
+   * from hairline to ink-soft and the effective alpha fell from 55% to 10% to
+   * land on the same place. See `.sketch-layer` for how one layer holds two
+   * darknesses.
+   *
+   * It is a SURFACE rather than a text-only ground, and that changed with
+   * amendment 5 too: the drawings now run the whole page, so the gallery's card
+   * links and its `See all` link sit on them, and a focus ring can land here.
+   */
+  --color-sketch-ground: #eceae5;
+
+  /*
    * Form. The gallery look is tight and unrounded, decided once.
    *
    * The focus ring's width and offset are tokens rather than literals for the
@@ -229,6 +270,14 @@ body {
   background-color: var(--color-bone);
   color: var(--color-ink);
   color-scheme: light;
+  /*
+   * The sketch layer breaks out of its centred column to the full viewport
+   * width, and 100vw counts the scrollbar, so without this it would produce a
+   * sideways scrollbar of its own. `clip` rather than `hidden` deliberately:
+   * hidden makes this a scroll container, which would break the navbar's
+   * `sticky top-0`. Clipping one axis leaves the other visible.
+   */
+  overflow-x: clip;
 }
 
 /*
@@ -256,8 +305,9 @@ body {
  * site, which is how a state ends up applied in four places and missed in the
  * fifth.
  */
+.btn-primary,
+.btn-neutral,
 .btn-accent,
-.btn-outline,
 .btn-quiet,
 .nav-link {
   font-family: var(--font-display);
@@ -267,46 +317,83 @@ body {
   font-weight: var(--type-label-weight);
 }
 
-/* The call to action. Outlined rather than filled: the accent stays quiet. */
+/*
+ * The three box buttons share one geometry, stated once. Spec 0004, amendment 3.
+ *
+ * They differ only in which colours they take, which is what lets any two of
+ * them sit side by side with no mismatch. `position: relative` is here so the
+ * busy sweep can be an ::after on the control itself; written as a sibling
+ * element it would need JSX at every call site, which is how a state ends up
+ * applied in four places and missed in the fifth.
+ */
+.btn-primary,
+.btn-neutral,
 .btn-accent {
   position: relative;
   display: inline-flex;
   align-items: center;
-  border: var(--border-hairline) solid var(--color-clay);
+  border: var(--border-hairline) solid transparent;
   border-radius: var(--radius);
   padding: 0.4rem 0.9rem;
-  color: var(--color-clay);
-  background-color: transparent;
-  cursor: pointer;
-  transition:
-    background-color var(--duration-quick) var(--ease-standard),
-    color var(--duration-quick) var(--ease-standard);
-}
-
-/*
- * A real button that is not the call to action. Spec 0010.
- *
- * `.btn-accent`'s geometry exactly, so the two sit side by side in the navbar
- * with no visible mismatch. It differs at rest only in which colour its border
- * and label take: the hairline and ink, never clay, because clay marks the one
- * thing on a screen you are being pointed at and signing out is not it. Every
- * other state below is the accent button's, which is what keeps the accent rule
- * intact: clay still appears only where somebody is interacting.
- */
-.btn-outline {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  border: var(--border-hairline) solid var(--color-hairline);
-  border-radius: var(--radius);
-  padding: 0.4rem 0.9rem;
-  color: var(--color-ink);
-  background-color: transparent;
   cursor: pointer;
   transition:
     border-color var(--duration-quick) var(--ease-standard),
     background-color var(--duration-quick) var(--ease-standard),
-    color var(--duration-quick) var(--ease-standard);
+    color var(--duration-quick) var(--ease-standard),
+    scale var(--duration-quick) var(--ease-standard);
+}
+
+/*
+ * The affirmative action, filled clay at rest. Spec 0004, amendment 3.
+ *
+ * This is a deliberate reversal of the original accent rule, which held clay
+ * back until you reached for a control. The rule now is that the one action a
+ * screen is asking you to take carries the accent from the start, and everything
+ * else is quieter than it. Signing in, downloading a render, and making a
+ * project public are that action on the screens they appear on.
+ *
+ * A bone label on clay measures 5.26:1, which the contrast script proves on
+ * every run via CONTROL_FILLS rather than by anyone remembering to check.
+ */
+.btn-primary {
+  border-color: var(--color-clay);
+  background-color: var(--color-clay);
+  color: var(--color-bone);
+}
+
+/*
+ * The undo-direction action, filled in the warm grey. Spec 0004, amendment 3.
+ *
+ * Signing out and making a project private are real buttons, not afterthoughts,
+ * so they are filled rather than outlined. They take --color-ink-soft rather
+ * than a near-black on purpose: grey measures L* 44.3 against clay's L* 44.0, so
+ * a primary and a neutral side by side carry the same visual weight and differ
+ * only in hue, which leaves the accent doing the work of saying which one the
+ * screen is pointing at. A near-black fill would have made signing out the
+ * heaviest thing in the navbar.
+ *
+ * A bone label on it measures 5.20:1, measured the same way as the primary's.
+ */
+.btn-neutral {
+  border-color: var(--color-ink-soft);
+  background-color: var(--color-ink-soft);
+  color: var(--color-bone);
+}
+
+/*
+ * The outlined call to action, and after amendment 3 it belongs to one card.
+ *
+ * `.btn-accent` used to be the app's call to action everywhere. The filled
+ * primary above took that job, and what is left here is the upload card's two
+ * controls, `Choose a floor plan` and `Generate the render`, which stay exactly
+ * as they were. That is a deliberate exception rather than a leftover: the card
+ * already carries the app's one shadow and its one clay wash, and filling its
+ * buttons as well would make the single quietest screen in the app the loudest.
+ */
+.btn-accent {
+  border-color: var(--color-clay);
+  color: var(--color-clay);
+  background-color: transparent;
 }
 
 /* A secondary action. Reads as text until you reach for it. */
@@ -324,12 +411,61 @@ body {
 /*
  * State 2 of 6, hover. Excluded while disabled or busy: a control that cannot
  * act must not answer the pointer as though it can.
+ *
+ * Every box button grows a little, added by spec 0004's amendment 2. It is the
+ * CSS `scale` property rather than `transform: scale()` on purpose: transform is
+ * a single slot, so a later rule wanting to nudge or rotate a button would
+ * silently drop this, and two rules quietly clobbering each other is exactly what
+ * a closed system is supposed to prevent. 1.02 is under a pixel at each edge,
+ * which reads as the control answering rather than as the control moving, and
+ * scale paints outside the layout box so nothing beside the button shifts.
+ *
+ * .btn-quiet is deliberately not in this selector. It has no box: it is text with
+ * padding, no border and no background, it appears inline beside prose, and
+ * scaling a run of text softens the glyphs and nudges the line around it. The
+ * rule is "a box button grows, a text button does not", which is one sentence a
+ * new control class can be held to.
  */
-.btn-accent:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
-.btn-outline:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
+.btn-primary:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
+.btn-neutral:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
+.btn-accent:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
+  scale: 1.02;
+}
+
+/*
+ * The colour half of hover, which now differs by variant. Spec 0004, amendment 3.
+ *
+ * `.btn-accent` still inverts, because it starts outlined and has somewhere to
+ * go. The two filled variants are already at full colour, so they deepen instead:
+ * one step along their own hue toward ink, mixed from the palette at use so
+ * retuning clay or ink-soft retunes the hover with it, and no seventh colour
+ * enters @theme.
+ *
+ * Both mixes move TOWARD ink, which is why neither needs its own contrast
+ * measurement: a darker fill under the same bone label can only raise the ratio
+ * the rest state already clears. Measured anyway while this was written, clay
+ * goes 5.26:1 to 6.29:1 and grey 5.20:1 to 7.44:1. The lightness shift is what
+ * makes hover perceptible on a control that was already coloured: 5 steps of L*
+ * for the primary and 10 for the neutral, with the scale carrying the rest.
+ */
+.btn-accent:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
   border-color: var(--color-clay);
   background-color: var(--color-clay);
   color: var(--color-bone);
+}
+
+.btn-primary:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
+  border-color: color-mix(in srgb, var(--color-clay) 85%, var(--color-ink));
+  background-color: color-mix(in srgb, var(--color-clay) 85%, var(--color-ink));
+}
+
+.btn-neutral:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
+  border-color: color-mix(in srgb, var(--color-ink-soft) 70%, var(--color-ink));
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink-soft) 70%,
+    var(--color-ink)
+  );
 }
 
 .btn-quiet:hover:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
@@ -341,17 +477,44 @@ body {
  * State 3 of 6, active. The hover treatment with the transition suppressed: the
  * press reads instantly rather than easing, which is what makes a quiet button
  * feel crisp under the finger.
+ *
+ * Each variant keeps its own hover colour here; only the size and the easing
+ * change. Back to full size, so a press pushes the button down rather than
+ * leaving it reading as a larger hover.
  */
-.btn-accent:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
-.btn-outline:active:not(
+.btn-primary:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
+.btn-neutral:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]),
+.btn-accent:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
+  transition: none;
+  scale: 1;
+}
+
+.btn-accent:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
+  border-color: var(--color-clay);
+  background-color: var(--color-clay);
+  color: var(--color-bone);
+}
+
+.btn-primary:active:not(
     [disabled],
     [aria-disabled="true"],
     [aria-busy="true"]
   ) {
-  transition: none;
-  border-color: var(--color-clay);
-  background-color: var(--color-clay);
-  color: var(--color-bone);
+  border-color: color-mix(in srgb, var(--color-clay) 85%, var(--color-ink));
+  background-color: color-mix(in srgb, var(--color-clay) 85%, var(--color-ink));
+}
+
+.btn-neutral:active:not(
+    [disabled],
+    [aria-disabled="true"],
+    [aria-busy="true"]
+  ) {
+  border-color: color-mix(in srgb, var(--color-ink-soft) 70%, var(--color-ink));
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink-soft) 70%,
+    var(--color-ink)
+  );
 }
 
 .btn-quiet:active:not([disabled], [aria-disabled="true"], [aria-busy="true"]) {
@@ -382,11 +545,13 @@ body {
  * about 1.55:1, so the "fix" would have made the one label somebody is waiting
  * on nearly unreadable. Busy has its own purpose-built look and keeps it.
  */
+.btn-primary[disabled],
+.btn-neutral[disabled],
 .btn-accent[disabled],
-.btn-outline[disabled],
 .btn-quiet[disabled],
+.btn-primary[aria-disabled="true"]:not([aria-busy="true"]),
+.btn-neutral[aria-disabled="true"]:not([aria-busy="true"]),
 .btn-accent[aria-disabled="true"]:not([aria-busy="true"]),
-.btn-outline[aria-disabled="true"]:not([aria-busy="true"]),
 .btn-quiet[aria-disabled="true"]:not([aria-busy="true"]) {
   opacity: 0.55;
   cursor: default;
@@ -403,25 +568,74 @@ body {
  * busy. useSignIn holds that guard for all three sign-in surfaces.
  */
 /*
- * State 4 of 6, focus visible. The app-wide ring already covers every control,
- * so the only thing added here is the border taking clay with it: an outline
- * button whose ring appeared while its hairline stayed grey would read as two
- * separate marks rather than one control answering.
+ * State 4 of 6, focus visible, is the app-wide ring and nothing else. No button
+ * class adds to it or replaces it.
+ *
+ * That was checked rather than assumed when the filled variants arrived, because
+ * a clay ring around a clay button sounds like the same mark twice. It is not:
+ * `--ring-offset` puts a 2px band of the page between the control and its ring,
+ * so what the ring is measured against is --color-bone, at 5.26:1, exactly as it
+ * is for every other control in the app. The offset is also why neither filled
+ * variant needs its fill measured as a ring background: a ring never touches one.
+ *
+ * `.btn-outline`'s own focus rule used to live here, tinting its hairline border
+ * clay. The class is gone (amendment 3) and so is the rule.
  */
-.btn-outline:focus-visible {
-  border-color: var(--color-clay);
-  color: var(--color-clay);
-}
 
 .btn-accent[aria-busy="true"],
-.btn-outline[aria-busy="true"],
 .btn-quiet[aria-busy="true"] {
   color: color-mix(in srgb, var(--color-clay) 55%, transparent);
   cursor: default;
 }
 
+/*
+ * A FILLED button at work. Spec 0004, amendment 3.
+ *
+ * The two outlined controls above recede by dropping their label to the accent
+ * at 55%, which is scope.md's rule for work in progress. A filled control cannot
+ * do that: a label at 55% on a full strength fill is the one thing nobody can
+ * read. So the recession moves to the fill instead. The button fades to 55% of
+ * its own colour over bone, and the label comes back up to ink, which is the
+ * same idea (the accent quietly recedes) applied to the layer that actually
+ * carries it.
+ *
+ * Both resulting grounds are precomputed in @theme as --color-clay-busy-ground
+ * and --color-neutral-busy-ground, and check-contrast.mjs measures ink against
+ * each on every run: 6.97:1 and 7.35:1. Each of those tokens and the 55% here
+ * are two halves of one fact, exactly like .plate-veil and --color-scrim-ground.
+ * Change one and the other is wrong.
+ */
+.btn-primary[aria-busy="true"],
+.btn-neutral[aria-busy="true"] {
+  color: var(--color-ink);
+  cursor: default;
+}
+
+.btn-primary[aria-busy="true"] {
+  border-color: color-mix(in srgb, var(--color-clay) 55%, var(--color-bone));
+  background-color: color-mix(
+    in srgb,
+    var(--color-clay) 55%,
+    var(--color-bone)
+  );
+}
+
+.btn-neutral[aria-busy="true"] {
+  border-color: color-mix(
+    in srgb,
+    var(--color-ink-soft) 55%,
+    var(--color-bone)
+  );
+  background-color: color-mix(
+    in srgb,
+    var(--color-ink-soft) 55%,
+    var(--color-bone)
+  );
+}
+
+.btn-primary[aria-busy="true"]::after,
+.btn-neutral[aria-busy="true"]::after,
 .btn-accent[aria-busy="true"]::after,
-.btn-outline[aria-busy="true"]::after,
 .btn-quiet[aria-busy="true"]::after {
   content: "";
   position: absolute;
@@ -487,17 +701,44 @@ body {
     width: 100%;
   }
 
+  .btn-primary[aria-busy="true"]::after,
+  .btn-neutral[aria-busy="true"]::after,
   .btn-accent[aria-busy="true"]::after,
-  .btn-outline[aria-busy="true"]::after,
   .btn-quiet[aria-busy="true"]::after {
     animation: none;
     width: 100%;
   }
 
+  .btn-primary,
+  .btn-neutral,
   .btn-accent,
-  .btn-outline,
   .btn-quiet {
     transition: none;
+  }
+
+  /*
+   * Switched off, not merely un-animated. The rule above removes the easing,
+   * which would leave the size change happening instantly instead of not
+   * happening, and an instant jump in size is precisely what this query is for.
+   * The colour change stays: reduce is about motion, not about a control going
+   * quiet.
+   */
+  .btn-primary:hover:not(
+      [disabled],
+      [aria-disabled="true"],
+      [aria-busy="true"]
+    ),
+  .btn-neutral:hover:not(
+      [disabled],
+      [aria-disabled="true"],
+      [aria-busy="true"]
+    ),
+  .btn-accent:hover:not(
+      [disabled],
+      [aria-disabled="true"],
+      [aria-busy="true"]
+    ) {
+    scale: 1;
   }
 }
 
@@ -558,6 +799,353 @@ body {
   font-size: var(--type-code-size);
   line-height: var(--type-code-leading);
   color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * The home screen's hero band, and the two building sketches behind it.
+ * Spec 0004, amendments 1 and 4.
+ *
+ * scope.md feature 4 cut a decorative grid pattern from behind the upload card
+ * and that stays cut. These are a different thing in a different place: two
+ * architectural studies standing in the margins either side of the content
+ * column, in the palette's own hairline tone, which never appear behind a card
+ * because `.plan-card` and `.gallery-card`'s frame are opaque and occlude them.
+ */
+.hero-band {
+  position: relative;
+  /*
+   * Its own stacking context, so the drawings' negative z-index puts them behind
+   * this block's content and no further. Without it the layer would sit behind
+   * the page itself and disappear.
+   */
+  isolation: isolate;
+}
+
+/*
+ * The layer both drawings live in, and the ONLY place transparency appears.
+ *
+ * This is load bearing, not tidiness. Every stroke inside is fully opaque, so
+ * opaque over opaque is idempotent and a hundred crossing lines composite to
+ * exactly what one line composites to. Put the opacity on the strokes instead
+ * and two 55% lines make 80% where they cross, which is darker than
+ * --color-sketch-ground and drops --color-ink-soft under 4.5:1 behind the
+ * subhead. An architectural drawing is nothing but crossing lines, so that is
+ * not a corner case, it is most of the image.
+ *
+ * The safe fraction below is how much of the layer's opacity survives the mask
+ * where text can sit, and it is measured rather than chosen by eye: 0.75 * 0.1333
+ * is 0.10, and --color-ink-soft at 10% over --color-bone is
+ * --color-sketch-ground, declared in @theme, which check-contrast.mjs measures
+ * ink, ink-soft and clay against on every run. Those three numbers are one fact
+ * in three places, so changing any one of them means recomputing that token.
+ *
+ * (An earlier draft of this note said 55% of --color-hairline, which was true of
+ * amendment 4 and stopped being true when amendment 5 moved the strokes to
+ * ink-soft and put the alpha in the mask. The arithmetic above is the live one.)
+ *
+ * Amendment 7 softened the fade and deliberately did NOT touch any of the three.
+ * The gradient's shape changed, its floor did not, so the guarantee behind text
+ * is the same guarantee and ink-soft still measures 4.59:1 on the drawing.
+ */
+/*
+ * The layer is the PAGE, and the drawings inside it are in the page's own flow.
+ * Spec 0004, amendments 8 and 9.
+ *
+ * Amendment 8 fixed the layer to the viewport, which was the wrong lever for the
+ * right problem. What was broken was that the drawings CROPPED: `slice`, which
+ * is `cover`, resolved the mismatch between a 1:5 sheet and whatever box the
+ * page's height produced by scaling to fill the width and cutting the overflow
+ * off the top, so on a short page in a wide window the spire went. Pinning the
+ * layer to the window made that impossible, but it also pinned the artwork to
+ * the screen, and a drawing that holds still while the page moves reads as a
+ * screensaver behind the app rather than as the sheet the app is drawn on.
+ *
+ * Amendment 9 puts it back in flow and fixes the cropping where it actually
+ * lives, in `.sketch` below: the box now takes the sheet's own shape, so
+ * `slice` and `meet` agree and neither has anything to cut. Being in flow, the
+ * drawings end where the page's content ends and scroll with it.
+ *
+ * `left: 50%` with a 100vw width is measured from `.hero-band`, which IS the
+ * content column, so the mask's 50% is the column's centre exactly rather than
+ * the viewport's. On a page with a scrollbar those two are not the same place,
+ * and the one the text is centred in is the one that has to be protected.
+ */
+.sketch-layer {
+  --sketch-safe: 0.1333;
+
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  left: 50%;
+  translate: -50% 0;
+  /* Out of the centred column to the full width. `body` clips the overflow. */
+  width: 100vw;
+  /*
+   * The DARK value, which is what the drawings are at the page edges. Amendment
+   * 5: at the old flat 0.55 of hairline the linework measured 1.13:1 against
+   * bone and read as a smudge. This is 3.15:1, about two and a half times the
+   * presence, and it is only allowed because the mask below keeps it away from
+   * text.
+   */
+  opacity: 0.75;
+  pointer-events: none;
+
+  /*
+   * Two darknesses in one layer, which is what lets the drawings be confident at
+   * the edges and safe behind text without stacking two copies of them.
+   *
+   * The mask is full strength out at the page edges and drops to --sketch-safe
+   * across the content column, so the drawing dissolves as it approaches the
+   * words rather than stopping at a line. The stops are measured from the CENTRE
+   * rather than as percentages of the layer, because what has to be protected is
+   * the content column, whose width is fixed at max-w-4xl (56rem) while the
+   * layer is the whole viewport.
+   *
+   * Amendment 7 reshaped this, and the shape is the point. Amendment 5 held the
+   * safe level all the way out to 30rem and then climbed to full in four, so the
+   * drawings were already extinct two rem before the widest glyph on the page
+   * and the margin either side of the column read as blank paper before it read
+   * as a building. This holds safe only to 27.5rem and then climbs on a square
+   * root curve out to 36rem: the floor sits far closer to the words, and the
+   * climb takes eight and a half rem rather than four, so there is no visible
+   * edge to the fade anywhere along it. Against amendment 5 that is about three
+   * times the presence at 28rem, four and a half at 30rem and a third more at
+   * 32rem, paid for with about a tenth between 34 and 36rem.
+   *
+   * 27.5rem is still slack, not a limit. The column is 28rem either side and
+   * carries px-6, so nothing on this page prints outside 26.5rem: the floor is
+   * reached a full rem before the widest thing that can sit there. The stops are
+   * that curve sampled, close enough together that linear interpolation between
+   * them tracks it to about a percent.
+   *
+   * On a viewport under 55rem the negative stops clamp and the whole layer
+   * simply runs at the safe level, which is correct: at that width there is no
+   * margin for a dark zone to live in. Under 64rem the layer is hidden outright.
+   */
+  mask-image: linear-gradient(
+    to right,
+    rgb(0 0 0 / 1) 0,
+    rgb(0 0 0 / 1) calc(50% - 36rem),
+    rgb(0 0 0 / 0.86) calc(50% - 33.5rem),
+    rgb(0 0 0 / 0.7) calc(50% - 31rem),
+    rgb(0 0 0 / 0.5) calc(50% - 29rem),
+    rgb(0 0 0 / var(--sketch-safe)) calc(50% - 27.5rem),
+    rgb(0 0 0 / var(--sketch-safe)) calc(50% + 27.5rem),
+    rgb(0 0 0 / 0.5) calc(50% + 29rem),
+    rgb(0 0 0 / 0.7) calc(50% + 31rem),
+    rgb(0 0 0 / 0.86) calc(50% + 33.5rem),
+    rgb(0 0 0 / 1) calc(50% + 36rem),
+    rgb(0 0 0 / 1) 100%
+  );
+  mask-repeat: no-repeat;
+}
+
+/*
+ * The shape of the sheet each pair is drawn on, which is what sizes them.
+ *
+ * It lives on the layer rather than on `.sketch` because it is a fact about the
+ * pair, not about the side: a page's two drawings are always the same sheet, and
+ * stating it twice is how they would eventually stop being.
+ */
+/*
+ * Both are trimmed to the drawn extent rather than to a round number: the sheet
+ * is the box that gets fitted to the window now, so every unit of blank paper in
+ * it is a unit of blank window above the building. Amendment 7 left 2% over the
+ * towers and 10% over the squat pair; these are the same sheets cropped to about
+ * 1% and 4.5%. They cannot be trimmed to nothing, because the dimension line's
+ * top tick and the ground's shadow line are part of the drawing.
+ */
+.sketch-layer-tall {
+  --sketch-sheet: 400 / 1970;
+}
+
+.sketch-layer-short {
+  --sketch-sheet: 400 / 940;
+}
+
+/*
+ * One drawing, standing in a margin. Spec 0004, amendment 9.
+ *
+ * WIDTH first, height second, and that order is the fix for both of amendment
+ * 8's complaints at once.
+ *
+ * The width is the margin's width, scaling with the viewport the way amendment
+ * 5's did, because that is what stops a drawing floating in the middle of a
+ * large display with dead space either side of it. `aspect-ratio` then derives
+ * the height the sheet requires at that width, and `max-height` stops it running
+ * off the top of the page. The box therefore always has the sheet's own shape,
+ * which is what makes cropping impossible: `meet` has nothing left to letterbox
+ * and `slice` would have nothing left to cut. `meet` is set anyway, as the
+ * backstop for the one case the ratio cannot resolve on its own, below.
+ *
+ * `bottom: 0` rather than `inset-block: 0` is the whole of "in flow": the ground
+ * line sits on the end of the page's content and the drawing is built upward
+ * from there, so it scrolls with the page instead of holding still against it.
+ *
+ * The trade this cannot avoid is worth stating plainly, because it is geometry
+ * rather than a choice. A 1:5 sheet as wide as the margin of a large display is
+ * taller than that display. Filling the side space and keeping the whole
+ * building inside one screenful are therefore not both available; this takes the
+ * first, and the building is whole on the PAGE, reached by scrolling, rather
+ * than whole on the SCREEN. Nothing is cut off in either reading.
+ */
+.sketch {
+  position: absolute;
+  bottom: 0;
+  /*
+   * Wider than amendment 5's `clamp(11rem, 21vw, 24rem)` at every size, which is
+   * the point: that clamp is what left a large display with a slim drawing
+   * against the edge and a band of blank paper between it and the words. The
+   * upper bound is a real bound rather than a formality, though. Past about
+   * 44rem the drawing is reaching across the text column rather than framing it,
+   * and while the mask keeps that safe to read, safe to read is not the same as
+   * worth looking at.
+   */
+  width: clamp(12rem, 28vw, 44rem);
+  /*
+   * Undefined, this computes to `auto`, and `auto` on an `<svg>` is the viewBox's
+   * own ratio, which is the same number. So a layer that somehow lost its
+   * variant class draws the right shape anyway rather than a wrong one.
+   */
+  aspect-ratio: var(--sketch-sheet);
+  /*
+   * The page is the one thing the drawing may not outgrow: taller than this and
+   * it would run up past the top of `main` and under the opaque navbar, which is
+   * cropping again by a different route.
+   *
+   * With `aspect-ratio` set, clamping the height here takes the width back down
+   * with it, so the sheet's shape survives and the drawing simply gets smaller.
+   * That is the specified behaviour and every current engine does it; `meet` in
+   * the SVG is the backstop if one ever does not, because a box wider than the
+   * sheet letterboxes rather than cuts.
+   */
+  max-height: 100%;
+  /* The strokes paint in currentColor, so the drawing is a palette token rather
+     than an asset carrying a colour of its own. Spec 0010 made the AV mark a
+     mask for the same reason. */
+  /*
+   * ink-soft, not hairline. Amendment 5: hairline is the app's border colour and
+   * at any alpha at all it is barely a line, so the dark zone had no headroom to
+   * be dark in. The alpha does the work of keeping it quiet instead.
+   */
+  color: var(--color-ink-soft);
+  /*
+   * Colour and weight are set HERE, on the container, and never on the shapes
+   * themselves. Both are inherited SVG properties, and a weight class is often
+   * put on a `<g>` wrapping several shapes. Set `stroke-width` on the shape rule
+   * below instead and it wins over the value inherited from that `<g>`, so every
+   * grouped weight silently does nothing. That bug shipped in the first draft of
+   * these drawings and is the reason the split is written down.
+   */
+  stroke: currentColor;
+  stroke-width: var(--border-hairline);
+}
+
+/*
+ * Where the drawing stands in its margin. Spec 0004, amendment 9.
+ *
+ * Hard against the window edge until there is more margin than drawing, and
+ * then centred in what there is. On anything up to about 1900px the first case
+ * is the only one that happens: the drawing is wider than the band beside the
+ * column and already reaches across it, so the offset resolves to zero and this
+ * is `left: 0` as it has always been.
+ *
+ * Past that the drawing stops growing, because its height has run into the page
+ * height and `max-height` has taken the width back down with it, while the
+ * margin keeps widening. Left at the edge, all of that new space collects into
+ * one band between the drawing and the words, which is the "floating with dead
+ * space" this is here to answer. Centred, the same space is halved and put on
+ * both sides, and blank paper at the edge of a very wide window is what blank
+ * paper is supposed to look like.
+ *
+ * The percentage is in `translate` rather than in `left` deliberately: a
+ * percentage in an offset resolves against the containing block, which is the
+ * full width layer and useless here, and in a translation it resolves against
+ * the element's own size, which is exactly the drawing's width.
+ */
+.sketch-left {
+  left: 0;
+  translate: max(0px, calc((50vw - 28rem - 100%) / 2)) 0;
+}
+
+.sketch-right {
+  right: 0;
+  translate: min(0px, calc((28rem + 100% - 50vw) / 2)) 0;
+}
+
+/*
+ * Below this width there is no margin left to stand in: the content column has
+ * taken the whole viewport, and the drawings would be crowding the one column
+ * of text rather than framing it. Hidden rather than shrunk, because a building
+ * elevation at 6rem wide is a smudge.
+ *
+ * There is no matching height rule, and amendment 9 removed the one amendment 8
+ * added. Height followed the window then, so a short window meant a thin
+ * drawing; width follows the viewport's WIDTH now and the height follows the
+ * width, so a short window means a page that scrolls rather than a smudge. The
+ * one bound is the one that was always here.
+ */
+@media (max-width: 64rem) {
+  .sketch-layer {
+    display: none;
+  }
+}
+
+/*
+ * The shapes themselves carry only what cannot be inherited.
+ *
+ * `vector-effect` is the important one, and it is also why this rule has to name
+ * the shapes rather than sit on `.sketch`: it is not an inherited property, so
+ * setting it on the root `<svg>` would reach nothing. Without it the strokes
+ * thicken as the viewBox scales up and the drawing turns into a texture on a
+ * wide display.
+ */
+.sketch :is(path, line, circle, ellipse, polyline) {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/*
+ * The three weights. Width is the one axis these drawings vary, and it is free:
+ * line WIDTH does not change what a pixel of that line composites to, so a heavy
+ * line is exactly as safe behind text as a hairline one. That is the whole
+ * reason these can be much heavier than the first pass without moving the
+ * contrast ceiling one step.
+ */
+
+/* The confident outline: the silhouette and the structure that reads first. */
+.sketch .stroke-heavy {
+  stroke-width: 2.25px;
+}
+
+/* The middle weight: mullions, floor lines, the neighbours behind. */
+.sketch .stroke-medium {
+  stroke-width: 1.5px;
+}
+
+/*
+ * Construction guide lines, the ones a drafter leaves in. Lighter than the
+ * hairline and still fully opaque, so they read as underdrawing without
+ * reopening the crossing problem a per stroke opacity would.
+ */
+.sketch .stroke-guide {
+  stroke: color-mix(in srgb, var(--color-ink-soft) 45%, var(--color-bone));
+  stroke-width: 1px;
+}
+
+/*
+ * A project's name on its sheet. Spec 0012's amendment 2.
+ *
+ * The name is whatever somebody called their file, so it can be one long
+ * unbroken string with nothing in it to break at. `anywhere` rather than
+ * `break-word` because only `anywhere` lets the break count when the browser is
+ * working out how wide the element wants to be, which is what keeps the name
+ * inside the sheet's column rather than pushing the column open.
+ */
+.sheet-title {
   overflow-wrap: anywhere;
 }
 

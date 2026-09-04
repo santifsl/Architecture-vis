@@ -36,7 +36,17 @@ const CSS = fileURLToPath(new URL("../app/app.css", import.meta.url));
  * Both lists are also checked to still exist, so renaming a token fails loudly
  * here rather than silently dropping it out of coverage.
  */
-const SURFACES = ["bone", "ivory"];
+/*
+ * `sketch-ground` joined these in spec 0004's amendment 5, and the promotion is
+ * the point rather than a detail. Amendment 4 put the drawings behind the hero
+ * only, where everything focusable sits on the opaque upload card, so the token
+ * lived in TEXT_ONLY_SURFACES on the argument that no control could ever be
+ * painted on it. Amendment 5 runs them the whole length of the page, so the
+ * gallery's card links and its `See all` link are now on the drawing, a focus
+ * ring can land there, and that argument is dead. A full surface is measured
+ * against every text token AND the ring minimum, which is what it now needs.
+ */
+const SURFACES = ["bone", "ivory", "sketch-ground"];
 
 /**
  * Decorative only. `hairline` draws borders and dividers, never text and never a
@@ -77,6 +87,54 @@ const DECORATIVE = ["hairline"];
  */
 const TEXT_ONLY_SURFACES = {
   "scrim-ground": ["ink"],
+
+  /*
+   * The two filled buttons while they work, and the home screen's line drawing.
+   * Spec 0004, amendments 3 and 4. All three are precomputed grounds in the same
+   * sense `scrim-ground` is: what a transparent layer composites to, written
+   * into `@theme` so it can be measured rather than asserted.
+   *
+   * They sit here rather than in SURFACES for the reason that bucket exists, but
+   * the argument differs slightly from `scrim-ground`'s and is worth writing
+   * down. `scrim-ground` carries no control at all. A busy button plainly IS a
+   * control, and stays focusable on purpose. What makes the ring minimum
+   * inapplicable is `--ring-offset`: the focus ring is drawn two pixels clear of
+   * the control, so it lands on the page behind, never on the fill. `clay as a
+   * focus ring on bone` is therefore the pairing that can actually occur, and
+   * SURFACES already measures it.
+   *
+   * That exemption is exactly the one `sketch-ground` used to hold and no longer
+   * does. It was written on the same reasoning, that the drawings reached only
+   * the hero and everything focusable there sat on an opaque card, and spec
+   * 0004's amendment 5 invalidated it by running them the whole length of the
+   * page. It is in SURFACES now. Take that as the worked example for these two:
+   * the argument is about where the thing is on screen, so it has to be re-made
+   * every time the thing moves.
+   */
+  "clay-busy-ground": ["ink"],
+  "neutral-busy-ground": ["ink"],
+};
+
+/**
+ * A colour used as a filled control's background, mapped to the ink painted on
+ * it. Spec 0004, amendment 3.
+ *
+ * This bucket exists because the palette gained a direction it did not have
+ * before. Until the filled buttons, `bone` was only ever a surface and never a
+ * text colour, so the script's "everything that is not a surface is text" rule
+ * covered the whole app. `.btn-primary` and `.btn-neutral` paint a bone label on
+ * a colour that was itself classified as text, which is the exact pairing the
+ * old model could not express and would have skipped in silence.
+ *
+ * Only the REST fills are listed, and that is deliberate rather than a gap. Both
+ * hover mixes move their fill toward `ink`, so a bone label on either can only
+ * measure better than it does at rest; if rest clears, hover clears. Both busy
+ * mixes move the other way, toward bone, which is why those two get precomputed
+ * tokens above instead of an argument.
+ */
+const CONTROL_FILLS = {
+  clay: ["bone"],
+  "ink-soft": ["bone"],
 };
 
 /** WCAG 2.2: 4.5:1 for body text, 3:1 for a non-text boundary such as a ring. */
@@ -143,6 +201,8 @@ const checkClassification = (tokens) => {
     ...DECORATIVE,
     ...Object.keys(TEXT_ONLY_SURFACES),
     ...Object.values(TEXT_ONLY_SURFACES).flat(),
+    ...Object.keys(CONTROL_FILLS),
+    ...Object.values(CONTROL_FILLS).flat(),
   ];
   const missing = named.filter((name) => !tokens.has(name));
   if (missing.length > 0)
@@ -178,6 +238,15 @@ const pairs = (tokens) => {
       inks.map((name) => ({
         what: `--color-${name} as text on --color-${surface}`,
         measured: ratio(demand(tokens, name), demand(tokens, surface)),
+        minimum: TEXT_MINIMUM,
+      })),
+    ),
+    // A filled control's label on its own fill. No ring pairing here either:
+    // --ring-offset keeps the ring off the fill. See CONTROL_FILLS above.
+    ...Object.entries(CONTROL_FILLS).flatMap(([fill, inks]) =>
+      inks.map((name) => ({
+        what: `--color-${name} as a label on the --color-${fill} fill`,
+        measured: ratio(demand(tokens, name), demand(tokens, fill)),
         minimum: TEXT_MINIMUM,
       })),
     ),

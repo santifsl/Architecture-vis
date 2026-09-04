@@ -44,7 +44,7 @@ export function AuthControl({ state }: { readonly state: AuthState }) {
         <span className="type-body text-ink">{state.user.username}</span>
         <button
           type="button"
-          className="btn-outline"
+          className="btn-primary"
           aria-busy={signingOut}
           aria-disabled={signingOut}
           onClick={() => {
@@ -62,7 +62,7 @@ export function AuthControl({ state }: { readonly state: AuthState }) {
     <div className="flex flex-col items-end">
       <button
         type="button"
-        className="btn-accent"
+        className="btn-primary"
         onClick={start}
         aria-busy={busy}
         aria-disabled={busy}

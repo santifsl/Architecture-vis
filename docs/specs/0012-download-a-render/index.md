@@ -296,6 +296,71 @@ worth learning in task 1 rather than task 7.
    that the public page, the feed, the gallery and the comparison are unchanged.
    Then run `npm run verify` in full, satisfies **AC-10**, **AC-12**
 
+## Amendments
+
+### 1. The download moves out of the plate and into the sheet's title block
+
+Made in a polish pass after this spec shipped. It was raised as a plain layout
+change with no spec conflict; it is not, and the conflict is worth naming rather
+than working around. **AC-1** says the control appears "inside that render
+plate's label row, on the same line as the model name and the state word", in as
+many words. It no longer does.
+
+**What it says now.** The download sits in a row of its own on the project
+sheet, below the rule that closes the title block and above the render, beside
+the control that changes the project's visibility. Facts about the project sit
+above that rule; the things you can do to it sit below. Everything else AC-1
+requires is unchanged: it appears on `/project/:id`, it is present when the
+render is `complete` and carries a stored `path`, and the three looks this spec
+defined (available, waiting, absent) are exactly as written. **AC-2** through
+**AC-11** and **AC-13** are untouched, and so is every line of
+`app/export/`.
+
+The button itself is now a `.btn-primary`, filled clay, under spec 0004's
+amendments 3 and 6: the render leaving the product is what this page exists to
+offer, so it is the one control on the sheet that carries the accent. Amendment 3
+also deleted `.btn-outline`, which is what this spec originally specified it as.
+
+### 2. A project's name wraps inside the sheet's column
+
+A project is named after the file somebody uploaded, so its name can be a single
+long unbroken string with nothing in it to break at, and `type-display` at
+2.5rem runs out of column quickly. It used to overflow to the right, past the
+edge of the sheet.
+
+The title takes `.sheet-title`, which is `overflow-wrap: anywhere`. `anywhere`
+rather than `break-word` because only `anywhere` lets the break count when the
+browser works out how wide the element wants to be, which is what keeps the name
+inside the column rather than letting it push the column open.
+
+The buttons are not involved. They sit in their own row below the rule and the
+name has never reached them; this is the name against the page edge, not the name
+against a control. Noted because the two look the same in a screenshot.
+
+The same defect exists on `.gallery-card-name`, from the same cause, and is not
+fixed here. See the Follow-up below.
+
+**AC-12 still holds, but on a different footing, and that is the part worth
+writing down.** This spec's guarantee that nothing appears on the public project
+page, the community feed, the gallery or the comparison rested on where the
+control was mounted: none of those surfaces mounts a `RenderPlate`. They do not
+mount `ProjectSheet` either, and `ProjectSheet` is reached only through
+`/project/:id` behind `RequireUser`, so the guarantee survives intact. But the
+reason changed, and anyone re-verifying AC-12 should check the sheet rather than
+the plate.
+
+**One tradeoff is reversed and one is created.** The `## Consequences` entry
+above accepted, knowingly, that a bordered control on the plate's label row would
+make a line spec 0004 left as two pieces of text read heavier. That cost is now
+refunded: the label row goes back to the model name and the state word, as specs
+0004 and 0007 had it. What is created in its place is a tie between the download
+and the sheet rather than between the download and a render. Spec 0007 fixed this
+app at one model, and `ProjectSheet` composes exactly one plate as a result, so
+there is one render for the button to mean. A second render model would make a
+single button in the title block ambiguous and would have to move it back beside
+its own plate. That is the condition under which this placement reopens, and it
+is the same seam spec 0007 already left open.
+
 ## Consequences
 
 **Positive**:
@@ -375,6 +440,12 @@ worth learning in task 1 rather than task 7.
   is unchanged and out of scope here.
 
 ## Follow-up
+
+- [ ] From amendment 2: a long unbroken project name will overflow its card in
+      the gallery too, since `.gallery-card-name` has the same wrapping
+      behaviour `.sheet-title` just fixed. It was left alone because this spec
+      covers the project sheet, but it is one line in `app/app.css` and worth
+      doing next time the gallery is open.
 
 - [ ] `app/export/AGENTS.md` will be needed once this is built, and root
       `CLAUDE.md`'s context file list needs a pointer line added to it. That is
